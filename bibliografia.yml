@@ -10,3 +10,24 @@ Turing38:
   location: NJ, USA
   doi: "10.1112/plms/s2-45.1.161"
 
+CNP2020Quirofanos:
+  type: Report
+  title: Uso eficiente de quirófanos electivos y gestión de lista de espera quirúrgica No GES
+  author: Comisión Nacional de Productividad
+  year: 2020
+  organization: Comisión Nacional de Productividad
+  location: Santiago, Chile
+
+JulioWY2016:
+  type: Article
+  title: Modelo de gestión de listas de espera centrado en oportunidad y justicia
+  author:
+    - Cristian Julio
+    - Patricio Wolff
+    - María Vegoña Yarza
+  page-range: 787-794
+  parent:
+    type: Periodical
+    title: Revista Médica de Chile
+    volume: 144
+    year: 2016
