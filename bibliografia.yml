@@ -31,3 +31,79 @@ JulioWY2016:
     title: Revista Médica de Chile
     volume: 144
     year: 2016
+
+PHPDocs:
+  type: Web
+  title: PHP Manual
+  author: The PHP Group
+  url: https://www.php.net/docs.php
+  date: 2026-05-18
+
+TemporalDocs:
+  type: Web
+  title: Temporal Documentation
+  author: Temporal Technologies Inc.
+  url: https://docs.temporal.io/
+  date: 2026-05-18
+
+TemporalPHPDocs:
+  type: Web
+  title: Develop Temporal Applications in PHP
+  author: Temporal Technologies Inc.
+  url: https://docs.temporal.io/develop/php
+  date: 2026-05-18
+
+Vue2Docs:
+  type: Web
+  title: Vue 2 Documentation
+  author: Vue.js
+  url: https://v2.vuejs.org/
+  date: 2026-05-18
+
+SafinaMM2015:
+  type: Article
+  title: Data-driven Workflows for Microservices
+  author:
+    - Larisa Safina
+    - Manuel Mazzara
+    - Fabrizio Montesi
+  year: 2015
+  serial-number:
+    arxiv: "1511.02597"
+  url: https://arxiv.org/abs/1511.02597
+
+SolisCK2025:
+  type: Article
+  title: "MICAAL: A Domain-Specific Language for Microservices in Ambient Assisted Living"
+  author:
+    - Wilson Valdez Solis
+    - Priscila Cedillo
+    - Attila Kertesz
+  doi: "10.1109/ACCESS.2025.3555831"
+  page-range: 56255-56272
+  parent:
+    type: Periodical
+    title: IEEE Access
+    volume: 13
+    year: 2025
+
+NadeemM2022:
+  type: Article
+  title: A Case for Microservices Orchestration Using Workflow Engines
+  author:
+    - Anas Nadeem
+    - Muhammad Zubair Malik
+  doi: "10.1145/3510455.3512777"
+  parent:
+    type: Proceedings
+    title: IEEE/ACM International Conference on Software Engineering, New Ideas and Emerging Results
+    location: Pittsburgh, Pennsylvania, USA
+    year: 2022
+
+WHO2009Checklist:
+  type: Report
+  title: Lista de verificación de la seguridad de la cirugía
+  author: Organización Mundial de la Salud
+  year: 2009
+  organization: Organización Mundial de la Salud
+  url: https://www.who.int/publications/i/item/9789241598590
