@@ -107,3 +107,10 @@ WHO2009Checklist:
   year: 2009
   organization: Organización Mundial de la Salud
   url: https://www.who.int/publications/i/item/9789241598590
+
+LahuenHealthAbout:
+  type: Web
+  title: Nuestra empresa
+  author: Lahuén Health SpA
+  url: https://www.lahuen.health/about.html
+  date: 2026-05-23
