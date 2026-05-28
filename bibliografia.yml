@@ -60,6 +60,20 @@ Vue2Docs:
   url: https://v2.vuejs.org/
   date: 2026-05-18
 
+JSONSchemaDocs:
+  type: Web
+  title: JSON Schema
+  author: JSON Schema
+  url: https://json-schema.org/
+  date: 2026-05-27
+
+JSONLogicDocs:
+  type: Web
+  title: JsonLogic
+  author: JsonLogic
+  url: https://jsonlogic.com/
+  date: 2026-05-27
+
 SafinaMM2015:
   type: Article
   title: Data-driven Workflows for Microservices

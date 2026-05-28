@@ -170,7 +170,7 @@
 
   La decisión de mantener esta separación es importante para la modernización. En lugar de concentrar toda la lógica quirúrgica en una aplicación aislada, la nueva solución se integra con los servicios existentes y utiliza mecanismos de coordinación para acciones que cruzan límites de dominio. Esto permite conservar la modularidad de la plataforma y, al mismo tiempo, disponer de puntos explícitos para ejecutar flujos de negocio.
 
-  Junto a los microservicios de dominio, la plataforma también cuenta con servicios que cumplen funciones de coordinación más específicas. Un caso relevante para el proceso quirúrgico es el servicio `hegc`, que integra información proveniente de Gestión Hospitales con servicios de Lahuén como salud, personas y agenda. Esta forma de coordinación es más imperativa y acoplada al caso de uso, pero resulta necesaria cuando el origen de datos pertenece a una plataforma separada, con base de datos y lógica propia.
+  Junto a los microservicios de dominio, la plataforma también cuenta con servicios que cumplen funciones de coordinación más específicas. Un caso relevante para el proceso quirúrgico es el servicio `hegc`, que integra información proveniente de Gestión Hospitales con servicios de Lahuén como salud, personas y agenda. Esta forma de coordinación es más imperativa y acoplada al caso de uso, pero resulta necesaria cuando el origen de datos se encuentra en una aplicación anterior de la plataforma, con base de datos, tablas y esquemas distintos a los usados por los microservicios actuales.
 
   == Arquitectura frontend: web_app, worklists y plugins
 
@@ -207,9 +207,9 @@
 
   Dentro de la solución, el microservicio BPM cumple el rol de punto de integración para procesos. Su responsabilidad no es reemplazar a todos los servicios de dominio, sino ofrecer un mecanismo común para iniciar workflows de Temporal. En términos prácticos, el frontend o un servicio de la plataforma puede solicitar la ejecución de una acción de negocio; BPM recibe la solicitud, instancia el workflow correspondiente y deja su ejecución a cargo de Temporal y de los workers registrados.
 
-  La plataforma también utiliza mecanismos de mensajería para comunicar eventos entre componentes. En los proyectos relevantes aparecen eventos de dominio asociados, por ejemplo, a cambios en citas, atenciones, indicaciones o evaluaciones. Estos eventos se publican en tópicos Kafka y contienen información suficiente para que otros componentes reaccionen sin acoplarse directamente al servicio que produjo el cambio. Por ejemplo, cuando una atención cambia de estado, el servicio de salud puede emitir un evento que informa el paciente, la atención, el tipo de atención, el estado y el tipo de operación realizada.
+  La plataforma también utiliza mecanismos de mensajería para comunicar eventos entre componentes. Los microservicios actuales emiten eventos relevantes cuando ejecutan acciones sobre entidades de negocio, por ejemplo cambios en citas, atenciones, indicaciones o evaluaciones. Estos eventos se publican como mensajes en tópicos Kafka, y Kafka se encarga de ponerlos a disposición de los consumidores interesados. De esta manera, otros componentes pueden reaccionar sin acoplarse directamente al servicio que produjo el cambio. Por ejemplo, cuando una atención cambia de estado, el servicio de salud puede emitir un evento que informa el paciente, la atención, el tipo de atención, el estado y el tipo de operación realizada.
 
-  Estos eventos pueden ser utilizados de dos maneras relevantes para este trabajo. Primero, BPM puede escuchar eventos mediante suscripciones configuradas en base de datos. Cada suscripción define el tópico, filtros y una transformación que permite iniciar un workflow de Temporal o una orquestación dinámica cuando ocurre una condición de negocio. Segundo, el servicio de eventos `sseservice` puede consumir eventos Kafka y entregarlos al frontend mediante Server-Sent Events. En la nueva lista de trabajo quirúrgica, esto permite reaccionar ante cambios en atenciones, citas, indicaciones o evaluaciones, actualizando la vista con menor latencia y mejorando la coordinación operativa.
+  Estos eventos pueden ser utilizados de dos maneras relevantes para este trabajo. Primero, BPM puede escuchar eventos mediante suscripciones configuradas en base de datos. Cada suscripción define el tópico, filtros y una transformación que permite iniciar un workflow de Temporal o una orquestación dinámica cuando ocurre una condición de negocio. Segundo, existe un servicio de SSE, sigla de Server-Sent Events, que actúa como consumidor de eventos Kafka y los entrega al frontend mediante un canal persistente. Este servicio expone un endpoint al que el navegador se conecta mediante una solicitud `GET`; desde ese momento, el servidor puede escribir mensajes en la conexión abierta. En la nueva lista de trabajo quirúrgica, SSE se utiliza para reaccionar ante cambios en atenciones, citas, indicaciones o evaluaciones, actualizando la vista con menor latencia y mejorando la coordinación operativa.
 
   Esta combinación permite separar tres tipos de comunicación. Los eventos comunican que algo ocurrió en el sistema y permiten que otros componentes reaccionen. Las suscripciones BPM convierten ciertos eventos en inicios de procesos. Los workflows, en cambio, coordinan acciones que deben ejecutarse como parte de un flujo durable. En el módulo quirúrgico estas ideas conviven: algunos cambios se publican como eventos de negocio, algunos eventos gatillan workflows y ciertas acciones críticas se ejecutan mediante orquestaciones explícitas.
 
@@ -227,9 +227,9 @@
 
   == Servicios orquestadores de dominio
 
-  No toda coordinación de la plataforma se resuelve mediante Temporal. En la arquitectura existente también hay servicios de dominio que cumplen un rol orquestador cuando deben integrar sistemas o bases de datos externas. Para el proceso quirúrgico, el caso más importante es el servicio `hegc`, que contiene lógica para relacionar Gestión Hospitales con componentes de Lahuén.
+  No toda coordinación de la plataforma se resuelve mediante Temporal. En la arquitectura existente también hay servicios de dominio que cumplen un rol orquestador cuando deben integrar aplicaciones o bases de datos con estructuras distintas. Para el proceso quirúrgico, el caso más importante es el servicio `hegc`, que contiene lógica para relacionar Gestión Hospitales con componentes actuales de Lahuén.
 
-  Gestión Hospitales es una plataforma separada, desarrollada previamente para apoyar la gestión de listas de espera. Tiene su propia base de datos y su propia lógica interna. Como la programación quirúrgica se origina en esa plataforma, iniciar el proceso quirúrgico en Lahuén requiere importar información de los pacientes programados para el día y vincularla con datos clínicos, personas, agenda y recursos. En términos arquitectónicos, esto obliga a coordinar información proveniente de Gestión Hospitales, `hlth`, `xrm` y `agenda`.
+  Gestión Hospitales es una aplicación de Lahuén desarrollada previamente para apoyar la gestión de listas de espera. Utiliza una base de datos más antigua, con tablas y esquemas distintos a los usados por los microservicios actuales. Como la programación quirúrgica electiva se registra allí, iniciar el proceso quirúrgico en la nueva lista requiere leer las órdenes programadas para el día, transformar sus datos y vincularlos con servicios como `hlth`, `xrm` y `agenda`.
 
   El servicio `hegc` resuelve este tipo de integración mediante clases PHP que llaman a otros servicios y construyen las estructuras necesarias para la plataforma. Este enfoque permite resolver integraciones específicas, como la creación de citas de agenda a partir de órdenes quirúrgicas, la finalización de una cirugía o la suspensión de una orden. Sin embargo, también tiene limitaciones: la lógica queda codificada en una clase concreta, los cambios de datos requieren modificar código y la coordinación queda más acoplada al caso de uso que en una orquestación declarativa. Por esta razón, en el desarrollo fue necesario modificar este servicio cuando cambió la forma de importar los datos quirúrgicos.
 
@@ -237,7 +237,7 @@
 
   La modernización del módulo quirúrgico se apoya en esta arquitectura para resolver un problema específico: conservar el flujo funcional de la versión anterior, pero implementarlo con una base más mantenible. En el frontend, la vista quirúrgica se construye como una aplicación Vue 2 basada en listas de trabajo y plugins. En el backend, se reutilizan microservicios PHP existentes para consultar y modificar información clínica, de agenda y de proceso. En la capa de procesos, BPM permite instanciar workflows de Temporal, ya sea mediante llamadas a su API o mediante suscripciones configuradas. Para las acciones desarrolladas en la nueva atención quirúrgica, el mecanismo usado corresponde a orquestaciones dinámicas: configuraciones almacenadas que son ejecutadas por el workflow de orquestador dinámico en Temporal.
 
-  Esta organización permite distinguir responsabilidades. La interfaz presenta pacientes, estados y acciones disponibles, y puede recibir eventos mediante `sseservice` para actualizarse oportunamente. Los microservicios de dominio ejecutan operaciones sobre datos clínicos y administrativos. Kafka comunica eventos de negocio. BPM inicia workflows directamente o como reacción a eventos. Temporal asegura la ejecución durable. Los workers procesan workflows y actividades. El workflow de orquestador dinámico interpreta las configuraciones que describen la secuencia concreta de instrucciones para cada acción quirúrgica configurable. Finalmente, el servicio `hegc` cubre integraciones específicas con Gestión Hospitales que requieren coordinar datos externos antes de incorporarlos al flujo quirúrgico.
+  Esta organización permite distinguir responsabilidades. La interfaz presenta pacientes, estados y acciones disponibles, y puede recibir eventos mediante el servicio de SSE para actualizarse oportunamente. Los microservicios de dominio ejecutan operaciones sobre datos clínicos y administrativos. Kafka comunica eventos de negocio. BPM inicia workflows directamente o como reacción a eventos. Temporal asegura la ejecución durable. Los workers procesan workflows y actividades. El workflow de orquestador dinámico interpreta las configuraciones que describen la secuencia concreta de instrucciones para cada acción quirúrgica configurable. Finalmente, el servicio `hegc` cubre integraciones específicas con Gestión Hospitales que requieren adaptar datos de una base anterior antes de incorporarlos al flujo quirúrgico modernizado.
 
   En consecuencia, la arquitectura tecnológica escogida no debe entenderse como un catálogo de herramientas, sino como una forma de separar responsabilidades que antes estaban más acopladas. Esta separación permite conservar el flujo quirúrgico existente, integrar sistemas y servicios ya disponibles, y trasladar la coordinación de acciones complejas hacia mecanismos más explícitos y mantenibles. Sobre esta base, los capítulos siguientes traducen el problema en requerimientos, diseño e implementación de la nueva solución.
 ]
@@ -269,15 +269,15 @@
 
   La tercera necesidad era coordinar acciones que involucran múltiples servicios. En el flujo quirúrgico, una acción visible para el usuario puede requerir consultar datos, actualizar una cita, crear una atención, modificar una ubicación, registrar hitos, crear tareas BPM o completar información en Gestión Hospitales. En la versión anterior, parte de esta coordinación se encontraba dentro del motor. En la nueva versión, debía existir un mecanismo capaz de ejecutar esas secuencias de forma mantenible, validando entradas y reduciendo código repetido.
 
-  La cuarta necesidad era mejorar la reactividad operacional. La lista de trabajo quirúrgica debía poder recibir eventos relevantes y actualizarse cuando cambiaran las entidades que componen la atención quirúrgica. Esto implicaba integrar el frontend con un canal persistente de eventos, implementado en la plataforma mediante `sseservice`, y mejorar los filtros para que una suscripción pudiera recibir eventos asociados a listas de valores, no solo a valores únicos.
+  La cuarta necesidad era mejorar la reactividad operacional. La lista de trabajo quirúrgica debía poder recibir eventos relevantes y actualizarse cuando cambiaran las entidades que componen la atención quirúrgica. Esto implicaba integrar el frontend con un canal persistente de eventos basado en SSE, y mejorar los filtros para que una suscripción pudiera recibir eventos asociados a listas de valores, no solo a valores únicos.
 
   La quinta necesidad era mejorar la experiencia de uso sin alterar de manera innecesaria el flujo conocido. Además de reconstruir las acciones existentes, la nueva lista de trabajo debía incorporar mejoras acotadas para apoyar situaciones operacionales concretas, como revertir un ingreso accidental a pabellón y registrar digitalmente los cuidados intraoperatorios definidos para la atención de pabellón.
 
   == Requerimientos funcionales del flujo quirúrgico
 
-  El requerimiento funcional principal fue reconstruir el flujo de atención quirúrgica sobre la nueva lista de trabajo. Esto implicaba soportar los dos orígenes principales del proceso: solicitudes de urgencia y atenciones electivas programadas. En el primer caso, el flujo comienza con una indicación quirúrgica originada desde urgencia. En el segundo, el flujo comienza con una programación proveniente de la lista de espera y de Gestión Hospitales, que debe ser importada a la Plataforma Lahuén como una cita de Agenda.
+  El requerimiento funcional principal fue reconstruir el flujo de atención quirúrgica sobre la nueva lista de trabajo. Esto implicaba soportar los dos orígenes principales del proceso: solicitudes de urgencia y atenciones electivas programadas. En el primer caso, el flujo comienza con una indicación quirúrgica originada desde urgencia. En el segundo, el flujo comienza con una orden quirúrgica programada en Gestión Hospitales, aplicación de Lahuén usada para trabajar con la lista de espera quirúrgica.
 
-  Para las atenciones electivas, se requirió importar datos desde Gestión Hospitales hacia la nueva versión. Esta importación debía transformar órdenes quirúrgicas externas en información usable por la plataforma: pacientes, profesionales, diagnósticos, intervenciones, pabellón, modalidad de atención, servicio de origen, ubicación de origen y datos administrativos de la orden. Para ello fue necesario modificar el servicio `hegc`, agregando una acción capaz de crear citas de Agenda a partir de información de Gestión Hospitales y vincular esas citas con los datos necesarios para el proceso quirúrgico.
+  Para las atenciones electivas, se requirió integrar las órdenes de Gestión Hospitales con la nueva versión del flujo. Gestión Hospitales cuenta con una base de datos anterior, orientada a la lista de espera, que contiene información de clínicos, pacientes y órdenes quirúrgicas. En particular, la tabla de órdenes contiene datos necesarios para iniciar la programación en la nueva lista, como fecha de intervención, paciente, cirujano e información asociada a la orden. Como esa estructura no corresponde al esquema actual de microservicios, se diseñó una transformación que toma las órdenes programadas para el día, adapta sus datos y crea una cita programada de atención quirúrgica en Agenda. Esta acción se expuso mediante un endpoint del servicio `hegc`, invocado periódicamente cada madrugada por un script ejecutado en uno de los servidores del hospital.
 
   Para las solicitudes de urgencia, el requerimiento fue dejar de depender de información importada a la instancia del proceso y utilizar directamente los datos de indicaciones. Antes, parte de la información de una solicitud quirúrgica podía incorporarse al flujo mediante eventos o estructuras asociadas al motor. En la nueva versión, la lista de trabajo debía leer indicaciones vigentes, extraer de ellas paciente, ubicación, intervenciones, diagnósticos y datos de origen, y convertir esa información en una representación compatible con el resto de atenciones quirúrgicas.
 
@@ -334,7 +334,7 @@
 
   La lista de trabajo quirúrgica debía reaccionar ante cambios realizados por otros componentes de la plataforma. Para ello, se requirió escuchar eventos de negocio relacionados con atenciones, indicaciones, citas y evaluaciones. Estos eventos son necesarios porque el proceso quirúrgico no ocurre solo dentro de una pantalla: un cambio puede originarse desde Agenda, EHR, HLTH, BPM, una acción de otro usuario o una integración externa.
 
-  En la práctica, la interfaz debía conectarse a un canal persistente de eventos hacia frontend. Aunque conceptualmente este requerimiento corresponde a una comunicación tipo WebSocket o tiempo real, la implementación de la plataforma se apoya en `sseservice`, que entrega eventos mediante Server-Sent Events. Lo importante desde el punto de vista del requerimiento es que la lista pueda suscribirse a eventos relevantes y actualizar la grilla cuando cambie una entidad asociada al flujo quirúrgico.
+  En la práctica, la interfaz debía conectarse a un canal persistente de eventos hacia frontend. La implementación de la plataforma se apoya en el servicio de SSE ya descrito, que consume eventos desde Kafka y permite que el navegador reciba mensajes a través de una conexión mantenida abierta. Lo importante desde el punto de vista del requerimiento es que la lista pueda suscribirse a eventos relevantes y actualizar la grilla cuando cambie una entidad asociada al flujo quirúrgico.
 
   Los filtros de eventos debían ser suficientemente expresivos para evitar recargas innecesarias. Durante el desarrollo se identificó que los filtros existentes eran limitados, porque permitían comparar contra valores únicos, pero no contra listas de valores. Para el flujo quirúrgico esto era insuficiente: una lista de trabajo puede necesitar escuchar varios pacientes, varias citas, varias atenciones o varios tipos de eventos. Por ello se incorporó como requerimiento que el servicio de eventos permitiera filtros con listas, de modo que un cliente pudiera recibir eventos que coincidieran con cualquiera de los valores relevantes.
 
@@ -368,7 +368,7 @@
 
   La extensibilidad también era esencial. El módulo quirúrgico debía quedar preparado para incorporar nuevos estados, acciones, formularios, eventos o integraciones. Esto se relaciona con el uso de registros de estados y acciones en frontend, con la capacidad del orquestador dinámico para ejecutar nuevas definiciones y con la reutilización de componentes compartidos de la plataforma.
 
-  La interoperabilidad fue otro requisito clave. La solución debía integrarse con Gestión Hospitales, Agenda, HLTH, EHR, BPM, Temporal, `sseservice` y los mecanismos de eventos de la plataforma. Esta integración debía hacerse sin concentrar toda la lógica en un único componente, respetando las responsabilidades de cada servicio.
+  La interoperabilidad fue otro requisito clave. La solución debía integrarse con Gestión Hospitales, Agenda, HLTH, EHR, BPM, Temporal, el servicio de SSE y los mecanismos de eventos de la plataforma. Esta integración debía hacerse sin concentrar toda la lógica en un único componente, respetando las responsabilidades de cada servicio.
 
   La trazabilidad debía mejorar respecto de la versión anterior, especialmente en el registro de fechas y horas de hitos relevantes del proceso. El sistema debía conservar información sobre recepción, ingreso a pabellón, hitos de anestesia y cirugía, recuperación, traslado, egreso y otros momentos clínico-operativos. Esta trazabilidad permite reconstruir el recorrido del paciente y apoyar análisis posteriores. Sin embargo, el alcance del trabajo no resuelve completamente toda la auditoría posible del proceso. Aún existen mejoras futuras, como registrar de manera más sistemática quién ejecuta cada acción y cubrir hitos que se producen como reacción a eventos y no siempre quedan guardados con el mismo nivel de detalle.
 
@@ -412,7 +412,7 @@
 
   Una vez que el caso aparece en la lista de trabajo, el usuario interactúa con acciones disponibles según el estado del paciente. Algunas acciones son simples y pueden resolverse mediante una llamada directa a un servicio. Otras requieren coordinar varias operaciones, como consultar datos, crear o actualizar una cita, iniciar una atención, cambiar ubicación, registrar hitos o crear tareas. Para estas acciones, el diseño utiliza orquestaciones dinámicas ejecutadas a través de BPM y Temporal. De este modo, la interfaz inicia la acción, pero no queda acoplada a la secuencia exacta de pasos técnicos.
 
-  La solución también incorpora eventos como mecanismo de actualización. Cuando cambian citas, indicaciones, atenciones o evaluaciones, los servicios de la plataforma pueden emitir eventos de negocio. Estos eventos son consumidos por el servicio `sseservice`, que los entrega al frontend para actualizar la lista de trabajo, y por BPM, que puede iniciar orquestaciones cuando se cumple una condición. Así, el flujo no depende exclusivamente de acciones manuales realizadas en una pantalla, sino que puede reaccionar ante cambios producidos en otros componentes de la plataforma.
+  La solución también incorpora eventos como mecanismo de actualización. Cuando cambian citas, indicaciones, atenciones o evaluaciones, los servicios de la plataforma pueden emitir eventos de negocio hacia Kafka. Estos eventos pueden ser consumidos por BPM, que inicia orquestaciones cuando se cumple una condición, y por el servicio de SSE, que los entrega al frontend para actualizar la lista de trabajo. Así, el flujo no depende exclusivamente de acciones manuales realizadas en una pantalla, sino que puede reaccionar ante cambios producidos en otros componentes de la plataforma.
 
   == Entradas del flujo quirúrgico
 
@@ -420,7 +420,7 @@
 
   Para solicitudes de urgencia, la entrada principal es una indicación quirúrgica. La lista de trabajo consulta indicaciones relevantes, obtiene datos del paciente, ubicación, intervenciones y diagnósticos, y construye una atención quirúrgica en estado solicitado. Desde ese estado, el usuario puede aceptar la orden. La aceptación transforma la solicitud en una cita quirúrgica de urgencia y deja al caso preparado para continuar el flujo operativo. Este diseño evita importar la solicitud a una instancia opaca de proceso y permite que la información clínica provenga directamente de la entidad que la origina.
 
-  Para cirugías electivas, la entrada principal es una orden proveniente de Gestión Hospitales. Como ese sistema no pertenece directamente a la Plataforma Lahuén, se diseñó una acción en el servicio `hegc` capaz de importar la información necesaria y crear una cita de Agenda. Esta cita representa la cirugía programada dentro de Lahuén. La importación considera datos del paciente, profesional responsable, pabellón, intervención, diagnóstico, modalidad de atención, servicio de origen, ubicación de origen y datos administrativos de la orden. De esta manera, la programación electiva queda disponible para el flujo quirúrgico sin depender de una instancia del motor de procesos propietario.
+  Para cirugías electivas, la entrada principal es una orden proveniente de Gestión Hospitales. Como esta aplicación utiliza una base de datos anterior a la arquitectura actual de microservicios, se diseñó una acción en el servicio `hegc` capaz de leer la información necesaria, transformarla y crear una cita de Agenda. Esta cita representa la cirugía programada dentro del nuevo flujo. La transformación considera datos del paciente, profesional responsable, pabellón, intervención, diagnóstico, modalidad de atención, servicio de origen, ubicación de origen y datos administrativos de la orden. De esta manera, la programación electiva queda disponible para el flujo quirúrgico sin depender de una instancia del motor de procesos propietario.
 
   La tercera fuente son las atenciones de pacientes ya iniciadas. Una vez que un paciente es recepcionado o su atención quirúrgica está en curso, la información principal deja de ser solo una indicación o una cita y pasa a estar representada en una atención clínica del dominio HLTH. Esta atención almacena estado, ubicación, hitos, evaluaciones asociadas y datos extendidos del proceso quirúrgico. Por ello, la lista de trabajo debe combinar las tres fuentes: indicaciones, citas y atenciones.
 
@@ -482,17 +482,19 @@
 
   La decisión de usar orquestaciones dinámicas también reduce repetición. Muchas acciones siguen un patrón similar: recibir datos desde la interfaz, consultar contexto, ejecutar una actualización y registrar resultado. Al definir este patrón como configuración, el sistema puede extenderse con nuevas acciones sin duplicar excesivamente código de coordinación.
 
+  Una consecuencia importante de este diseño es que la ejecución de las orquestaciones es asincrónica. Cuando el frontend solicita a BPM iniciar una orquestación, la llamada a la API confirma que el workflow fue instanciado, pero no necesariamente que todas las actividades de la orquestación hayan finalizado. Esto es relevante para la lista de trabajo, porque el usuario espera ver el resultado de la acción sobre la fila del paciente y no solo saber que la solicitud fue recibida. Para abordar esta diferencia, el diseño se apoya en los eventos emitidos por los servicios de dominio: a medida que las actividades actualizan citas, atenciones, traslados o evaluaciones, esos cambios generan eventos que son recibidos por la interfaz y permiten refrescar oportunamente la información mostrada.
+
   == Eventos y actualización de la lista de trabajo
 
   El diseño considera que la lista de trabajo debe mantenerse sincronizada con cambios que no siempre ocurren desde la propia pantalla. Para ello se integran eventos de dominio emitidos por servicios de la plataforma. Estos eventos pueden provenir de cambios en indicaciones, citas, atenciones, traslados o evaluaciones.
 
-  En el frontend, `sseservice` actúa como puente entre eventos de Kafka y la lista de trabajo. La aplicación se suscribe a eventos relevantes y, cuando recibe un evento que coincide con sus filtros, actualiza la información de la grilla. Para evitar recargas innecesarias, el diseño incorpora filtros por entidad y la posibilidad de usar listas de valores. También se considera un debounce de actualización, de modo que múltiples eventos cercanos no provoquen una recarga por cada mensaje recibido.
+  En el frontend, el servicio de SSE actúa como puente entre eventos de Kafka y la lista de trabajo. La aplicación se suscribe mediante `EventSource` al endpoint expuesto por este servicio y envía filtros para recibir solo los eventos relevantes para la vista. Cuando llega un evento que cumple con esos filtros, la lista actualiza la información de la grilla. Para evitar recargas innecesarias, el diseño incorpora filtros por entidad y la posibilidad de usar listas de valores. También se considera un debounce de actualización, de modo que múltiples eventos cercanos no provoquen una recarga por cada mensaje recibido.
 
-  En backend, los eventos también pueden activar suscripciones BPM. Este mecanismo permite que ciertos cambios disparen orquestaciones automáticas. Por ejemplo, la creación de una atención quirúrgica puede generar una tarea BPM para completar el protocolo; la creación del protocolo puede completar esa tarea y operar una orden en Gestión Hospitales; la finalización de un traslado puede finalizar la atención quirúrgica; y la finalización de una atención puede actualizar sistemas externos. Estos comportamientos permiten que parte del flujo avance como reacción a eventos, no solo por acciones directas de usuario.
+  En backend, los eventos también pueden activar suscripciones BPM. Este mecanismo permite que ciertos cambios disparen orquestaciones automáticas. Por ejemplo, la creación de una atención quirúrgica puede generar una tarea BPM para completar el protocolo; la creación del protocolo puede completar esa tarea y operar una orden en Gestión Hospitales; la finalización de un traslado puede finalizar la atención quirúrgica; y la finalización de una atención puede actualizar sistemas relacionados. Estos comportamientos permiten que parte del flujo avance como reacción a eventos, no solo por acciones directas de usuario.
 
   == Integración con Gestión Hospitales y Agenda
 
-  La integración con Gestión Hospitales se diseñó como una pieza específica del flujo electivo. Dado que la programación quirúrgica electiva se origina fuera de Lahuén, el sistema necesita importar esa información antes de que pueda operar en la nueva lista quirúrgica. El servicio `hegc` cumple este rol, coordinando la lectura de datos externos y la creación de citas en Agenda.
+  La integración con Gestión Hospitales se diseñó como una pieza específica del flujo electivo. Dado que la programación quirúrgica electiva se registra en una base de datos anterior, con estructuras distintas a las de los microservicios actuales, el sistema necesita transformar esa información antes de que pueda operar en la nueva lista quirúrgica. El servicio `hegc` cumple este rol, coordinando la lectura de órdenes quirúrgicas y la creación de citas en Agenda.
 
   Agenda se convierte en la entidad que representa la programación quirúrgica dentro de la plataforma. Para ello, el diseño considera tipos de cita para intervención quirúrgica de urgencia y electiva, participantes asociados a paciente, clínico y pabellón, referencias externas hacia el origen de los datos y datos extendidos para información propia del proceso quirúrgico. Esto permite que una cirugía programada pueda verse, reagendarse, suspenderse, iniciarse o relacionarse con una atención clínica.
 
@@ -514,6 +516,162 @@
 ]
 
 #capitulo(title: "Implementación")[
+  Este capítulo describe cómo se materializó el diseño presentado anteriormente. La implementación combinó cambios en la aplicación frontend, ajustes en microservicios existentes, configuraciones de datos, integración con Gestión Hospitales, uso de BPM y Temporal, definición de orquestaciones dinámicas y suscripciones a eventos. El objetivo no fue construir un sistema aislado, sino incorporar el nuevo flujo quirúrgico dentro de la arquitectura vigente de la Plataforma Lahuén.
+
+  La implementación se realizó de manera incremental. Primero se construyó una lista de trabajo capaz de mostrar casos quirúrgicos desde fuentes distintas. Luego se agregaron acciones clínicas y operacionales, se integraron formularios, se incorporaron eventos para actualización de la grilla y se definieron orquestaciones para las acciones que requerían coordinar varios servicios. Finalmente, se conectó el flujo electivo con Gestión Hospitales y Agenda, permitiendo que las programaciones quirúrgicas ingresaran al nuevo módulo.
+
+  == Implementación frontend
+
+  La nueva vista quirúrgica se implementó dentro de la arquitectura frontend de la plataforma, basada en una aplicación contenedora, listas de trabajo y plugins. En esta organización, la aplicación provee la infraestructura común de carga, navegación y servicios compartidos; la lista de trabajo entrega la estructura base para filtros, grilla y acciones; y el plugin quirúrgico contiene la lógica específica del proceso de pabellón.
+
+  La implementación se apoyó en Vue 2 y componentes reutilizables de la plataforma. La pantalla principal se organizó alrededor de una grilla de pacientes quirúrgicos, filtros operacionales, columnas configuradas para el dominio y un conjunto de acciones disponibles según el estado de cada fila. Esta estructura permitió reemplazar una interfaz más acoplada por una implementación donde el estado, las acciones, los adaptadores y los componentes visuales quedan separados.
+
+  Uno de los elementos centrales fue el modelo de atención quirúrgica usado por el frontend. Este modelo adapta información proveniente de indicaciones, citas de Agenda y atenciones clínicas para exponerla como una fila homogénea. La fila contiene datos del paciente, programación, ubicación, intervenciones, diagnósticos, evaluaciones, estado, origen del caso e identificadores necesarios para ejecutar acciones. Gracias a esta capa de adaptación, la grilla puede mostrar casos solicitados, programados o ya iniciados sin que el usuario deba distinguir la estructura técnica de cada fuente.
+
+  Para construir ese modelo se implementaron adaptadores específicos. Las indicaciones quirúrgicas permiten representar solicitudes de urgencia. Las citas de Agenda permiten representar cirugías electivas o de urgencia ya programadas. Las atenciones clínicas permiten representar pacientes cuyo flujo quirúrgico ya fue iniciado. Cada adaptador normaliza datos, resuelve campos faltantes cuando corresponde y conserva referencias necesarias para operar sobre la entidad original.
+
+  También se implementó un registro explícito de estados y acciones. Cada estado define su etiqueta, orden, presentación visual y acciones disponibles. Las acciones, por su parte, encapsulan la interacción con el usuario y la operación posterior: abrir un modal, solicitar confirmación, cargar datos, invocar un servicio, llamar a BPM o abrir otra aplicación. Esta organización redujo la necesidad de condicionales dispersos en la grilla y facilitó agregar nuevas acciones sin modificar toda la pantalla.
+
+  La grilla fue ajustada para priorizar información operacional. Las columnas de programación, estado, ubicación e intervenciones concentran la información necesaria para la coordinación de pabellón. Se incorporó soporte para nombre social, mejor presentación de intervenciones y diagnósticos, ordenamiento de filas según estados relevantes, mensajes operacionales más claros y agrupación de acciones secundarias para no saturar la interfaz. Además, se adaptó la apariencia visual al entorno hospitalario donde se utilizó la solución, incluyendo colores, logo, banner y estilos de la institución.
+
+  == Acciones implementadas en la lista de trabajo
+
+  La lista de trabajo incorporó acciones para cubrir el flujo de urgencia y el flujo electivo. Entre las acciones principales se implementaron aceptar orden de urgencia, recepcionar paciente, ingresar a pabellón, iniciar anestesia, iniciar cirugía, finalizar cirugía, finalizar anestesia, iniciar recuperación, finalizar recuperación, iniciar traslado, devolver a unidad de origen, egresar paciente, suspender, reagendar, cambiar ubicación, revertir ingreso a pabellón, imprimir brazalete, abrir ficha clínica y cargar evaluaciones.
+
+  Las acciones no se implementaron todas de la misma forma. Algunas son directas y se resuelven con una llamada simple a un servicio o con la apertura de una pantalla existente. Otras requieren obtener contexto, validar condiciones, modificar más de una entidad y registrar hitos. En esos casos, la implementación del frontend delega la coordinación a BPM y a las orquestaciones dinámicas. Así, la interfaz se mantiene centrada en la interacción clínica, mientras la secuencia técnica queda fuera de la capa visual.
+
+  Las acciones intraoperatorias se implementaron como hitos del proceso. Iniciar anestesia, iniciar cirugía, finalizar cirugía y finalizar anestesia actualizan datos asociados a la atención quirúrgica y permiten mostrar tiempos relevantes en la grilla o en secciones de detalle. Esto permite observar el avance del caso dentro de pabellón sin depender de una instancia externa de proceso como única fuente de estado.
+
+  Para los formularios clínicos se integró la carga de evaluaciones desde EHR. La lista de trabajo permite abrir acciones para registrar o actualizar evaluación preanestésica, pausas quirúrgicas, protocolo quirúrgico y cuidados intraoperatorios. Estas evaluaciones conservan su almacenamiento en la ficha clínica, pero quedan accesibles desde el flujo quirúrgico. En el caso del protocolo quirúrgico, además se incorporó la posibilidad de abrir el PDF cuando el documento ya existe.
+
+  == Implementación backend y datos de dominio
+
+  En backend, la implementación se apoyó principalmente en microservicios PHP existentes. No se creó un backend monolítico específico para el módulo quirúrgico; en cambio, se extendieron servicios de dominio y configuraciones para representar el proceso con entidades actuales de la plataforma.
+
+  Agenda se utilizó para representar programaciones quirúrgicas. Para ello se configuraron tipos de cita asociados a intervención quirúrgica de urgencia y electiva. Las citas almacenan participantes, referencias externas y datos extendidos necesarios para el proceso de pabellón. Esto permite distinguir la programación de la atención clínica efectiva: antes de recepcionar al paciente puede existir una cita programada; luego, al iniciar el flujo, la atención clínica pasa a ser la entidad principal.
+
+  HLTH se utilizó para representar la atención clínica y los cambios de estado asociados al proceso. La información quirúrgica específica se almacenó como datos extendidos de la atención, incluyendo estado del flujo, hitos, ubicación de origen, responsable, datos de suspensión y otras propiedades necesarias para reconstruir la fila de la lista de trabajo. Este enfoque permite que el estado operacional pueda ser consultado sin depender de la memoria de una ejecución de workflow.
+
+  También se configuraron y ajustaron tipos de evaluación, permisos y estructuras clínicas necesarias para los documentos del proceso. La evaluación preanestésica, el protocolo quirúrgico, las pausas quirúrgicas y los cuidados intraoperatorios se incorporaron como evaluaciones disponibles para el flujo. En particular, las pausas quirúrgicas se implementaron como registros estructurados por secciones, y los cuidados intraoperatorios como una evaluación adicional que permite registrar información definida para la atención en pabellón.
+
+  == Integración con Gestión Hospitales
+
+  La integración con Gestión Hospitales se implementó como parte del flujo electivo. Gestión Hospitales contiene información de lista de espera y órdenes quirúrgicas en una base de datos anterior a la arquitectura actual de microservicios, por lo que la información no podía ser utilizada directamente por la nueva lista de trabajo. Para resolverlo se modificó el servicio `hegc`, encargado de coordinar la lectura y transformación de esos datos.
+
+  La implementación permite obtener órdenes quirúrgicas programadas para el día, transformar sus datos y crear citas en Agenda. Durante esta transformación se consideran datos del paciente, profesional responsable, pabellón, fecha de intervención, diagnósticos, procedimientos, modalidad de atención, origen de la orden y referencias necesarias para mantener relación con Gestión Hospitales. El resultado de la importación es una cita quirúrgica electiva que puede ser mostrada y operada por la nueva lista de trabajo.
+
+  Esta integración se ejecuta mediante un script programado en uno de los servidores del hospital, el cual invoca periódicamente un endpoint del servicio `hegc`. El servicio realiza la coordinación con la base de datos de Gestión Hospitales y los servicios actuales de la plataforma. De esta forma, las programaciones electivas ingresan al flujo sin que la lista de trabajo tenga que conectarse directamente a estructuras antiguas.
+
+  La implementación también dejó preparada la relación posterior con Gestión Hospitales. Cuando se registra el protocolo quirúrgico o finaliza una atención quirúrgica, ciertas suscripciones y orquestaciones permiten operar información asociada a la orden de origen. Esto mantiene la integración acotada a componentes backend y evita que el frontend concentre reglas de sincronización entre sistemas.
+
+  == Integración con BPM y Temporal
+
+  Las acciones complejas del flujo se integraron con el microservicio BPM. Para iniciar una orquestación dinámica, el frontend invoca una API de BPM indicando el identificador de la orquestación y los parámetros de entrada. BPM valida la solicitud, carga la definición correspondiente y crea una instancia de workflow en Temporal.
+
+  El endpoint utilizado para este propósito sigue la forma `POST /bpm/dynamic-orchestrations/{id}`. El identificador de la ruta indica qué orquestación debe ejecutarse, mientras el cuerpo de la solicitud contiene los parámetros necesarios para esa acción. Por ejemplo, una acción puede enviar identificadores de cita, atención, paciente, profesional, ubicación o datos de suspensión. BPM no ejecuta directamente todos los pasos de negocio en la misma llamada HTTP; su responsabilidad es iniciar la ejecución del workflow correspondiente.
+
+  Temporal entrega el runtime durable para ejecutar workflows y actividades. En esta implementación, el orquestador dinámico se ejecuta como un workflow de Temporal y sus pasos se procesan mediante workers registrados para tal fin. Esto permite conservar historial de ejecución, manejar reintentos y desacoplar la solicitud inicial de la ejecución completa de la secuencia.
+
+  Como la ejecución es asincrónica, la respuesta inmediata de BPM confirma la instanciación del workflow, no necesariamente el término de todas las actividades. Por ello, la actualización visible para el usuario se apoya en eventos de dominio. Cuando las actividades modifican citas, atenciones, traslados o evaluaciones, los servicios involucrados pueden emitir eventos que luego son recibidos por la lista de trabajo a través del servicio de SSE.
+
+  == Implementación del orquestador dinámico
+
+  El orquestador dinámico se implementó como un mecanismo declarativo para coordinar secuencias de actividades. Cada orquestación se almacena con un identificador, una descripción, un esquema de parámetros y una lista de actividades. Las estructuras principales son `dynamic_orchestration`, `dorch_param_schema` y `dorch_activities`.
+
+  El campo `dorch_param_schema` define un JSON Schema, estándar usado para describir y validar la estructura de documentos JSON @JSONSchemaDocs. En este caso, se utiliza para validar los parámetros recibidos antes de ejecutar la orquestación. Esta validación permite detectar entradas incompletas o con tipos incorrectos antes de iniciar llamadas a servicios. En las definiciones se utiliza una política restrictiva de parámetros, de modo que la orquestación reciba solo los datos esperados para la acción.
+
+  El campo `dorch_activities` contiene una lista ordenada de actividades. Las actividades más comunes corresponden a llamadas HTTP hacia servicios de la plataforma. Cada actividad puede definir método, URL, parámetros de ruta, query params, cuerpo, headers y opciones. También se implementaron actividades de asignación, que permiten guardar valores intermedios obtenidos desde parámetros de entrada o respuestas anteriores.
+
+  Una característica importante es el mapeo de datos. Una actividad puede construir su URL o su cuerpo leyendo datos desde los parámetros iniciales o desde respuestas previas mediante expresiones de ruta. Esto permite encadenar pasos sin escribir código específico para cada combinación de servicios. Por ejemplo, una actividad puede consultar una cita, otra puede extraer el paciente o el profesional desde esa respuesta y una tercera puede iniciar una atención usando esos valores.
+
+  Las actividades también pueden incluir condiciones de ejecución mediante `when`. Estas condiciones se expresan usando reglas compatibles con JsonLogic, un formato para representar lógica sobre datos mediante objetos JSON @JSONLogicDocs. En el orquestador dinámico, esto permite saltar pasos cuando no se cumple una regla, por ejemplo ejecutar una actualización solo si existe una transferencia pendiente, finalizar una atención solo si se encuentra en un estado determinado o derivar la ejecución hacia una orquestación distinta según el origen del caso. Con esto, la misma infraestructura puede resolver variaciones del flujo sin duplicar workflows completos.
+
+  El siguiente fragmento ilustra la forma simplificada de una definición. No corresponde a una configuración completa, sino a una representación reducida de la estructura usada para validar entrada, obtener contexto, guardar una variable intermedia y ejecutar una actualización condicional.
+
+  ```json
+  {
+    "dorch_description": "Pabellón - Acción de ejemplo",
+    "dorch_param_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "patientServiceId": { "type": "integer" },
+        "fechaInicio": { "type": "string" }
+      },
+      "required": ["patientServiceId", "fechaInicio"]
+    },
+    "dorch_activities": [
+      {
+        "method": "GET",
+        "url": "https://api.lahuen.health/hlth/patient-services/{{id}}",
+        "url_data": {
+          "id": { "path": "$.patientServiceId" }
+        }
+      },
+      {
+        "type": "assignment",
+        "assign": {
+          "stateId": { "path": "$._responses[0].state.id" }
+        }
+      },
+      {
+        "method": "PATCH",
+        "url": "https://api.lahuen.health/hlth/patient-services/{{id}}/ext/pabellon",
+        "url_data": {
+          "id": { "path": "$.patientServiceId" }
+        },
+        "body": {
+          "hitos": {
+            "fechaInicio": { "path": "$.fechaInicio" }
+          }
+        },
+        "when": { "!=": [ { "var": "stateId" }, null ] }
+      }
+    ]
+  }
+  ```
+
+  Durante la ejecución, el workflow procesa las actividades de manera secuencial. Cada respuesta queda disponible para pasos posteriores. Si una actividad falla, el error se propaga dentro del contexto de ejecución de Temporal, permitiendo conservar el historial y aplicar el comportamiento de reintento configurado para las actividades. Esta característica fue relevante para acciones que dependen de varios servicios, porque evita dejar la lógica de coordinación distribuida entre múltiples componentes frontend.
+
+  == Orquestaciones dinámicas del flujo quirúrgico
+
+  Sobre el orquestador dinámico se configuraron acciones concretas del flujo quirúrgico. Una de ellas es aceptar orden de urgencia, que obtiene datos de la indicación quirúrgica y crea una cita asociada en Agenda. Esta acción transforma una solicitud clínica en una programación operable por la lista de trabajo.
+
+  La recepción del paciente se implementó considerando diferencias entre urgencia y electivo. En urgencia, la orquestación debe iniciar la indicación y la cita asociada, obtener la atención resultante y registrar datos del proceso quirúrgico. En electivo, la orquestación opera sobre una cita programada proveniente de Agenda, crea o relaciona la atención clínica correspondiente y conserva la información necesaria para continuar el flujo. Para manejar esta diferencia se usó una orquestación de derivación que, según el origen del caso, inicia la definición específica para urgencia o electivo.
+
+  La suspensión se implementó como una secuencia que puede cancelar una cita, registrar causa y subcausa, actualizar datos extendidos de la atención y cerrar elementos asociados cuando corresponde. Esta acción requería tratar de manera distinta casos que solo tenían cita y casos que ya tenían atención iniciada, por lo que resultaba adecuada para una definición con pasos condicionales.
+
+  Finalizar recuperación se implementó como una orquestación que consulta la atención, revisa si existe traslado pendiente, evalúa condiciones como modalidad ambulatoria y actualiza el estado posterior del paciente. Según el caso, el resultado puede dejar al paciente esperando alta, esperando traslado o esperando egreso. Esta lógica habría sido difícil de mantener si quedara repartida en la interfaz, porque depende de datos clínicos y operacionales obtenidos desde más de una fuente.
+
+  También se configuraron orquestaciones para iniciar traslado, devolver a unidad de origen y finalizar atención quirúrgica. Estas acciones actualizan transferencias, hitos y estados del proceso, conectando el flujo de pabellón con el flujo asistencial general de la plataforma.
+
+  Además, se implementaron orquestaciones relacionadas con tareas BPM y protocolo quirúrgico. Al crearse una atención quirúrgica, una suscripción puede generar una tarea para completar el protocolo. Al guardarse el protocolo, otra orquestación puede completar la tarea correspondiente y operar información asociada a Gestión Hospitales. Estas automatizaciones permiten que la ejecución del flujo no dependa exclusivamente de que el usuario recuerde cada acción administrativa posterior.
+
+  == Eventos, suscripciones BPM y SSE
+
+  La implementación incorporó eventos en dos niveles. El primer nivel corresponde a eventos de dominio emitidos por microservicios cuando cambian entidades relevantes, como atenciones, citas, evaluaciones o traslados. Estos eventos se publican en Kafka y permiten que otros componentes reaccionen sin invocar directamente al servicio que produjo el cambio.
+
+  El segundo nivel corresponde a suscripciones configuradas en BPM. Estas suscripciones observan tópicos y aplican filtros para decidir cuándo iniciar una orquestación. En el flujo quirúrgico se configuraron suscripciones para casos como creación de atención quirúrgica, guardado de protocolo, finalización de traslado y finalización de atención. Cada suscripción transforma el evento recibido en parámetros para una orquestación dinámica específica.
+
+  Este mecanismo se usó, por ejemplo, para crear la tarea de completar protocolo cuando se crea una atención quirúrgica, completar esa tarea cuando se guarda el protocolo, operar información en Gestión Hospitales al guardar el protocolo o al finalizar la atención, y finalizar la atención quirúrgica cuando se completa un traslado relevante. La lógica de reacción queda así expresada como configuración de BPM y no como llamadas directas desde la lista de trabajo.
+
+  Para la actualización de la interfaz se integró el servicio de SSE. SSE significa Server-Sent Events y corresponde a un mecanismo en que el navegador mantiene una conexión abierta con el servidor para recibir mensajes enviados desde backend. En esta plataforma, el servicio de SSE consume eventos desde Kafka y los entrega a clientes frontend suscritos. La lista de trabajo quirúrgica se conecta mediante `EventSource`, envía filtros de interés y actualiza la grilla cuando recibe eventos relacionados con las entidades que muestra.
+
+  Durante la implementación se ajustaron los filtros para permitir listas de valores y reducir eventos irrelevantes. También se incorporó un debounce configurable para evitar que múltiples eventos cercanos generen recargas excesivas de la grilla. Esto fue necesario porque una acción orquestada puede modificar más de una entidad y producir varios eventos en poco tiempo.
+
+  == Manejo de errores y consistencia operacional
+
+  La implementación debió considerar que el flujo quirúrgico opera sobre varios servicios y que algunas acciones son asincrónicas. Por ello, la interfaz muestra mensajes de confirmación, advertencia o error según el resultado inmediato de la solicitud, pero la consistencia final de la grilla depende de la lectura posterior de las entidades actualizadas y de los eventos recibidos.
+
+  En el frontend se reforzó el manejo de errores en acciones, adaptadores y carga de datos. Cuando una acción requiere parámetros obligatorios, el formulario o modal correspondiente evita enviar solicitudes incompletas. En backend, las orquestaciones dinámicas validan sus parámetros con JSON Schema antes de ejecutar actividades. Esto permite detectar errores de entrada en una etapa temprana.
+
+  Las acciones que modifican estados relevantes registran hitos en datos persistidos. Esta decisión ayuda a reconstruir el estado de una atención aunque el workflow ya haya terminado. Sin embargo, como se indicó en el diseño, la auditoría completa de responsables no quedó resuelta homogéneamente para todos los hitos. La implementación priorizó fechas y estado operacional, dejando la consolidación de auditoría como mejora futura.
+
+  == Resultado de la implementación
+
+  Como resultado, el módulo quirúrgico quedó implementado sobre componentes más mantenibles que los de la versión anterior. La interfaz se organiza como lista de trabajo y plugin especializado; los servicios de dominio almacenan programación, atención, evaluaciones e hitos; BPM y Temporal coordinan acciones complejas; el orquestador dinámico permite definir secuencias reutilizables; los eventos actualizan la lista y disparan automatizaciones; y `hegc` integra las programaciones electivas provenientes de Gestión Hospitales.
+
+  Esta implementación conserva el flujo clínico-operativo existente, pero cambia la forma técnica de ejecutarlo. El estado del proceso deja de depender principalmente de una instancia del motor de procesos propietario y pasa a estar respaldado por entidades de dominio, datos extendidos, eventos y orquestaciones acotadas. Con ello se logra una base más modular para operar, mantener y extender el módulo de atención quirúrgica.
 ]
 
 #capitulo(title: "Evaluación y validación")[
