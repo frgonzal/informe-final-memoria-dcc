@@ -245,7 +245,7 @@
 #capitulo(title: "Análisis del problema y requerimientos")[
   Este capítulo traduce la situación descrita en los capítulos anteriores en un conjunto de necesidades concretas para la nueva versión del módulo de atención quirúrgica. El problema abordado no corresponde a la ausencia de un flujo quirúrgico, sino a la necesidad de reconstruir un flujo ya validado sobre una base técnica más mantenible, más integrada con la plataforma actual y capaz de reaccionar oportunamente a los cambios que ocurren durante la operación clínica.
 
-  La definición de requerimientos se realizó durante el desarrollo del proyecto, en reuniones de trabajo con los supervisores. Uno de ellos cumplía un rol principalmente técnico y conocía tanto la plataforma como el flujo quirúrgico anterior; el otro aportaba una visión más cercana al negocio y al funcionamiento operativo del proceso. A partir de reuniones de avance, discusiones técnicas y revisión de cada problema funcional, se fueron definiendo las tareas necesarias para reconstruir partes del flujo anterior con herramientas nuevas. En este sentido, los requerimientos no surgieron como una revisión posterior del código desarrollado, sino como acuerdos progresivos de trabajo que guiaron la implementación diaria.
+  La definición de requerimientos se realizó durante el desarrollo del proyecto, mediante reuniones de trabajo con los supervisores. Uno de ellos cumplía un rol principalmente técnico y conocía tanto la plataforma como el flujo quirúrgico anterior; el otro aportaba una visión más cercana al negocio y al funcionamiento operativo del proceso. A partir de reuniones de avance, discusiones técnicas y revisión de cada problema funcional, se definieron las tareas necesarias para reconstruir partes del flujo anterior con herramientas nuevas y para resolver las brechas que aparecían al adaptar el proceso a la arquitectura actual de la plataforma.
 
   == Problema actual
 
@@ -271,7 +271,7 @@
 
   La cuarta necesidad era mejorar la reactividad operacional. La lista de trabajo quirúrgica debía poder recibir eventos relevantes y actualizarse cuando cambiaran las entidades que componen la atención quirúrgica. Esto implicaba integrar el frontend con un canal persistente de eventos, implementado en la plataforma mediante `sseservice`, y mejorar los filtros para que una suscripción pudiera recibir eventos asociados a listas de valores, no solo a valores únicos.
 
-  La quinta necesidad era mejorar la experiencia de uso sin alterar de manera innecesaria el flujo conocido. Además de reconstruir las acciones existentes, la nueva lista de trabajo debía incorporar mejoras acotadas que ayudaran a los usuarios en situaciones operacionales concretas. Entre ellas se consideraron la posibilidad de revertir un ingreso accidental a pabellón y el registro digital de cuidados intraoperatorios desde el mismo flujo de trabajo. Esta última necesidad fue definida por el hospital, que requería completar esa información durante la atención y evitar depender de formularios en papel para registrarla. Estas capacidades no correspondían al núcleo histórico del proceso, pero sí permitían hacer más útil la nueva versión para el trabajo diario de los equipos clínicos.
+  La quinta necesidad era mejorar la experiencia de uso sin alterar de manera innecesaria el flujo conocido. Además de reconstruir las acciones existentes, la nueva lista de trabajo debía incorporar mejoras acotadas para apoyar situaciones operacionales concretas, como revertir un ingreso accidental a pabellón y registrar digitalmente los cuidados intraoperatorios definidos para la atención de pabellón.
 
   == Requerimientos funcionales del flujo quirúrgico
 
@@ -360,7 +360,7 @@
 
   Los mensajes de confirmación y error debían ser operacionales. En una interfaz clínica, mostrar respuestas técnicas de API puede confundir al usuario y dificultar la resolución de problemas. Por ello se requirió entregar mensajes orientados a la acción, indicando qué ocurrió, qué no se pudo realizar y, cuando corresponde, qué paciente, ubicación o etapa está involucrada.
 
-  Algunas capacidades nuevas responden directamente a requerimientos de experiencia de usuario y apoyo operacional. La acción de revertir ingreso a pabellón permite corregir un ingreso accidental sin tratarlo como suspensión ni requerir soporte técnico o manipulación manual de datos. El formulario de cuidados intraoperatorios, por su parte, responde a una necesidad definida por el hospital: completar y registrar digitalmente esa información durante la intervención, reduciendo la dependencia de registros en papel. Ambas mejoras son acotadas, pero contribuyen a que la nueva lista sea más práctica para los equipos que operan el proceso.
+  Algunas capacidades nuevas responden directamente a requerimientos de experiencia de usuario y apoyo operacional. La acción de revertir ingreso a pabellón permite corregir un ingreso accidental sin tratarlo como suspensión. El formulario de cuidados intraoperatorios permite registrar dentro de la plataforma información que antes podía quedar fuera del flujo digital. Ambas mejoras son acotadas, pero contribuyen a que la nueva lista sea más práctica para los equipos que operan el proceso.
 
   == Requerimientos no funcionales
 
@@ -385,7 +385,7 @@
   - Importar datos desde Gestión Hospitales mediante el servicio `hegc` y representarlos como citas quirúrgicas de Agenda.
   - Normalizar información proveniente de indicaciones, citas y atenciones de pacientes en una única representación de atención quirúrgica.
   - Ejecutar acciones del proceso quirúrgico desde la lista de trabajo, manteniendo comportamiento equivalente para los usuarios.
-  - Incorporar la acción de revertir ingreso a pabellón como mejora operacional para corregir errores frecuentes.
+  - Incorporar mejoras operacionales acotadas, como revertir ingreso a pabellón y registrar cuidados intraoperatorios.
   - Reemplazar la dependencia del motor de procesos propietario por orquestaciones dinámicas ejecutadas mediante BPM y Temporal.
   - Permitir que las orquestaciones validen entradas, llamen a múltiples servicios, usen respuestas previas y ejecuten condiciones.
   - Escuchar eventos relevantes en el frontend mediante un canal persistente de eventos y actualizar la grilla con menor latencia.
@@ -468,7 +468,7 @@
 
   El diseño del módulo quirúrgico debía integrar documentos clínicos que pertenecen a la ficha del paciente. En lugar de duplicar formularios dentro de la lista quirúrgica, se definió una integración con EHR para cargar evaluaciones mediante una vista embebida. Esto permite abrir formularios de evaluación desde la lista de trabajo manteniendo su almacenamiento y comportamiento dentro de la ficha clínica.
 
-  Las evaluaciones principales consideradas son evaluación preanestésica, pausas quirúrgicas, protocolo quirúrgico y cuidados intraoperatorios. Cada una tiene reglas de disponibilidad según el estado del paciente. La evaluación preanestésica pertenece a etapas previas al ingreso a pabellón. Las pausas quirúrgicas se relacionan con momentos intraoperatorios y se presentan como secciones de checklist. El protocolo quirúrgico se asocia al cierre documental de la intervención y puede quedar disponible incluso cuando el caso ya finalizó, si aún está pendiente. Los cuidados intraoperatorios se registran como una evaluación adicional del proceso, incorporada para digitalizar un registro requerido por el hospital y disminuir el uso de soporte en papel.
+  Las evaluaciones principales consideradas son evaluación preanestésica, pausas quirúrgicas, protocolo quirúrgico y cuidados intraoperatorios. Cada una tiene reglas de disponibilidad según el estado del paciente. La evaluación preanestésica pertenece a etapas previas al ingreso a pabellón. Las pausas quirúrgicas se relacionan con momentos intraoperatorios y se presentan como secciones de checklist. El protocolo quirúrgico se asocia al cierre documental de la intervención y puede quedar disponible incluso cuando el caso ya finalizó, si aún está pendiente. Los cuidados intraoperatorios se registran como una evaluación adicional del proceso.
 
   Esta decisión permite conservar la ficha clínica como repositorio de documentos, mientras la lista quirúrgica actúa como punto de acceso operacional. El usuario no necesita navegar manualmente por distintas aplicaciones para completar documentos relevantes; la acción aparece en el estado correspondiente y abre el formulario adecuado.
 
