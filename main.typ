@@ -576,7 +576,12 @@
 
   BPM recibe el identificador de la orquestación y los parámetros asociados. A partir de esa información prepara la ejecución y la deriva hacia la infraestructura de workflows de la plataforma. El worker registrado ejecuta el workflow del orquestador dinámico, que interpreta la configuración correspondiente.
 
-  Una vez iniciado, el workflow del orquestador dinámico delega la ejecución concreta en una actividad principal. Esa actividad recibe la lista de actividades configuradas y los parámetros de entrada, inicializa el contexto de ejecución y procesa la lista en orden. En cada paso construye la actividad final a partir de plantillas, evalúa si debe ejecutarse, llama a un endpoint o asigna variables intermedias, registra una respuesta y continúa con la siguiente actividad.
+  Una vez iniciado, el workflow del orquestador dinámico delega la ejecución concreta en una actividad principal. Esa actividad recibe la lista de actividades configuradas y los parámetros de entrada, inicializa el contexto de ejecución y procesa la lista en orden. En cada paso construye la actividad final a partir de plantillas, evalúa si debe ejecutarse, llama a un endpoint o asigna variables intermedias, registra una respuesta y continúa con la siguiente actividad. El flujo de inicio e instanciación se resume en @fig-inicio-orquestacion-dinamica.
+
+  #figure(
+    image("./imagenes/inicio_e_instanciacion_de _a_orquestacion.drawio.png", width: 100%),
+    caption: [Inicio e instanciación de una orquestación dinámica desde una acción de usuario o una automatización basada en eventos.],
+  ) <fig-inicio-orquestacion-dinamica>
 
   === Registro del workflow en la base de datos
 
@@ -625,7 +630,12 @@
 
   La actividad principal del orquestador ejecuta el loop de actividades. Primero obtiene la lista configurada en `dorch_activities`, toma los parámetros de entrada y agrega una propiedad reservada `_responses`, inicializada como una lista vacía. Luego recorre las actividades en el orden en que aparecen en la configuración.
 
-  En cada iteración, el orquestador construye una actividad ejecutable a partir de la definición cruda. Para ello resuelve plantillas, evalúa condiciones, ejecuta la operación correspondiente y actualiza el contexto. El resultado de cada paso se agrega a `_responses`, y el contexto actualizado se entrega a la siguiente actividad.
+  En cada iteración, el orquestador construye una actividad ejecutable a partir de la definición cruda. Para ello resuelve plantillas, evalúa condiciones, ejecuta la operación correspondiente y actualiza el contexto. Como se muestra en la @fig-ejecucion-interna-orquestador, el loop distingue primero si quedan actividades por procesar, luego evalúa la condición `when` y finalmente ejecuta una actividad HTTP o una actividad de asignación según corresponda. El resultado de cada paso se registra antes de volver al inicio del loop, manteniendo actualizado el contexto y la lista `_responses`.
+
+  #figure(
+    image("./imagenes/ejecucion_interna_del_orquestador.drawio.png", width: 90%),
+    caption: [Ejecución interna del orquestador dinámico durante el procesamiento secuencial de actividades configuradas.],
+  ) <fig-ejecucion-interna-orquestador>
 
   Un fragmento simplificado de una lista de actividades es el siguiente:
 
@@ -650,7 +660,7 @@
 
   La segunda actividad puede usar el resultado de la primera porque este fue guardado en `_responses[0]`. Esta forma de encadenamiento permitió expresar acciones donde una llamada obtiene contexto y las siguientes usan ese contexto para decidir o ejecutar cambios.
 
-  === Contexto de ejecución y lista `_responses`
+  === Contexto de ejecución y lista de respuestas
 
   Las respuestas de las actividades se guardan dentro del mismo objeto de contexto que se entrega a los pasos posteriores, bajo la propiedad reservada `_responses`. El nombre usa prefijo `_` para reducir el riesgo de mezclarse con parámetros de negocio enviados por el frontend o por una suscripción BPM.
 
@@ -679,29 +689,12 @@
   - `prefix`: agrega texto antes del valor resuelto.
   - `suffix`: agrega texto después del valor resuelto.
 
-  El siguiente ejemplo muestra una plantilla simple:
+  La @fig-construccion-plantillas muestra un ejemplo de resolución. Si el contexto contiene `patientServiceId` y `fechaInicio`, el resultado conserva la estructura del objeto, pero reemplaza los objetos con `path` por valores concretos. Así, la configuración describe el objeto deseado y el orquestador calcula las partes dinámicas antes de llamar al servicio correspondiente.
 
-  ```json
-  {
-    "patientServiceId": {
-      "path": "$.patientServiceId",
-      "transform": "integer"
-    },
-    "stateKey": {
-      "id": 61,
-      "description": "En tránsito"
-    },
-    "hitos": {
-      "enTransito": {
-        "fechaInicio": {
-          "path": "$.fechaInicio"
-        }
-      }
-    }
-  }
-  ```
-
-  Si el contexto contiene `patientServiceId` y `fechaInicio`, el resultado conserva la estructura del objeto, pero reemplaza los objetos con `path` por valores concretos. Así, la configuración describe el objeto deseado y el orquestador calcula las partes dinámicas antes de llamar al servicio correspondiente.
+  #figure(
+    image("./imagenes/diagrama_construcción_recursiva_de_objetos_con_plantillas.png", width: 100%),
+    caption: [Ejemplo de construcción de un objeto a partir de una plantilla y un contexto de entrada.],
+  ) <fig-construccion-plantillas>
 
   === Validación de entrada con JSON Schema
 
