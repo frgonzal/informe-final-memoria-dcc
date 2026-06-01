@@ -53,6 +53,13 @@ TemporalPHPDocs:
   url: https://docs.temporal.io/develop/php
   date: 2026-05-18
 
+TemporalSelfHostedDefaults:
+  type: Web
+  title: Self-hosted Temporal Service defaults
+  author: Temporal Technologies Inc.
+  url: https://docs.temporal.io/self-hosted-guide/defaults
+  date: 2026-05-31
+
 Vue2Docs:
   type: Web
   title: Vue 2 Documentation

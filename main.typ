@@ -564,100 +564,356 @@
 
   La implementación también dejó preparada la relación posterior con Gestión Hospitales. Cuando se registra el protocolo quirúrgico o finaliza una atención quirúrgica, ciertas suscripciones y orquestaciones permiten operar información asociada a la orden de origen. Esto mantiene la integración acotada a componentes backend y evita que el frontend concentre reglas de sincronización entre sistemas.
 
-  == Integración con BPM y Temporal
-
-  Las acciones complejas del flujo se integraron con el microservicio BPM. Para iniciar una orquestación dinámica, el frontend invoca una API de BPM indicando el identificador de la orquestación y los parámetros de entrada. BPM valida la solicitud, carga la definición correspondiente y crea una instancia de workflow en Temporal.
-
-  El endpoint utilizado para este propósito sigue la forma `POST /bpm/dynamic-orchestrations/{id}`. El identificador de la ruta indica qué orquestación debe ejecutarse, mientras el cuerpo de la solicitud contiene los parámetros necesarios para esa acción. Por ejemplo, una acción puede enviar identificadores de cita, atención, paciente, profesional, ubicación o datos de suspensión. BPM no ejecuta directamente todos los pasos de negocio en la misma llamada HTTP; su responsabilidad es iniciar la ejecución del workflow correspondiente.
-
-  Temporal entrega el runtime durable para ejecutar workflows y actividades. En esta implementación, el orquestador dinámico se ejecuta como un workflow de Temporal y sus pasos se procesan mediante workers registrados para tal fin. Esto permite conservar historial de ejecución, manejar reintentos y desacoplar la solicitud inicial de la ejecución completa de la secuencia.
-
-  Como la ejecución es asincrónica, la respuesta inmediata de BPM confirma la instanciación del workflow, no necesariamente el término de todas las actividades. Por ello, la actualización visible para el usuario se apoya en eventos de dominio. Cuando las actividades modifican citas, atenciones, traslados o evaluaciones, los servicios involucrados pueden emitir eventos que luego son recibidos por la lista de trabajo a través del servicio de SSE.
-
   == Implementación del orquestador dinámico
 
-  El orquestador dinámico se implementó como un mecanismo declarativo para coordinar secuencias de actividades. Cada orquestación se almacena con un identificador, una descripción, un esquema de parámetros y una lista de actividades. Las estructuras principales son `dynamic_orchestration`, `dorch_param_schema` y `dorch_activities`.
+  Las acciones complejas del flujo se integraron con BPM y Temporal para evitar que el frontend ejecutara directamente secuencias de llamadas a varios servicios. La lista de trabajo recolecta los datos necesarios y solicita la ejecución de una acción; BPM instancia el proceso correspondiente y Temporal entrega el runtime durable para ejecutarlo. Los servicios de dominio siguen siendo responsables de modificar citas, atenciones, traslados, evaluaciones u otras entidades clínicas y administrativas.
 
-  El campo `dorch_param_schema` define un JSON Schema, estándar usado para describir y validar la estructura de documentos JSON @JSONSchemaDocs. En este caso, se utiliza para validar los parámetros recibidos antes de ejecutar la orquestación. Esta validación permite detectar entradas incompletas o con tipos incorrectos antes de iniciar llamadas a servicios. En las definiciones se utiliza una política restrictiva de parámetros, de modo que la orquestación reciba solo los datos esperados para la acción.
+  La idea principal del orquestador dinámico fue reutilizar un mismo workflow de Temporal para ejecutar distintas orquestaciones mediante configuraciones. En lugar de desarrollar un workflow específico para cada acción del proceso quirúrgico, cada orquestación define los parámetros que espera, las actividades que debe ejecutar, las condiciones de ejecución y la forma de construir los datos enviados a cada servicio. De esta manera, acciones complejas pueden coordinarse principalmente mediante llamadas a endpoints ya existentes, reduciendo el código necesario para orquestar operaciones que involucran varios microservicios.
 
-  El campo `dorch_activities` contiene una lista ordenada de actividades. Las actividades más comunes corresponden a llamadas HTTP hacia servicios de la plataforma. Cada actividad puede definir método, URL, parámetros de ruta, query params, cuerpo, headers y opciones. También se implementaron actividades de asignación, que permiten guardar valores intermedios obtenidos desde parámetros de entrada o respuestas anteriores.
+  === Flujo general de una orquestación dinámica
 
-  Una característica importante es el mapeo de datos. Una actividad puede construir su URL o su cuerpo leyendo datos desde los parámetros iniciales o desde respuestas previas mediante expresiones de ruta. Esto permite encadenar pasos sin escribir código específico para cada combinación de servicios. Por ejemplo, una actividad puede consultar una cita, otra puede extraer el paciente o el profesional desde esa respuesta y una tercera puede iniciar una atención usando esos valores.
+  El flujo general comienza cuando un componente solicita la ejecución de una orquestación. En el caso de acciones iniciadas por usuario, la solicitud proviene del frontend a través de la API de BPM. En el caso de automatizaciones, puede provenir de una suscripción BPM que transforma un evento de negocio en parámetros de entrada para el orquestador.
 
-  Las actividades también pueden incluir condiciones de ejecución mediante `when`. Estas condiciones se expresan usando reglas compatibles con JsonLogic, un formato para representar lógica sobre datos mediante objetos JSON @JSONLogicDocs. En el orquestador dinámico, esto permite saltar pasos cuando no se cumple una regla, por ejemplo ejecutar una actualización solo si existe una transferencia pendiente, finalizar una atención solo si se encuentra en un estado determinado o derivar la ejecución hacia una orquestación distinta según el origen del caso. Con esto, la misma infraestructura puede resolver variaciones del flujo sin duplicar workflows completos.
+  BPM recibe el identificador de la orquestación y los parámetros asociados. A partir de esa información prepara la ejecución y la deriva hacia la infraestructura de workflows de la plataforma. El worker registrado ejecuta el workflow del orquestador dinámico, que interpreta la configuración correspondiente.
 
-  El siguiente fragmento ilustra la forma simplificada de una definición. No corresponde a una configuración completa, sino a una representación reducida de la estructura usada para validar entrada, obtener contexto, guardar una variable intermedia y ejecutar una actualización condicional.
+  Una vez iniciado, el workflow del orquestador dinámico delega la ejecución concreta en una actividad principal. Esa actividad recibe la lista de actividades configuradas y los parámetros de entrada, inicializa el contexto de ejecución y procesa la lista en orden. En cada paso construye la actividad final a partir de plantillas, evalúa si debe ejecutarse, llama a un endpoint o asigna variables intermedias, registra una respuesta y continúa con la siguiente actividad.
+
+  === Registro del workflow en la base de datos
+
+  Para que el orquestador pudiera ser instanciado desde BPM, no bastaba con implementar la clase PHP del workflow. Fue necesario agregar una definición en la base de datos de BPM que asociara un identificador de proceso con la clase `DynamicOrchestratorWorkflow`. Esta definición permite que BPM reciba una solicitud, resuelva qué clase de workflow debe iniciar y reutilice su mecanismo estándar de creación de instancias.
+
+  Esta decisión fue importante porque evitó crear una ruta paralela para iniciar workflows de Temporal. El orquestador dinámico quedó integrado al mismo mecanismo usado por otros procesos de la plataforma: BPM recibe la solicitud, construye el mensaje de creación, lo envía mediante RabbitMQ y el worker de Temporal ejecuta el workflow registrado. Así, el nuevo componente se incorporó a la arquitectura existente.
+
+  === Endpoint para iniciar una orquestación dinámica
+
+  Para simplificar el consumo desde frontend y desde otros componentes, se disponibilizó el endpoint `POST /bpm/dynamic-orchestrations/{id}`. El identificador de la ruta corresponde a la definición de orquestación dinámica que se desea ejecutar. El cuerpo de la solicitud contiene solo los parámetros de negocio requeridos por esa definición.
+
+  Internamente, el endpoint carga la configuración desde `dynamic_orchestration`, obtiene `dorch_param_schema` y `dorch_activities`, valida los parámetros recibidos y construye el input que será enviado al workflow. Luego reutiliza la clase existente de BPM para crear instancias de workflows de Temporal, indicando el proceso registrado para el orquestador dinámico. De este modo, el frontend no necesita conocer la clase del workflow ni enviar la lista completa de actividades; solo debe conocer qué orquestación ejecutar y con qué parámetros.
+
+  === Restricción de payload de Temporal
+
+  La implementación debió considerar una restricción importante de Temporal: el tamaño de los payloads enviados como argumentos o retornos de workflows y actividades. La documentación de Temporal para instalaciones self-hosted indica que estos payloads generan advertencias desde 256 KB y errores desde 2 MB @TemporalSelfHostedDefaults. Este límite muestra que los datos intercambiados entre workflow y actividades no deben crecer sin control.
+
+  Esta restricción afectaba directamente al diseño del orquestador. Las orquestaciones dinámicas acumulan respuestas de actividades para que pasos posteriores puedan utilizar resultados previos. Si cada paso configurado fuera una actividad de Temporal independiente, el workflow tendría que enviar a cada actividad un contexto cada vez más grande, compuesto por los parámetros originales y la lista acumulada de respuestas. En acciones que consultan pacientes, citas, atenciones, traslados o evaluaciones, ese contexto podía crecer rápidamente.
+
+  === Decisión de ejecutar el loop en una sola actividad
+
+  Para reducir el riesgo de exceder límites de payload, se tomó la decisión de ejecutar el loop completo dentro de una única actividad de Temporal. En vez de programar una actividad Temporal por cada paso dinámico, el workflow envía una vez el input inicial a una actividad principal. Esa actividad ejecuta internamente todas las actividades configuradas y solo devuelve un resultado final cuando la configuración lo permite.
+
+  Esta decisión limita algunas ventajas de Temporal. En particular, Temporal deja de observar cada paso dinámico como una actividad independiente, por lo que no puede reintentar desde el paso interno que falló. Si una actividad dinámica falla, el reintento de Temporal vuelve a ejecutar la actividad principal completa, es decir, toda la orquestación desde el inicio.
+
+  Este fue un compromiso técnico: se sacrificó granularidad de ejecución en Temporal, pero se mantuvo la ventaja principal requerida por el proyecto, que era coordinar actividades entre microservicios sin depender del motor de procesos propietario y sin desarrollar un workflow específico para cada acción.
+
+  === Workflow principal
+
+  El workflow `DynamicOrchestratorWorkflow` recibe un objeto de entrada y asegura que exista una propiedad `params`. Si la solicitud incluye un identificador de orquestación, el workflow obtiene desde la base de datos la definición correspondiente, carga la lista de actividades y el esquema de parámetros, y valida la entrada antes de iniciar la ejecución. Si no existe una lista válida de actividades, el workflow falla antes de ejecutar operaciones sobre servicios externos.
+
+  Un input simplificado, omitiendo el identificador resuelto por BPM, tiene la siguiente forma:
 
   ```json
   {
-    "dorch_description": "Pabellón - Acción de ejemplo",
-    "dorch_param_schema": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "patientServiceId": { "type": "integer" },
-        "fechaInicio": { "type": "string" }
-      },
-      "required": ["patientServiceId", "fechaInicio"]
-    },
-    "dorch_activities": [
-      {
-        "method": "GET",
-        "url": "https://api.lahuen.health/hlth/patient-services/{{id}}",
-        "url_data": {
-          "id": { "path": "$.patientServiceId" }
-        }
-      },
-      {
-        "type": "assignment",
-        "assign": {
-          "stateId": { "path": "$._responses[0].state.id" }
-        }
-      },
-      {
-        "method": "PATCH",
-        "url": "https://api.lahuen.health/hlth/patient-services/{{id}}/ext/pabellon",
-        "url_data": {
-          "id": { "path": "$.patientServiceId" }
-        },
-        "body": {
-          "hitos": {
-            "fechaInicio": { "path": "$.fechaInicio" }
-          }
-        },
-        "when": { "!=": [ { "var": "stateId" }, null ] }
+    "params": {
+      "patientServiceId": 123,
+      "fechaInicioHito": "2026-01-10T10:30:00"
+    }
+  }
+  ```
+
+  En este ejemplo, `params` contiene los datos de negocio que esa orquestación necesita. El identificador de orquestación permite resolver qué definición debe cargarse desde la base de datos. El workflow no contiene la lógica específica de finalizar recuperación, suspender o iniciar traslado; esa lógica se obtiene desde la configuración.
+
+  === Loop principal de actividades
+
+  La actividad principal del orquestador ejecuta el loop de actividades. Primero obtiene la lista configurada en `dorch_activities`, toma los parámetros de entrada y agrega una propiedad reservada `_responses`, inicializada como una lista vacía. Luego recorre las actividades en el orden en que aparecen en la configuración.
+
+  En cada iteración, el orquestador construye una actividad ejecutable a partir de la definición cruda. Para ello resuelve plantillas, evalúa condiciones, ejecuta la operación correspondiente y actualiza el contexto. El resultado de cada paso se agrega a `_responses`, y el contexto actualizado se entrega a la siguiente actividad.
+
+  Un fragmento simplificado de una lista de actividades es el siguiente:
+
+  ```json
+  [
+    {
+      "method": "GET",
+      "url": "https://api.lahuen.health/hlth/patient-services/{{id}}",
+      "url_data": {
+        "id": { "path": "$.patientServiceId" }
       }
+    },
+    {
+      "method": "GET",
+      "url": "https://api.lahuen.health/hlth/transfers",
+      "query_params": {
+        "patient-id": { "path": "$._responses[0].patient.id" }
+      }
+    }
+  ]
+  ```
+
+  La segunda actividad puede usar el resultado de la primera porque este fue guardado en `_responses[0]`. Esta forma de encadenamiento permitió expresar acciones donde una llamada obtiene contexto y las siguientes usan ese contexto para decidir o ejecutar cambios.
+
+  === Contexto de ejecución y lista `_responses`
+
+  Las respuestas de las actividades se guardan dentro del mismo objeto de contexto que se entrega a los pasos posteriores, bajo la propiedad reservada `_responses`. El nombre usa prefijo `_` para reducir el riesgo de mezclarse con parámetros de negocio enviados por el frontend o por una suscripción BPM.
+
+  `_responses` es una lista ordenada. El índice de cada respuesta coincide con el índice de la actividad en la lista `dorch_activities`. Esto significa que la respuesta de la primera actividad queda en `$._responses[0]`, la segunda en `$._responses[1]`, y así sucesivamente. Incluso cuando una actividad no produce datos útiles, o cuando es omitida por una condición `when`, se agrega una respuesta. Por ello, la posición de una actividad y la posición de su respuesta se mantienen alineadas durante toda la ejecución.
+
+  Esta decisión hace que las referencias por índice sean seguras y predecibles. Una definición puede depender de `$._responses[1].items[0]` sabiendo que esa posición corresponde siempre a la segunda actividad configurada, no a la segunda actividad que efectivamente retornó datos. Esto evita desplazamientos difíciles de depurar cuando una actividad condicional se omite.
+
+  === Construcción recursiva de objetos con plantillas
+
+  Una parte central del orquestador es el mecanismo para construir objetos finales a partir de plantillas. Una plantilla puede mezclar valores estáticos con objetos resolvibles. Un objeto resolvible es un objeto de configuración que incluye la propiedad `path` y que, antes de ejecutar una actividad, debe ser reemplazado por un valor concreto calculado por el orquestador.
+
+  El proceso es recursivo. El orquestador revisa todas las propiedades de un objeto. Si encuentra objetos o listas, los recorre de la misma forma. Si encuentra un objeto resolvible, lo reemplaza por el valor obtenido. Si encuentra un valor no iterable, como un número, string, booleano o `null`, lo deja como caso base. De esta manera, un cuerpo HTTP, los parámetros de una URL o un conjunto de headers pueden describirse como una plantilla JSON que se transforma antes de ejecutar la actividad.
+
+  La resolución no se limita a obtener valores desde el contexto mediante JSONPath. Cuando `path` comienza con `$`, el orquestador usa también la propiedad `source`, cuyo valor por defecto es `data`, para decidir cómo interpretar esa ruta:
+
+  - `data`: interpreta `path` como JSONPath sobre el contexto de ejecución y usa el primer resultado encontrado. Si no hay coincidencias, el valor queda como `null`.
+  - `literal`: permite retornar un valor literal cuando `path` usa el prefijo `$:`. Por ejemplo, `$:Hola mundo` se resuelve como `Hola mundo`.
+  - `base`: obtiene valores base provistos por el orquestador, como fecha, hora o mes actual, según la clave indicada en `path`.
+
+  Además de `path`, el mecanismo soporta propiedades auxiliares para completar la construcción de plantillas:
+
+  - `default`: define un valor alternativo cuando la ruta no produce resultado.
+  - `transform`: convierte el valor obtenido a un tipo esperado, por ejemplo entero, número, string, booleano u objeto.
+  - `source`: indica si el valor se obtiene desde el contexto de ejecución, desde valores base del sistema o desde un literal.
+  - `interpolation_data`: permite construir strings con placeholders. Por ejemplo, un string con `{{value}}` puede reemplazar esa marca si recibe un objeto como `{ "value": 1 }` en `interpolation_data`.
+  - `prefix`: agrega texto antes del valor resuelto.
+  - `suffix`: agrega texto después del valor resuelto.
+
+  El siguiente ejemplo muestra una plantilla simple:
+
+  ```json
+  {
+    "patientServiceId": {
+      "path": "$.patientServiceId",
+      "transform": "integer"
+    },
+    "stateKey": {
+      "id": 61,
+      "description": "En tránsito"
+    },
+    "hitos": {
+      "enTransito": {
+        "fechaInicio": {
+          "path": "$.fechaInicio"
+        }
+      }
+    }
+  }
+  ```
+
+  Si el contexto contiene `patientServiceId` y `fechaInicio`, el resultado conserva la estructura del objeto, pero reemplaza los objetos con `path` por valores concretos. Así, la configuración describe el objeto deseado y el orquestador calcula las partes dinámicas antes de llamar al servicio correspondiente.
+
+  === Validación de entrada con JSON Schema
+
+  Cada orquestación define un `dorch_param_schema`. Este campo utiliza JSON Schema, estándar usado para describir y validar la estructura de documentos JSON @JSONSchemaDocs. En el orquestador, el esquema permite validar los parámetros recibidos antes de ejecutar cualquier actividad.
+
+  Un esquema simplificado puede tener la siguiente forma:
+
+  ```json
+  {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "patientServiceId": { "type": "integer" },
+      "fechaInicio": { "type": "string", "format": "date-time" }
+    },
+    "required": ["patientServiceId", "fechaInicio"]
+  }
+  ```
+
+  La validación temprana evita iniciar una secuencia si faltan datos obligatorios o si los tipos no coinciden con lo esperado. Esto es importante porque una orquestación puede ejecutar varios cambios en servicios distintos; detectar un error de entrada antes de comenzar reduce el riesgo de dejar una acción parcialmente ejecutada.
+
+  === Condiciones de ejecución con JsonLogic
+
+  Las actividades pueden incluir condiciones mediante la propiedad `when`. Estas condiciones se expresan con reglas compatibles con JsonLogic, un formato para representar lógica sobre datos mediante objetos JSON @JSONLogicDocs. En el orquestador, `when` permite decidir si una actividad debe ejecutarse o saltarse según el contexto disponible.
+
+  Por ejemplo, una actividad puede ejecutarse solo cuando existe un traslado pendiente:
+
+  ```json
+  {
+    "when": {
+      "!is_null": [
+        { "var": "transfer.id" }
+      ]
+    }
+  }
+  ```
+
+  También puede usarse para derivar una ejecución según el origen del caso:
+
+  ```json
+  {
+    "when": {
+      "==": [
+        { "var": "tabla" },
+        "electiva"
+      ]
+    }
+  }
+  ```
+
+  La ejecución condicional fue necesaria para que el orquestador fuera útil como DSL y no solo como una lista fija de llamadas. No todas las actividades de una orquestación deben ejecutarse siempre: algunas dependen del estado del paciente, de la existencia de datos previos o del resultado de consultas anteriores. Sin `when`, esas decisiones tendrían que resolverse fuera de la configuración, reduciendo la reutilización del mecanismo y obligando a separar en varias definiciones casos que comparten gran parte de la misma lógica.
+
+  Un ejemplo concreto es la orquestación para finalizar recuperación. Esta definición primero consulta la atención, luego busca traslados pendientes y después guarda variables intermedias como si el paciente corresponde a una modalidad de cirugía mayor ambulatoria y si existen traslados disponibles. A partir de esas variables, la misma configuración cubre distintos escenarios: si el paciente puede quedar esperando alta y no hay traslados, registra el estado de espera de alta; si no corresponde alta directa y tampoco hay traslados, lo deja esperando traslado; y si ya existe un traslado pendiente, registra la información del traslado y deja el caso en el estado correspondiente. La lógica condicional permite que una misma orquestación represente estas variantes sin duplicar toda la secuencia común de consulta y preparación de datos.
+
+  === Operadores agregados a JsonLogic
+
+  Para cubrir condiciones frecuentes del flujo quirúrgico, se agregaron operadores a JsonLogic. Estos operadores permiten evaluar de manera más directa respuestas de APIs, listas vacías, valores nulos y tipos esperados:
+
+  - `empty`: verifica si un valor se considera vacío, como una lista sin elementos o un string sin contenido.
+  - `!empty`: verifica que un valor tenga contenido útil para continuar la ejecución.
+  - `is_null`: verifica si un valor es nulo.
+  - `!is_null`: verifica si existe un valor distinto de nulo.
+  - `is_array`: verifica si un valor corresponde a una lista o arreglo.
+  - `typeof`: permite comparar el tipo de un valor antes de usarlo en una condición o transformación.
+
+  Un ejemplo de condición que utiliza operadores agregados es el siguiente:
+
+  ```json
+  {
+    "and": [
+      { "is_array": [ { "var": "protocolo" } ] },
+      { "!empty": [ { "var": "protocolo" } ] }
     ]
   }
   ```
 
-  Durante la ejecución, el workflow procesa las actividades de manera secuencial. Cada respuesta queda disponible para pasos posteriores. Si una actividad falla, el error se propaga dentro del contexto de ejecución de Temporal, permitiendo conservar el historial y aplicar el comportamiento de reintento configurado para las actividades. Esta característica fue relevante para acciones que dependen de varios servicios, porque evita dejar la lógica de coordinación distribuida entre múltiples componentes frontend.
+  Estas extensiones fueron necesarias porque las respuestas de servicios pueden contener objetos heterogéneos, listas, valores nulos o estructuras opcionales. Mantener estas comprobaciones dentro de la configuración permitió reducir lógica imperativa en PHP y hacer que las condiciones fueran visibles junto a la actividad que controlan.
+
+  === Actividad HTTP
+
+  La actividad más común es `http_request`, que también funciona como tipo por defecto cuando la definición no indica otro tipo. Esta actividad permite ejecutar llamadas `GET`, `POST`, `PUT`, `PATCH` y `DELETE` hacia servicios de la plataforma. El objeto de configuración puede incluir las siguientes propiedades:
+
+  - `method`: define el método HTTP que se ejecutará.
+  - `url`: define la URL base o plantilla de URL del endpoint.
+  - `url_data`: contiene valores usados para reemplazar placeholders de la URL, por ejemplo `{{id}}`.
+  - `query_params`: define parámetros que se agregan a la URL como query string.
+  - `body`: define el cuerpo enviado en métodos que aceptan payload.
+  - `headers`: define encabezados HTTP adicionales para la solicitud.
+  - `options`: agrupa opciones adicionales usadas por el cliente HTTP.
+  - `encode_query_params`: indica si parámetros complejos deben serializarse antes de agregarse a la URL.
+  - `response_wrapper_key`: permite guardar la respuesta bajo una llave estable dentro del contexto.
+  - `when`: define una condición que determina si la actividad debe ejecutarse.
+
+  El siguiente ejemplo muestra una actualización de datos extendidos de una atención:
+
+  ```json
+  {
+    "method": "PATCH",
+    "url": "https://api.lahuen.health/hlth/patient-services/{{id}}/ext/pabellon",
+    "url_data": {
+      "id": { "path": "$.patientServiceId" }
+    },
+    "body": {
+      "stateKey": {
+        "id": 61,
+        "description": "En tránsito"
+      }
+    },
+    "query_params": {
+      "updateDataPathMode": "merge-deep"
+    }
+  }
+  ```
+
+  En este caso, `url_data` reemplaza el placeholder `{{id}}`, `body` define los datos enviados y `query_params` agrega parámetros a la URL. Si un parámetro de query es un objeto complejo, `encode_query_params` permite serializarlo para enviarlo correctamente. `response_wrapper_key` se utiliza cuando conviene guardar la respuesta bajo una llave estable, por ejemplo cuando un endpoint retorna una lista y se desea acceder luego a ella como `items`.
+
+  === Actividad de asignación
+
+  La segunda actividad implementada es `assignment`. Esta actividad no llama a servicios externos, sino que crea variables intermedias dentro del contexto de ejecución. Su utilidad principal es simplificar referencias posteriores y preparar datos que serán usados por condiciones o cuerpos de solicitud.
+
+  Un ejemplo simplificado es el siguiente:
+
+  ```json
+  {
+    "type": "assignment",
+    "assign": {
+      "esCma": {
+        "path": "$._responses[0].extendedData.esCma",
+        "default": false
+      },
+      "transfer": {
+        "path": "$._responses[1].items[0]",
+        "default": null
+      }
+    }
+  }
+  ```
+
+  Después de esta actividad, otras actividades pueden usar `$.esCma` o `$.transfer` en vez de repetir rutas largas hacia `_responses`. Esto mejora la legibilidad de la configuración y facilita escribir condiciones `when` sobre valores relevantes.
+
+  === Reintentos y seguridad operacional
+
+  La decisión de ejecutar el loop dentro de una sola actividad de Temporal tiene consecuencias sobre los reintentos. Si una actividad dinámica interna falla, Temporal reintenta la actividad principal completa. Esto implica volver a ejecutar la orquestación desde el inicio, no desde el paso que falló. En acciones que crean registros o modifican estado, este comportamiento puede producir duplicados o efectos no deseados si los pasos no son seguros ante reejecución.
+
+  Por ello, se incorporó un límite configurable de reintentos y se dejó configurado con un valor bajo. Además, las orquestaciones fueron definidas buscando reducir riesgos: validando entradas con JSON Schema, consultando estado antes de operar, usando condiciones `when` y evitando reintentos automáticos agresivos sobre operaciones que pudieran no ser idempotentes. Esta solución no elimina por completo el problema, pero fue la alternativa más razonable considerando las restricciones de tiempo y la necesidad de contar con un mecanismo de orquestación que permitiera prescindir del motor de procesos propietario.
+
+  === Resultado del orquestador dinámico
+
+  Con esta implementación, el orquestador dinámico no reemplaza la lógica de negocio de los microservicios, sino que la conecta. Su aporte principal es permitir que distintas acciones se definan como configuraciones ejecutadas por un mismo workflow reusable. Esto reduce la necesidad de crear workflows específicos para cada caso, facilita la incorporación de nuevas acciones y permite coordinar actividades complejas utilizando capacidades ya disponibles en la plataforma.
 
   == Orquestaciones dinámicas del flujo quirúrgico
 
-  Sobre el orquestador dinámico se configuraron acciones concretas del flujo quirúrgico. Una de ellas es aceptar orden de urgencia, que obtiene datos de la indicación quirúrgica y crea una cita asociada en Agenda. Esta acción transforma una solicitud clínica en una programación operable por la lista de trabajo.
+  Sobre el orquestador dinámico se configuraron acciones concretas del flujo quirúrgico. Estas orquestaciones no forman un único proceso monolítico; cada una resuelve una transición o automatización acotada, reutilizando servicios de Agenda, HLTH, BPM, EHR, AUTH y `hegc`. En conjunto permiten que la lista de trabajo ejecute acciones complejas sin concentrar en el frontend la coordinación entre servicios.
 
-  La recepción del paciente se implementó considerando diferencias entre urgencia y electivo. En urgencia, la orquestación debe iniciar la indicación y la cita asociada, obtener la atención resultante y registrar datos del proceso quirúrgico. En electivo, la orquestación opera sobre una cita programada proveniente de Agenda, crea o relaciona la atención clínica correspondiente y conserva la información necesaria para continuar el flujo. Para manejar esta diferencia se usó una orquestación de derivación que, según el origen del caso, inicia la definición específica para urgencia o electivo.
+  - *Aceptar orden de urgencia*: La orquestación de aceptación de orden de urgencia transforma una indicación quirúrgica en una programación operable por la lista de trabajo. Para ello obtiene la indicación con datos de paciente y ubicación, prepara información diagnóstica y crea una cita quirúrgica en Agenda. La cita conserva referencias a la indicación original, al paciente, al profesional solicitante, a la ubicación y a los datos extendidos necesarios para continuar el flujo de pabellón. Al final, la indicación se marca como iniciada para reflejar que fue aceptada y convertida en una programación.
 
-  La suspensión se implementó como una secuencia que puede cancelar una cita, registrar causa y subcausa, actualizar datos extendidos de la atención y cerrar elementos asociados cuando corresponde. Esta acción requería tratar de manera distinta casos que solo tenían cita y casos que ya tenían atención iniciada, por lo que resultaba adecuada para una definición con pasos condicionales.
+  - *Admisionar paciente*: La admisión del paciente coordina la apertura administrativa asociada al ingreso. La orquestación consulta la cita, obtiene datos del profesional, crea un administrador de atención cuando corresponde, actualiza el estado de la cita y registra una admisión clínica con los datos del formulario de admisión. Además, invoca la integración con `hegc` para abrir la cuenta en los servicios administrativos requeridos por el hospital. Esta secuencia evita que el usuario tenga que ejecutar manualmente operaciones separadas en componentes distintos.
 
-  Finalizar recuperación se implementó como una orquestación que consulta la atención, revisa si existe traslado pendiente, evalúa condiciones como modalidad ambulatoria y actualiza el estado posterior del paciente. Según el caso, el resultado puede dejar al paciente esperando alta, esperando traslado o esperando egreso. Esta lógica habría sido difícil de mantener si quedara repartida en la interfaz, porque depende de datos clínicos y operacionales obtenidos desde más de una fuente.
+  - *Recepcionar paciente*: La recepción del paciente se implementó con una orquestación de derivación y dos orquestaciones específicas. La primera decide qué flujo ejecutar según el origen del caso: urgencia o electivo. Esta separación fue necesaria porque ambos escenarios comparten la acción visible para el usuario, pero no las mismas entidades de origen ni los mismos pasos técnicos. En el flujo de urgencia, la orquestación consulta la cita, obtiene el profesional responsable, inicia la indicación y la cita asociada, libera una ubicación anterior si existe una atención previa abierta y crea la atención quirúrgica. La atención queda con datos extendidos de pabellón, programación, responsable, indicación, orden, ubicación de origen, intervenciones, diagnósticos y estado inicial de preoperatorio. En el flujo electivo, la orquestación opera sobre una cita ya programada, obtiene el profesional responsable, crea el administrador de atención, revisa si existe una atención previa abierta y libera su ubicación cuando corresponde. Luego inicia la cita y crea la atención quirúrgica usando los datos provenientes de Agenda y de Gestión Hospitales. También conserva la referencia a la cita original y determina si el caso corresponde a cirugía mayor ambulatoria según el contexto disponible.
 
-  También se configuraron orquestaciones para iniciar traslado, devolver a unidad de origen y finalizar atención quirúrgica. Estas acciones actualizan transferencias, hitos y estados del proceso, conectando el flujo de pabellón con el flujo asistencial general de la plataforma.
+  - *Suspender cirugía*: La suspensión coordina el cierre operacional de un caso que no continuará en el flujo. La orquestación cancela la cita en Agenda, registra causa, subcausa, observaciones y responsable, y si ya existe atención quirúrgica actualiza sus datos extendidos. Cuando corresponde, busca una atención previa del paciente, genera un traslado de retorno, cancela la atención quirúrgica y cierra tareas BPM pendientes asociadas al protocolo. Además, diferencia el origen del caso: para casos electivos informa la suspensión a Gestión Hospitales, mientras que para urgencias cancela la indicación clínica con un motivo construido desde los datos de suspensión.
 
-  Además, se implementaron orquestaciones relacionadas con tareas BPM y protocolo quirúrgico. Al crearse una atención quirúrgica, una suscripción puede generar una tarea para completar el protocolo. Al guardarse el protocolo, otra orquestación puede completar la tarea correspondiente y operar información asociada a Gestión Hospitales. Estas automatizaciones permiten que la ejecución del flujo no dependa exclusivamente de que el usuario recuerde cada acción administrativa posterior.
+  - *Finalizar recuperación*: Finalizar recuperación consulta la atención quirúrgica y revisa si existen traslados pendientes del paciente. Luego usa asignaciones y condiciones para decidir el estado posterior. Si el paciente corresponde a cirugía mayor ambulatoria y no hay traslados, registra espera de alta. Si no corresponde alta directa y tampoco hay traslados, registra espera de traslado. Si ya existe un traslado pendiente, guarda la información del traslado y deja el caso en el estado correspondiente. La misma secuencia también finaliza la cita asociada y, cuando existe una indicación de urgencia vinculada, la finaliza con motivo de término de recuperación.
+
+  - *Traslados y retorno a unidad de origen*: Se configuraron orquestaciones para iniciar traslado y devolver al paciente a su unidad de origen. Iniciar traslado marca una transferencia como en tránsito y registra en la atención quirúrgica el hito correspondiente. Devolver a unidad de origen consulta la atención, crea una transferencia hacia la ubicación original registrada en los datos de pabellón y actualiza hitos, estado y datos del traslado. Con esto, el flujo quirúrgico queda conectado con el manejo general de ubicaciones y traslados de la plataforma.
+
+  - *Finalizar atención quirúrgica*: La finalización de atención se resolvió con orquestaciones que cierran la atención clínica cuando se cumplen las condiciones necesarias. Una de ellas consulta el estado actual de la atención y solo ejecuta el cierre si la atención se encuentra en un estado compatible. Otra permite finalizar directamente una atención quirúrgica a partir de su identificador, y se utiliza en automatizaciones donde la condición ya fue determinada por el evento o la suscripción que inició la orquestación.
+
+  - *Tareas BPM de protocolo quirúrgico*: También se implementaron orquestaciones para crear y completar la tarea BPM de completar protocolo quirúrgico. La creación consulta la atención quirúrgica, obtiene el usuario asociado al profesional responsable y crea una tarea BPM con referencia a la atención, datos del paciente y contexto clínico. La finalización consulta el usuario del clínico que guardó el protocolo, busca la tarea pendiente asociada a la atención y la ejecuta si existe. Estas automatizaciones reducen la dependencia de acciones administrativas manuales posteriores al registro clínico.
+
+  - *Operación de Gestión Hospitales*: La orquestación de operación de Gestión Hospitales consulta la atención quirúrgica con sus evaluaciones, identifica la orden de origen y busca el protocolo quirúrgico guardado. Si el caso es electivo, la atención está en el estado esperado, existe orden asociada y el protocolo ya fue registrado, invoca `hegc` para marcar la orden como operada. Así, la actualización hacia Gestión Hospitales queda condicionada a evidencia clínica registrada en la plataforma y no a una acción aislada del frontend.
 
   == Eventos, suscripciones BPM y SSE
 
-  La implementación incorporó eventos en dos niveles. El primer nivel corresponde a eventos de dominio emitidos por microservicios cuando cambian entidades relevantes, como atenciones, citas, evaluaciones o traslados. Estos eventos se publican en Kafka y permiten que otros componentes reaccionen sin invocar directamente al servicio que produjo el cambio.
+  La implementación utilizó eventos con tres propósitos relacionados. En backend, los eventos permiten ejecutar automatizaciones mediante suscripciones BPM configuradas en base de datos. En el servicio de SSE, se mejoró la forma de filtrar y distribuir eventos hacia clientes conectados. En frontend, la lista de trabajo se suscribe a eventos relevantes para actualizar la grilla cuando cambian las entidades que componen el flujo quirúrgico.
 
-  El segundo nivel corresponde a suscripciones configuradas en BPM. Estas suscripciones observan tópicos y aplican filtros para decidir cuándo iniciar una orquestación. En el flujo quirúrgico se configuraron suscripciones para casos como creación de atención quirúrgica, guardado de protocolo, finalización de traslado y finalización de atención. Cada suscripción transforma el evento recibido en parámetros para una orquestación dinámica específica.
+  === Suscripciones BPM en backend
 
-  Este mecanismo se usó, por ejemplo, para crear la tarea de completar protocolo cuando se crea una atención quirúrgica, completar esa tarea cuando se guarda el protocolo, operar información en Gestión Hospitales al guardar el protocolo o al finalizar la atención, y finalizar la atención quirúrgica cuando se completa un traslado relevante. La lógica de reacción queda así expresada como configuración de BPM y no como llamadas directas desde la lista de trabajo.
+  Los microservicios emiten eventos de dominio cuando cambian entidades relevantes, como atenciones, citas, evaluaciones o traslados. Estos eventos se publican en Kafka y quedan disponibles para consumidores que necesitan reaccionar a esos cambios. En el caso de BPM, la reacción se define mediante suscripciones almacenadas en base de datos. Cada suscripción indica el tópico observado, los filtros que deben cumplirse y la transformación que convierte el evento recibido en parámetros para iniciar una orquestación dinámica.
 
-  Para la actualización de la interfaz se integró el servicio de SSE. SSE significa Server-Sent Events y corresponde a un mecanismo en que el navegador mantiene una conexión abierta con el servidor para recibir mensajes enviados desde backend. En esta plataforma, el servicio de SSE consume eventos desde Kafka y los entrega a clientes frontend suscritos. La lista de trabajo quirúrgica se conecta mediante `EventSource`, envía filtros de interés y actualiza la grilla cuando recibe eventos relacionados con las entidades que muestra.
+  En el flujo quirúrgico se configuraron las siguientes suscripciones:
 
-  Durante la implementación se ajustaron los filtros para permitir listas de valores y reducir eventos irrelevantes. También se incorporó un debounce configurable para evitar que múltiples eventos cercanos generen recargas excesivas de la grilla. Esto fue necesario porque una acción orquestada puede modificar más de una entidad y producir varios eventos en poco tiempo.
+  - *Creación de atención quirúrgica*: observa eventos del tópico `api.hlth.patient-service`. Cuando se crea una atención de tipo quirúrgico, inicia la orquestación que crea la tarea BPM de completar protocolo quirúrgico, usando el identificador de la atención como parámetro.
+  - *Guardado de protocolo quirúrgico para completar tarea BPM*: observa eventos del tópico `api.hlth.evaluation`. Cuando se crea una evaluación asociada a una atención quirúrgica y el tipo de evaluación corresponde al protocolo quirúrgico, inicia la orquestación que busca y completa la tarea BPM de completar protocolo quirúrgico, usando la atención y el clínico informados por el evento.
+  - *Guardado de protocolo quirúrgico para operar en Gestión Hospitales*: observa el mismo evento de creación de protocolo quirúrgico en `api.hlth.evaluation`. Cuando se cumplen las condiciones de atención quirúrgica y tipo de evaluación, inicia la orquestación que evalúa si corresponde marcar la orden como operada en Gestión Hospitales.
+  - *Finalización de traslado*: observa eventos del tópico `api.hlth.transfer`. Cuando se finaliza una transferencia en estado final asociado a una atención quirúrgica, inicia la orquestación que finaliza la atención quirúrgica correspondiente.
+  - *Finalización de atención quirúrgica*: observa eventos del tópico `api.hlth.patient-service`. Cuando se finaliza una atención de tipo quirúrgico, inicia la orquestación que evalúa si corresponde operar la orden asociada en Gestión Hospitales.
+
+  La lógica de reacción queda así expresada como configuración de BPM y no como llamadas directas desde la lista de trabajo.
+
+  === Mejoras al servicio de SSE
+
+  Para la actualización de interfaces se ajustó el servicio de SSE, que consume eventos desde Kafka y los entrega a clientes frontend conectados. Una mejora relevante fue permitir filtros con más de un valor para un mismo parámetro. Antes, un filtro representaba una coincidencia puntual; con el cambio, el cliente puede enviar una lista y recibir eventos que coincidan con cualquiera de esos valores.
+
+  El comportamiento implementado combina los filtros de esta forma: existe un OR dentro de los valores de un mismo filtro y un AND entre filtros distintos. Por ejemplo, una suscripción al tópico de indicaciones con `typeId=21,22&type=created` recibe eventos cuyo tipo de indicación sea 21 o 22, pero siempre que el evento sea de creación. De forma equivalente, una suscripción a citas con `typeId=3,4&type=updated,created` recibe citas cuyo tipo sea 3 o 4 y cuyo evento sea actualización o creación.
+
+  Internamente, los filtros se transforman en grupos de hashes. Cada grupo representa los valores aceptados para un filtro y se cumple si alguno de sus elementos coincide con los hashes del evento. Luego, todos los grupos deben cumplirse para que el mensaje sea enviado al cliente. Este diseño permite expresar filtros más flexibles sin crear endpoints especiales para cada combinación de valores.
+
+  También se refactorizó la lógica del servicio para separar responsabilidades. Se incorporó un modelo de cliente conectado, con sus filtros, suscripciones y respuesta SSE asociada. Además, se centralizó el registro de clientes en buckets por tópico y por clave de filtro, de modo que al llegar un evento no sea necesario recorrer todos los clientes conectados. La limpieza de suscripciones al cerrar una conexión también quedó centralizada, reduciendo el riesgo de mantener referencias a clientes desconectados.
+
+  === Suscripciones frontend con SSE
+
+  En el frontend, la lista de trabajo quirúrgica se conecta al servicio de SSE mediante `EventSource`. Las suscripciones se registran asociadas a la ruta de atención quirúrgica, por lo que solo están activas cuando la vista correspondiente está en uso. Cada suscripción indica un tópico Kafka y filtros de interés; cuando llega un evento que cumple esos filtros, la lista puede recargar o actualizar la información mostrada.
+
+  Las suscripciones configuradas para la lista de trabajo fueron:
+
+  - *Atenciones quirúrgicas*: escucha el tópico `api.hlth.patient-service` filtrando por tipos de atención quirúrgica y tipos de evento relevantes. Es especialmente importante escuchar actualizaciones, porque gran parte de la información operacional del proceso vive en los datos de la atención quirúrgica. Por ejemplo, avanzar de etapa dentro del quirófano técnicamente corresponde a actualizar la información de esa atención. Esta suscripción permite actualizar la grilla cuando una atención quirúrgica se crea, cambia de estado, actualiza sus hitos o finaliza.
+  - *Indicaciones quirúrgicas*: escucha el tópico `api.hlth.indication` filtrando por tipos de indicación quirúrgica y eventos relevantes. Permite reflejar cambios en órdenes de urgencia, por ejemplo cuando una indicación es creada, iniciada, cancelada o finalizada.
+  - *Citas de Agenda*: escucha el tópico `api.agenda.appointment` filtrando por tipos de cita quirúrgica y eventos relevantes. Permite actualizar programaciones electivas o de urgencia cuando una cita se crea, inicia, modifica, cancela o finaliza.
+  - *Evaluaciones clínicas*: escucha el tópico `api.hlth.evaluation` filtrando por tipo de atención quirúrgica, tipos de evaluación relevantes y tipo de evento. Permite actualizar la lista cuando se registran evaluaciones asociadas al flujo, como el protocolo quirúrgico u otros documentos clínicos.
+
+  Durante la implementación se ajustaron los filtros para permitir listas de valores y reducir eventos irrelevantes. También se incorporó un debounce configurable para evitar que múltiples eventos cercanos generen recargas excesivas de la grilla. Esto fue necesario porque una acción orquestada puede modificar más de una entidad y producir varios eventos en poco tiempo. Además, la lista de trabajo puede ser utilizada por múltiples personas de forma independiente, por lo que en operación normal pueden ocurrir muchos cambios con pocos segundos de diferencia. Por esta razón, se buscó usar los filtros del servicio de SSE de la forma más específica posible, escuchando solo los eventos necesarios para la vista, y agrupar recargas cercanas mediante debounce.
 
   == Manejo de errores y consistencia operacional
 
