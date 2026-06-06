@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net">
+  <diagram name="Estados Proceso Quirúrgico" id="estados-proceso-quirurgico-mejorado">
+    <mxGraphModel dx="1846" dy="934" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0" adaptiveColors="auto">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="grp_quirofano" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#F5FAFF;strokeColor=#5B9BD5;strokeWidth=1.5;dashed=1;dashPattern=8 4;" value="" vertex="1">
+          <mxGeometry height="250" width="530" x="90" y="630" as="geometry" />
+        </mxCell>
+        <mxCell id="urgencia" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#E2F0D9;strokeColor=#548235;strokeWidth=1.5;fontColor=#1F4E1F;fontStyle=1;" value="Urgencia&lt;div&gt;(No Ambulatorio)&lt;/div&gt;" vertex="1">
+          <mxGeometry height="80" width="120" x="130" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="electiva" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#E2F0D9;strokeColor=#548235;strokeWidth=1.5;fontColor=#1F4E1F;fontStyle=1;" value="Electiva" vertex="1">
+          <mxGeometry height="80" width="120" x="560" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="solicitada" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#EAF2FF;strokeColor=#2F5597;strokeWidth=1.5;fontColor=#1F2937;fontStyle=1;" value="Solicitada" vertex="1">
+          <mxGeometry height="60" width="120" x="130" y="380" as="geometry" />
+        </mxCell>
+        <mxCell id="programada" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#EAF2FF;strokeColor=#2F5597;strokeWidth=1.5;fontColor=#1F2937;fontStyle=1;" value="Programada" vertex="1">
+          <mxGeometry height="60" width="120" x="560" y="380" as="geometry" />
+        </mxCell>
+        <mxCell id="en_espera" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#EAF2FF;strokeColor=#2F5597;strokeWidth=1.5;fontColor=#1F2937;fontStyle=1;" value="En espera" vertex="1">
+          <mxGeometry height="60" width="120" x="350" y="380" as="geometry" />
+        </mxCell>
+        <mxCell id="preoperatorio" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#EAF2FF;strokeColor=#2F5597;strokeWidth=1.5;fontColor=#1F2937;fontStyle=1;" value="Pre Operatorio" vertex="1">
+          <mxGeometry height="60" width="120" x="350" y="510" as="geometry" />
+        </mxCell>
+        <mxCell id="entrada" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#D9EAF7;strokeColor=#1F4E79;strokeWidth=1.5;fontColor=#1F2937;fontStyle=1;" value="Entrada" vertex="1">
+          <mxGeometry height="60" width="120" x="480" y="650" as="geometry" />
+        </mxCell>
+        <mxCell id="anestesia_iniciada" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#D9EAF7;strokeColor=#1F4E79;strokeWidth=1.5;fontColor=#1F2937;fontStyle=1;" value="Anestesia Iniciada" vertex="1">
+          <mxGeometry height="60" width="120" x="250" y="650" as="geometry" />
+        </mxCell>
+        <mxCell id="cirugia_iniciada" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#D9EAF7;strokeColor=#1F4E79;strokeWidth=1.5;fontColor=#1F2937;fontStyle=1;" value="Cirugía Iniciada" vertex="1">
+          <mxGeometry height="60" width="120" x="110" y="720" as="geometry" />
+        </mxCell>
+        <mxCell id="cirugia_finalizada" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#D9EAF7;strokeColor=#1F4E79;strokeWidth=1.5;fontColor=#1F2937;fontStyle=1;" value="Cirugía Finalizada" vertex="1">
+          <mxGeometry height="60" width="120" x="240" y="800" as="geometry" />
+        </mxCell>
+        <mxCell id="anestesia_finalizada" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#D9EAF7;strokeColor=#1F4E79;strokeWidth=1.5;fontColor=#1F2937;fontStyle=1;" value="Anestesia Finalizada" vertex="1">
+          <mxGeometry height="60" width="120" x="480" y="800" as="geometry" />
+        </mxCell>
+        <mxCell id="en_recuperacion" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#EAF2FF;strokeColor=#2F5597;strokeWidth=1.5;fontColor=#1F2937;fontStyle=1;" value="En Recuperación" vertex="1">
+          <mxGeometry height="60" width="120" x="857.05" y="310" as="geometry" />
+        </mxCell>
+        <mxCell id="tiene_traslado" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;strokeWidth=1.5;fontColor=#7F6000;fontStyle=1;" value="Tiene&lt;div&gt;Traslado&lt;/div&gt;" vertex="1">
+          <mxGeometry height="100" width="100" x="867.05" y="430" as="geometry" />
+        </mxCell>
+        <mxCell id="es_ambulatoria" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;strokeWidth=1.5;fontColor=#7F6000;fontStyle=1;" value="Es&lt;div&gt;Ambulatoria&lt;/div&gt;" vertex="1">
+          <mxGeometry height="100" width="100" x="797.05" y="520.5899999999999" as="geometry" />
+        </mxCell>
+        <mxCell id="esperando_alta" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#EAF2FF;strokeColor=#2F5597;strokeWidth=1.5;fontColor=#1F2937;fontStyle=1;" value="Esperando Alta" vertex="1">
+          <mxGeometry height="60" width="120" x="727.05" y="650.0000000000002" as="geometry" />
+        </mxCell>
+        <mxCell id="esperando_traslado_sin" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#EAF2FF;strokeColor=#2F5597;strokeWidth=1.5;fontColor=#1F2937;fontStyle=1;" value="Esperando Traslado&lt;div&gt;(sin traslado creado)&lt;/div&gt;" vertex="1">
+          <mxGeometry height="60" width="120" x="1007.05" y="540.5899999999999" as="geometry" />
+        </mxCell>
+        <mxCell id="esperando_traslado_con" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#EAF2FF;strokeColor=#2F5597;strokeWidth=1.5;fontColor=#1F2937;fontStyle=1;" value="Esperando Traslado&lt;div&gt;(con traslado creado)&lt;/div&gt;" vertex="1">
+          <mxGeometry height="60" width="120" x="1157.05" y="540.5900000000001" as="geometry" />
+        </mxCell>
+        <mxCell id="esperando_egreso" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#EAF2FF;strokeColor=#2F5597;strokeWidth=1.5;fontColor=#1F2937;fontStyle=1;" value="Esperando Egreso" vertex="1">
+          <mxGeometry height="60" width="120" x="727.05" y="790.0000000000002" as="geometry" />
+        </mxCell>
+        <mxCell id="en_transito" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#EAF2FF;strokeColor=#2F5597;strokeWidth=1.5;fontColor=#1F2937;fontStyle=1;" value="En Tránsito" vertex="1">
+          <mxGeometry height="60" width="120" x="1007.05" y="790.0000000000002" as="geometry" />
+        </mxCell>
+        <mxCell id="finalizada" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#D5E8D4;strokeColor=#82B366;strokeWidth=1.5;fontColor=#274E13;fontStyle=1;" value="Finalizada" vertex="1">
+          <mxGeometry height="60" width="120" x="867.05" y="910.0000000000002" as="geometry" />
+        </mxCell>
+        <mxCell id="label_quirofano" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;fontColor=#1F4E79;fontSize=14;fontStyle=1;" value="En Quirófano" vertex="1">
+          <mxGeometry height="30" width="90" x="100" y="600" as="geometry" />
+        </mxCell>
+        <mxCell id="e_urgencia_solicitada" edge="1" parent="1" source="urgencia" target="solicitada" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;endFill=1;html=1;strokeColor=#5B9BD5;strokeWidth=1.5;jumpStyle=arc;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_electiva_programada" edge="1" parent="1" source="electiva" target="programada" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;endFill=1;html=1;strokeColor=#5B9BD5;strokeWidth=1.5;jumpStyle=arc;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_solicitada_espera" value="Aceptar&lt;div&gt;Orden&lt;/div&gt;" edge="1" parent="1" source="solicitada" target="en_espera" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;endFill=1;html=1;strokeColor=#5B9BD5;strokeWidth=1.5;fontSize=11;fontColor=#1F2937;labelBackgroundColor=#FFFFFF;jumpStyle=arc;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_programada_espera" value="Admisionar" edge="1" parent="1" source="programada" target="en_espera" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;endFill=1;html=1;strokeColor=#5B9BD5;strokeWidth=1.5;fontSize=11;fontColor=#1F2937;labelBackgroundColor=#FFFFFF;jumpStyle=arc;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_espera_pre" value="Recepcionar" edge="1" parent="1" source="en_espera" target="preoperatorio" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;endFill=1;html=1;strokeColor=#5B9BD5;strokeWidth=1.5;fontSize=11;fontColor=#1F2937;labelBackgroundColor=#FFFFFF;jumpStyle=arc;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_pre_entrada" value="Ingresar a Pabellón" edge="1" parent="1" source="preoperatorio" target="entrada" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;endFill=1;html=1;strokeColor=#5B9BD5;strokeWidth=1.5;fontSize=11;fontColor=#1F2937;labelBackgroundColor=#FFFFFF;jumpStyle=arc;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_entrada_anestesia" value="Iniciar&lt;div&gt;Anestesia&lt;/div&gt;" edge="1" parent="1" source="entrada" target="anestesia_iniciada" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;endFill=1;html=1;strokeColor=#1F4E79;strokeWidth=1.5;fontSize=11;fontColor=#1F2937;labelBackgroundColor=#FFFFFF;jumpStyle=arc;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_anestesia_cirugia" value="Iniciar&lt;div&gt;Cirugía&lt;/div&gt;" edge="1" parent="1" source="anestesia_iniciada" target="cirugia_iniciada" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;endFill=1;html=1;strokeColor=#1F4E79;strokeWidth=1.5;fontSize=11;fontColor=#1F2937;labelBackgroundColor=#FFFFFF;jumpStyle=arc;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_cirugia_inicio_fin" value="Finalizar&lt;div&gt;Cirugía&lt;/div&gt;" edge="1" parent="1" source="cirugia_iniciada" target="cirugia_finalizada" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;endFill=1;html=1;strokeColor=#1F4E79;strokeWidth=1.5;fontSize=11;fontColor=#1F2937;labelBackgroundColor=#FFFFFF;jumpStyle=arc;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_cirugia_fin_anestesia_fin" value="Finalizar Anestesia" edge="1" parent="1" source="cirugia_finalizada" target="anestesia_finalizada" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;endFill=1;html=1;strokeColor=#1F4E79;strokeWidth=1.5;fontSize=11;fontColor=#1F2937;labelBackgroundColor=#FFFFFF;jumpStyle=arc;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_anestesia_fin_recuperacion" value="Iniciar&lt;br&gt;Recuperación" edge="1" parent="1" source="anestesia_finalizada" target="en_recuperacion" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;endFill=1;html=1;strokeColor=#5B9BD5;strokeWidth=1.5;fontSize=11;fontColor=#1F2937;labelBackgroundColor=#FFFFFF;jumpStyle=arc;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_recuperacion_decision" value="Finalizar recuperación" edge="1" parent="1" source="en_recuperacion" target="tiene_traslado" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;endFill=1;html=1;strokeColor=#5B9BD5;strokeWidth=1.5;fontSize=11;fontColor=#1F2937;labelBackgroundColor=#FFFFFF;jumpStyle=arc;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_tiene_traslado_si" value="Sí" edge="1" parent="1" source="tiene_traslado" target="esperando_traslado_con" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;endFill=1;html=1;strokeColor=#C55A11;strokeWidth=1.5;fontSize=11;fontColor=#7F6000;labelBackgroundColor=#FFFFFF;jumpStyle=arc;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_tiene_traslado_no" value="No" edge="1" parent="1" source="tiene_traslado" target="es_ambulatoria" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;endFill=1;html=1;strokeColor=#C55A11;strokeWidth=1.5;fontSize=11;fontColor=#7F6000;labelBackgroundColor=#FFFFFF;jumpStyle=arc;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_ambulatoria_si" value="Sí" edge="1" parent="1" source="es_ambulatoria" target="esperando_alta" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;endFill=1;html=1;strokeColor=#C55A11;strokeWidth=1.5;fontSize=11;fontColor=#7F6000;labelBackgroundColor=#FFFFFF;jumpStyle=arc;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_ambulatoria_no" value="No" edge="1" parent="1" source="es_ambulatoria" target="esperando_traslado_sin" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;endFill=1;html=1;strokeColor=#C55A11;strokeWidth=1.5;fontSize=11;fontColor=#7F6000;labelBackgroundColor=#FFFFFF;jumpStyle=arc;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_alta_egreso" value="Realizar Alta" edge="1" parent="1" source="esperando_alta" target="esperando_egreso" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;endFill=1;html=1;strokeColor=#5B9BD5;strokeWidth=1.5;fontSize=11;fontColor=#1F2937;labelBackgroundColor=#FFFFFF;jumpStyle=arc;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_egreso_final" value="Egresar paciente" edge="1" parent="1" source="esperando_egreso" target="finalizada" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;endFill=1;html=1;strokeColor=#5B9BD5;strokeWidth=1.5;fontSize=11;fontColor=#1F2937;labelBackgroundColor=#FFFFFF;jumpStyle=arc;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_traslado_sin_transito" value="Devolver a unidad&lt;div&gt;de origen&lt;/div&gt;" edge="1" parent="1" source="esperando_traslado_sin" target="en_transito" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;endFill=1;html=1;strokeColor=#5B9BD5;strokeWidth=1.5;fontSize=11;fontColor=#1F2937;labelBackgroundColor=#FFFFFF;jumpStyle=arc;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_traslado_con_transito" value="Iniciar Traslado" edge="1" parent="1" source="esperando_traslado_con" target="en_transito" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;endFill=1;html=1;strokeColor=#5B9BD5;strokeWidth=1.5;fontSize=11;fontColor=#1F2937;labelBackgroundColor=#FFFFFF;jumpStyle=arc;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_transito_final" value="Aceptar traslado" edge="1" parent="1" source="en_transito" target="finalizada" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;endFill=1;html=1;strokeColor=#5B9BD5;strokeWidth=1.5;fontSize=11;fontColor=#1F2937;labelBackgroundColor=#FFFFFF;jumpStyle=arc;"><mxGeometry relative="1" as="geometry" /></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

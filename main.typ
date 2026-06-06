@@ -404,15 +404,27 @@
 
   La idea central del diseño es separar el flujo quirúrgico de los detalles de ejecución técnica. La solución no busca que el frontend conozca todos los pasos internos de cada acción, ni que un motor de procesos propietario mantenga todo el estado del caso. En cambio, la atención quirúrgica se representa a partir de entidades de dominio, se muestra en una lista de trabajo especializada y utiliza servicios de la plataforma para ejecutar acciones, registrar hitos, recibir eventos y coordinar operaciones complejas cuando es necesario.
 
-  == Visión general de la solución
+  == Estados del flujo quirúrgico
 
-  La solución se diseñó como una reconstrucción del flujo quirúrgico existente sobre la arquitectura actual de la Plataforma Lahuén. El flujo completo comienza con una entrada quirúrgica, continúa con la representación del caso en una lista de trabajo, permite ejecutar acciones clínicas y operacionales, actualiza entidades de dominio y termina con el cierre, traslado, egreso o suspensión del proceso. En todo momento, la lista de trabajo debe presentar una visión unificada del paciente quirúrgico, independiente de si su origen fue una solicitud de urgencia, una programación electiva o una atención ya iniciada.
+  El proceso quirúrgico se representó como una secuencia de estados. Estos estados ya existían en la versión anterior del módulo y fueron diseñados por la empresa a lo largo de años de trabajo con el flujo de pabellón. La modernización los mantuvo porque entregan una forma validada de modelar un proceso complejo. Cada estado indica la etapa del paciente, los datos relevantes para la grilla y las acciones disponibles para el usuario.
 
-  El diseño considera dos vías principales de entrada. La primera corresponde a solicitudes quirúrgicas de urgencia, originadas como indicaciones clínicas. Estas solicitudes se muestran inicialmente como casos solicitados y pueden ser aceptadas para crear una cita quirúrgica y avanzar hacia la atención. La segunda corresponde a cirugías electivas programadas, cuyo origen se encuentra en Gestión Hospitales y que deben importarse a Lahuén como citas de Agenda. En ambos casos, el objetivo es transformar datos de origen distintos en una representación común de atención quirúrgica.
+  La @fig-estados-proceso-quirurgico resume el orden definido para estos estados y muestra las transiciones que puede ejecutar el usuario. En el diseño, el origen del caso, las acciones disponibles y las condiciones de salida determinan cómo avanza cada paciente.
 
-  Una vez que el caso aparece en la lista de trabajo, el usuario interactúa con acciones disponibles según el estado del paciente. Algunas acciones son simples y pueden resolverse mediante una llamada directa a un servicio. Otras requieren coordinar varias operaciones, como consultar datos, crear o actualizar una cita, iniciar una atención, cambiar ubicación, registrar hitos o crear tareas. Para estas acciones, el diseño utiliza orquestaciones dinámicas ejecutadas a través de BPM y Temporal. De este modo, la interfaz inicia la acción, pero no queda acoplada a la secuencia exacta de pasos técnicos.
+  #figure(
+    image("./imagenes/diagrama-simplificado-estados-proceso-quirurgico.png", width: 100%),
+    caption: [Estados principales del proceso quirúrgico y transiciones asociadas.],
+  ) <fig-estados-proceso-quirurgico>
 
-  La solución también incorpora eventos como mecanismo de actualización. Cuando cambian citas, indicaciones, atenciones o evaluaciones, los servicios de la plataforma pueden emitir eventos de negocio hacia Kafka. Estos eventos pueden ser consumidos por BPM, que inicia orquestaciones cuando se cumple una condición, y por el servicio de SSE, que los entrega al frontend para actualizar la lista de trabajo. Así, el flujo no depende exclusivamente de acciones manuales realizadas en una pantalla, sino que puede reaccionar ante cambios producidos en otros componentes de la plataforma.
+  Los estados se organizaron en grupos funcionales:
+
+  - *Estados de ingreso*: "Solicitada" representa una orden quirúrgica de urgencia pendiente de aceptación. "Programada" representa una cirugía electiva ya agendada.
+  - *Estados de preparación*: "En espera" representa un paciente incorporado al circuito quirúrgico, pero aún no recepcionado en pabellón. "Preoperatorio" indica que el paciente ya fue recepcionado y puede ingresar a quirófano.
+  - *Estados intraoperatorios*: "En pabellón" marca la entrada al quirófano. Luego el caso avanza por "Anestesia iniciada", "Cirugía iniciada", "Cirugía finalizada" y "Anestesia finalizada". Estos estados registran los hitos temporales del acto quirúrgico.
+  - *Estado de recuperación*: "En recuperación" indica que terminó la etapa intraoperatoria. La acción principal es finalizar recuperación, lo que determina el camino posterior del paciente.
+  - *Estados de salida*: "Esperando alta" corresponde a pacientes ambulatorios a los que no se les indica hospitalización, por lo que deben recibir el alta para retirarse. "Esperando egreso" indica que el caso está listo para egresar al paciente. "Esperando traslado" representa la espera de movimiento hacia otra unidad. "En tránsito" indica que el paciente ya inició el traslado. "Finalizada" marca el cierre del caso.
+  - *Estado de excepción*: "Suspendida" representa una atención quirúrgica que fue suspendida. En la aplicación se utiliza en el módulo de atenciones anteriores para identificar esos casos.
+
+  Con estos estados, la lista de trabajo muestra rápidamente quién está pendiente de aceptación, preparado para pabellón, en cirugía, en recuperación o en etapa de salida. También permite reconstruir el recorrido del paciente mediante ubicación, programación, hitos, evaluaciones y documentos disponibles.
 
   == Entradas del flujo quirúrgico
 
@@ -436,13 +448,9 @@
 
   == Flujo funcional de la atención quirúrgica
 
-  El flujo funcional se diseñó como una secuencia de estados con acciones habilitadas según el momento clínico-operativo del paciente. La solución no define un flujo estrictamente lineal, porque el proceso quirúrgico admite reprogramaciones, suspensiones, traslados, egresos, retornos a unidad de origen y acciones documentales. Sin embargo, sí existe una progresión general que permite ordenar la operación.
+  A partir de los estados definidos, el flujo funcional se diseñó con acciones habilitadas según el momento clínico-operativo del paciente. La solución no define un flujo estrictamente lineal, porque el proceso quirúrgico admite reprogramaciones, suspensiones, traslados, egresos, retornos a unidad de origen y acciones documentales. Sin embargo, sí existe una progresión general que permite ordenar la operación y mantener una lectura consistente de cada caso.
 
-  En el caso de urgencia, el flujo comienza con una atención solicitada. El usuario acepta la orden y programa los datos necesarios para crear una cita quirúrgica. Luego el paciente puede ser recepcionado, ingresado a pabellón, avanzar por hitos intraoperatorios, iniciar recuperación y finalizar recuperación. Después de la recuperación, el paciente puede quedar esperando alta, esperando traslado o esperando egreso, dependiendo de su modalidad y destino. Finalmente, el caso termina cuando se finaliza la atención, se traslada al paciente a la unidad correspondiente o se registra el egreso.
-
-  En el caso electivo, el flujo comienza con una cita programada importada desde Gestión Hospitales. Antes de la admisión, el caso se muestra como programado y permite acciones como reagendar, suspender o completar evaluación preanestésica. Una vez admisionado, el paciente queda en espera y puede continuar con recepción, ingreso a pabellón, hitos intraoperatorios, recuperación y cierre. El diseño separa el origen electivo de la modalidad del paciente: una cirugía electiva puede ser ambulatoria o requerir hospitalización, por lo que el cierre debe considerar egreso, traslado o continuidad asistencial según corresponda.
-
-  Para ambos flujos, la lista de trabajo debe reflejar estados comprensibles para los usuarios. Entre los estados principales se consideran solicitada, programada, en espera, preoperatorio, en pabellón, en recuperación, esperando alta, esperando traslado, esperando egreso, en tránsito, finalizada y suspendida. Estos estados no solo sirven para mostrar una etiqueta; también determinan qué acciones se pueden ejecutar, qué documentos están disponibles y qué mensajes deben aparecer en la grilla.
+  En el caso de urgencia, el usuario acepta la orden y programa los datos necesarios para crear una cita quirúrgica. En el caso electivo, el caso comienza con una cita programada importada desde Gestión Hospitales. Una vez que el paciente ingresa al circuito operativo, ambos caminos comparten la misma progresión de recepción, preoperatorio, pabellón, recuperación y cierre. El diseño separa el origen del caso de su modalidad de salida: una cirugía electiva o de urgencia puede terminar con egreso, traslado o continuidad asistencial según corresponda.
 
   El diseño también contempla acciones de corrección y excepción. La suspensión permite detener una cirugía registrando causa, subcausa y observación. El reagendamiento permite modificar una programación sin perder participantes relevantes de la cita. El cambio de ubicación permite actualizar el cupo o área del paciente. La reversa de ingreso a pabellón permite corregir una acción ejecutada por error, devolviendo al paciente a preoperatorio y restaurando una ubicación válida. Estas acciones son importantes porque el flujo real no siempre avanza de forma ideal.
 
@@ -544,15 +552,25 @@
 
   Para los formularios clínicos se integró la carga de evaluaciones desde EHR. La lista de trabajo permite abrir acciones para registrar o actualizar evaluación preanestésica, pausas quirúrgicas, protocolo quirúrgico y cuidados intraoperatorios. Estas evaluaciones conservan su almacenamiento en la ficha clínica, pero quedan accesibles desde el flujo quirúrgico. En el caso del protocolo quirúrgico, además se incorporó la posibilidad de abrir el PDF cuando el documento ya existe.
 
-  == Implementación backend y datos de dominio
+  == Extensiones backend para el flujo quirúrgico
 
-  En backend, la implementación se apoyó principalmente en microservicios PHP existentes. No se creó un backend monolítico específico para el módulo quirúrgico; en cambio, se extendieron servicios de dominio y configuraciones para representar el proceso con entidades actuales de la plataforma.
+  La implementación backend incorporó mejoras en servicios existentes y configuraciones de base de datos para soportar la nueva versión del módulo de pabellón. Estas mejoras permitieron representar programaciones quirúrgicas, atenciones clínicas, evaluaciones, traslados, eventos y datos de integración dentro de la plataforma. Los principales cambios se agrupan a continuación como inventario de implementación; cada punto corresponde a una capacidad incorporada o ajustada durante el desarrollo.
 
-  Agenda se utilizó para representar programaciones quirúrgicas. Para ello se configuraron tipos de cita asociados a intervención quirúrgica de urgencia y electiva. Las citas almacenan participantes, referencias externas y datos extendidos necesarios para el proceso de pabellón. Esto permite distinguir la programación de la atención clínica efectiva: antes de recepcionar al paciente puede existir una cita programada; luego, al iniciar el flujo, la atención clínica pasa a ser la entidad principal.
+  === Agenda: participantes de citas quirúrgicas
 
-  HLTH se utilizó para representar la atención clínica y los cambios de estado asociados al proceso. La información quirúrgica específica se almacenó como datos extendidos de la atención, incluyendo estado del flujo, hitos, ubicación de origen, responsable, datos de suspensión y otras propiedades necesarias para reconstruir la fila de la lista de trabajo. Este enfoque permite que el estado operacional pueda ser consultado sin depender de la memoria de una ejecución de workflow.
+  En Agenda se realizaron mejoras para que las citas quirúrgicas pudieran asociar correctamente los participantes necesarios para el flujo operacional de pabellón.
 
-  También se configuraron y ajustaron tipos de evaluación, permisos y estructuras clínicas necesarias para los documentos del proceso. La evaluación preanestésica, el protocolo quirúrgico, las pausas quirúrgicas y los cuidados intraoperatorios se incorporaron como evaluaciones disponibles para el flujo. En particular, las pausas quirúrgicas se implementaron como registros estructurados por secciones, y los cuidados intraoperatorios como una evaluación adicional que permite registrar información definida para la atención en pabellón.
+  La creación de citas quirúrgicas requiere asociar participantes, entre ellos el paciente que será intervenido. Sin embargo, la información clínica del paciente se administra en HLTH, mientras que Agenda mantiene su propia tabla de participantes. Para conectar ambos servicios, la solicitud de creación de cita puede enviar un participante con una referencia externa y un tipo de participante. Con esos dos valores, Agenda busca si ya existe un participante equivalente y lo reutiliza.
+
+  Este mecanismo resolvía el vínculo cuando el participante ya estaba sincronizado, pero dejaba un problema cuando el paciente aún no existía en Agenda: la cita podía crearse, pero el participante no quedaba asociado correctamente. Para reducir este problema, se mejoró el adaptador de participantes para crear el participante del paciente cuando no existe y la solicitud contiene la información necesaria. Esta creación automática se acotó a pacientes; los clínicos no se crean libremente desde Agenda, por lo que si falta el participante del clínico la operación no puede resolverse de la misma forma. Esta limitación se mantiene como un problema conocido de sincronización entre servicios.
+
+  === HLTH: atención quirúrgica, ubicación y datos extendidos
+
+  En HLTH se extendió el uso de la atención clínica como entidad principal del flujo una vez iniciado el proceso quirúrgico. Para ello se ajustó el manejo de datos extendidos de la atención, permitiendo actualizar información del módulo de pabellón por ruta y con modos de mezcla. Esta capacidad fue usada para registrar estado operacional, hitos, datos de suspensión, datos de intervenciones, ubicación de origen y otra información necesaria para reconstruir la lista de trabajo.
+
+  También se modificó el cambio de ubicación de una atención para permitir actualizar datos extendidos durante el traslado y registrar correctamente fechas en el historial de ubicaciones. Esto incluyó soporte para indicar una fecha de inicio en el historial y para revertir cambios de ubicación, de modo que ciertas correcciones operacionales no dejaran una trazabilidad temporal inconsistente.
+
+  Se agregaron filtros y ajustes de consulta para soportar búsquedas usadas por el flujo quirúrgico. Entre ellos se incorporaron filtros por áreas, filtros para obtener atenciones sin cierto tipo de evaluación, mejoras en la búsqueda de clínicos y un índice de texto completo para búsquedas por nombre de profesional. Además, los eventos de traslado incorporaron el tipo de atención clínica, lo que permitió filtrar automatizaciones relacionadas con atenciones quirúrgicas.
 
   == Integración con Gestión Hospitales
 
@@ -885,6 +903,18 @@
 
   La lógica de reacción queda así expresada como configuración de BPM y no como llamadas directas desde la lista de trabajo.
 
+  === Eventos agregados en Agenda
+
+  Para que las programaciones quirúrgicas pudieran actualizarse en la lista de trabajo sin recargas manuales, se agregaron eventos en el servicio de Agenda. Estos eventos se publican cuando una cita cambia por una acción del flujo o por la operación de otro usuario. Además, incluyen el tipo de cita, lo que permite que los consumidores filtren solo las citas quirúrgicas.
+
+  Los eventos desarrollados fueron:
+
+  - *Cita creada*: se emite cuando se crea una nueva cita. Permite incorporar nuevas programaciones quirúrgicas a la lista de trabajo.
+  - *Cita iniciada*: se emite cuando una cita pasa a estado iniciado. En el flujo quirúrgico, esto indica que se creó una atención clínica y que la cita ya no debe mostrarse como programación pendiente.
+  - *Cita cancelada*: se emite cuando una cita es cancelada. Permite retirar o actualizar citas anuladas en la grilla.
+  - *Cita reagendada*: se emite cuando cambia la programación de una cita. Permite visualizar rápidamente reagendamientos realizados por otros usuarios.
+  - *Cita actualizada*: se emite cuando se modifican datos relevantes de una cita. Permite reaccionar cuando una acción cambia información almacenada en la cita, como el estado operacional en sus datos extendidos.
+
   === Mejoras al servicio de SSE
 
   Para la actualización de interfaces se ajustó el servicio de SSE, que consume eventos desde Kafka y los entrega a clientes frontend conectados. Una mejora relevante fue permitir filtros con más de un valor para un mismo parámetro. Antes, un filtro representaba una coincidencia puntual; con el cambio, el cliente puede enviar una lista y recibir eventos que coincidan con cualquiera de esos valores.
@@ -903,7 +933,7 @@
 
   - *Atenciones quirúrgicas*: escucha el tópico `api.hlth.patient-service` filtrando por tipos de atención quirúrgica y tipos de evento relevantes. Es especialmente importante escuchar actualizaciones, porque gran parte de la información operacional del proceso vive en los datos de la atención quirúrgica. Por ejemplo, avanzar de etapa dentro del quirófano técnicamente corresponde a actualizar la información de esa atención. Esta suscripción permite actualizar la grilla cuando una atención quirúrgica se crea, cambia de estado, actualiza sus hitos o finaliza.
   - *Indicaciones quirúrgicas*: escucha el tópico `api.hlth.indication` filtrando por tipos de indicación quirúrgica y eventos relevantes. Permite reflejar cambios en órdenes de urgencia, por ejemplo cuando una indicación es creada, iniciada, cancelada o finalizada.
-  - *Citas de Agenda*: escucha el tópico `api.agenda.appointment` filtrando por tipos de cita quirúrgica y eventos relevantes. Permite actualizar programaciones electivas o de urgencia cuando una cita se crea, inicia, modifica, cancela o finaliza.
+  - *Citas de Agenda*: escucha el tópico `api.agenda.appointment` filtrando por tipos de cita quirúrgica y eventos relevantes. Permite actualizar programaciones electivas o de urgencia cuando una cita se crea, inicia, modifica, cancela o reagenda.
   - *Evaluaciones clínicas*: escucha el tópico `api.hlth.evaluation` filtrando por tipo de atención quirúrgica, tipos de evaluación relevantes y tipo de evento. Permite actualizar la lista cuando se registran evaluaciones asociadas al flujo, como el protocolo quirúrgico u otros documentos clínicos.
 
   Durante la implementación se ajustaron los filtros para permitir listas de valores y reducir eventos irrelevantes. También se incorporó un debounce configurable para evitar que múltiples eventos cercanos generen recargas excesivas de la grilla. Esto fue necesario porque una acción orquestada puede modificar más de una entidad y producir varios eventos en poco tiempo. Además, la lista de trabajo puede ser utilizada por múltiples personas de forma independiente, por lo que en operación normal pueden ocurrir muchos cambios con pocos segundos de diferencia. Por esta razón, se buscó usar los filtros del servicio de SSE de la forma más específica posible, escuchando solo los eventos necesarios para la vista, y agrupar recargas cercanas mediante debounce.
