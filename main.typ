@@ -162,7 +162,7 @@
 
   En el contexto de este trabajo, dicha tensión aparece con claridad en el proceso quirúrgico. Acciones como recepcionar un paciente, cambiar su ubicación, registrar hitos intraoperatorios, crear tareas clínicas o finalizar etapas del flujo no pertenecen necesariamente a un único servicio. Por ello, la modernización requiere una forma de coordinar operaciones distribuidas sin volver a construir un motor de procesos propietario acoplado a un módulo específico.
 
-  == Backend y microservicios PHP
+  == Backend y microservicios PHP <sec-backend-microservicios>
 
   Los microservicios backend de Lahuén están implementados principalmente en PHP y se estructuran en torno a APIs, entidades de negocio, servicios, stores y esquemas de validación. Entre los proyectos relevantes para este trabajo aparecen paquetes asociados a dominios como agenda, salud, gestión clínica y procesos. Estos servicios son responsables de consultar y modificar datos de negocio, aplicar reglas propias de cada dominio y emitir eventos cuando ocurren cambios relevantes.
 
@@ -174,20 +174,26 @@
 
   Junto a los microservicios de dominio, la plataforma también cuenta con servicios que cumplen funciones de coordinación más específicas. Un caso relevante para el proceso quirúrgico es el servicio `hegc`, que integra información proveniente de Gestión Hospitales con servicios de Lahuén como salud, personas y agenda. Esta forma de coordinación es más imperativa y acoplada al caso de uso, pero resulta necesaria cuando el origen de datos se encuentra en una aplicación anterior de la plataforma, con base de datos, tablas y esquemas distintos a los usados por los microservicios actuales.
 
-  == Arquitectura frontend: web_app, worklists y plugins
+  == Arquitectura frontend: aplicaciones, listas de trabajo y plugins <sec-arquitectura-frontend>
 
-  En el frontend, la plataforma utiliza una arquitectura basada en una estructura común de aplicación web, denominada `web_app`, sobre la cual se construyen aplicaciones especializadas. En el caso del módulo quirúrgico modernizado, la interfaz se organiza como una aplicación de listas de trabajo, o `worklists`, extendida mediante plugins. Esta estructura permite separar el esqueleto común de la aplicación, los componentes reutilizables y la lógica particular de cada módulo.
+  El frontend moderno de Lahuén se construye sobre una arquitectura modular basada en componentes Vue 2 @Vue2Docs. La base compartida de esa arquitectura se encuentra en `shared`, proyecto que concentra elementos reutilizables por distintas aplicaciones: componentes genéricos de interfaz, como tablas, selectores, datepickers y typeaheads; formateadores; utilidades JavaScript; proxies de API; estilos; imágenes; íconos y skins. Las skins agrupan CSS y recursos visuales para adaptar una aplicación a una institución o contexto visual específico.
 
-  La nueva vista de proceso quirúrgico se construye utilizando Vue 2, framework progresivo para construir interfaces de usuario basadas en componentes @Vue2Docs. En la arquitectura revisada, la aplicación de lista de trabajo define elementos comunes como navegación, banner, panel lateral, filtros, grilla, acciones y actualización periódica de datos. Sobre esa base, los plugins incorporan comportamiento específico del dominio quirúrgico, tales como vistas, formularios, acciones disponibles para cada paciente y criterios de actualización.
+  Dentro de `shared` también se define `WebApp`, clase reutilizable para construir aplicaciones modernas de la plataforma. `WebApp` inicializa el ciclo de vida de una aplicación, carga configuración, prepara APIs, store, rutas, recursos visuales, autenticación y eventos. Como se observa en la @fig-arquitectura-web-app, una aplicación puede construirse directamente sobre `WebApp` para obtener estas capacidades comunes y luego agregar su propia estructura, componentes y comportamiento.
+
+  La personalización de una aplicación también se apoya en configuración. Cada proyecto frontend incluye un archivo de manifiesto y la plataforma mantiene una configuración asociada en MongoDB; `WebApp` combina ambas fuentes para obtener la configuración final. En general, el manifiesto define información del paquete y APIs disponibles, mientras que la configuración de MongoDB define variables usadas por la aplicación o por sus plugins, como plugins activos y parámetros de comportamiento.
 
   #figure(
-    image("./imagenes/diagrama-web_app-plugins.png", width: 100%),
-    caption: "Estructura simplificada de la arquitectura frontend basada en web_app, worklists y plugins.",
-  )
+    image("./imagenes/arquitectura_web_app_1.png", width: 80%),
+    caption: [Relación entre `WebApp`, aplicaciones, plugins y recursos compartidos en la arquitectura frontend de Lahuén.],
+  ) <fig-arquitectura-web-app>
 
-  Esta separación tiene dos ventajas para el trabajo. Primero, permite reutilizar componentes ya existentes de la plataforma, reduciendo duplicación de código y manteniendo una experiencia consistente con otros módulos. Segundo, facilita aislar la lógica particular del proceso quirúrgico en plugins especializados, evitando que el flujo clínico quede mezclado con la infraestructura común de la aplicación. Esta distinción es relevante porque uno de los objetivos de la modernización es mejorar la mantenibilidad del frontend respecto de la versión anterior.
+  `WebApp` también soporta plugins. La clase base `Plugin`, ubicada en `shared`, entrega a cada plugin acceso a la aplicación, store, APIs y eventos. Con este mecanismo, una aplicación puede cargar piezas de funcionalidad separadas y permitir que cada plugin registre comportamiento específico. Los plugins sirven para extender una aplicación sin mezclar toda la lógica en su base común.
 
-  La plataforma también cuenta con mecanismos reutilizables para registrar formularios clínicos desde distintas aplicaciones. Algunos formularios se implementan como componentes Vue específicos de una aplicación. Otros se construyen desde configuraciones de preguntas, opciones y secciones, como ocurre con formularios tipo checklist. Además, los formularios de la ficha clínica pueden cargarse desde otras aplicaciones mediante vistas embebidas, manteniendo su almacenamiento como evaluaciones clínicas en HLTH.
+  Un tipo frecuente de aplicación en Lahuén son las listas de trabajo, o worklists. Estas aplicaciones organizan la operación diaria alrededor de una grilla de casos, filtros, navegación, panel de acciones, paginación, ordenamiento y actualización de filas. Para este patrón existe una aplicación base de worklists construida sobre `WebApp`, junto con `WorklistPlugin`, una extensión de `Plugin` que agrega comportamiento común para plugins de listas de trabajo.
+
+  La personalización de una worklist se realiza mediante plugins. Un plugin de worklist puede registrar módulos, componentes, menús, filtros, grillas, formularios, suscripciones a eventos y reglas del dominio. De esta forma, la aplicación base conserva la estructura común, mientras que cada plugin define cómo se muestran y operan los casos de un proceso específico.
+
+  En las worklists también existen plugins comunes, como `standard`, que permiten reutilizar modelos y formularios entre aplicaciones. Estos componentes viven en un plugin porque son más específicos que los componentes genéricos de `shared`: por ejemplo, secciones de formularios asociadas a paciente, clínico, ubicación o admisión. En cambio, `shared` contiene piezas más transversales, como componentes de tabla, datepicker, select, typeahead, formateadores, utilidades, skins e íconos.
 
   == Procesos de negocio y workflows
 
@@ -408,11 +414,11 @@
 
   El proceso quirúrgico se representó como una secuencia de estados. Estos estados ya existían en la versión anterior del módulo y fueron diseñados por la empresa a lo largo de años de trabajo con el flujo de pabellón. La modernización los mantuvo porque entregan una forma validada de modelar un proceso complejo. Cada estado indica la etapa del paciente, los datos relevantes para la grilla y las acciones disponibles para el usuario.
 
-  La @fig-estados-proceso-quirurgico resume el orden definido para estos estados y muestra las transiciones que puede ejecutar el usuario. En el diseño, el origen del caso, las acciones disponibles y las condiciones de salida determinan cómo avanza cada paciente.
+  La @fig-estados-proceso-quirurgico muestra una versión simplificada del flujo, centrada en la acción principal de cada estado cuando el caso avanza sin excepciones. El flujo real incluye acciones adicionales, como completar formularios o suspender la atención, y también puede verse afectado por eventos externos. En el diseño, el origen del caso, las acciones disponibles y las condiciones de salida determinan cómo avanza cada paciente.
 
   #figure(
     image("./imagenes/diagrama-simplificado-estados-proceso-quirurgico.png", width: 100%),
-    caption: [Estados principales del proceso quirúrgico y transiciones asociadas.],
+    caption: [Flujo simplificado de estados principales del proceso quirúrgico y transiciones esperadas.],
   ) <fig-estados-proceso-quirurgico>
 
   Los estados se organizaron en grupos funcionales:
@@ -448,6 +454,8 @@
 
   La lista de trabajo construye una atención quirúrgica de frontend a partir de tres entidades: `Indication`, `Appointment` y `PatientService`. Cada una pertenece a un servicio distinto y representa una parte diferente del flujo.
 
+  Como se explicó en @sec-backend-microservicios, estas entidades pueden incorporar información contextual mediante `extendedData`. El diseño aprovecha esa capacidad para guardar variables propias del flujo quirúrgico sin alterar los atributos generales de cada entidad. Entre esas variables están los datos de programación, intervenciones, diagnósticos, responsable, origen del caso, estado operacional e hitos de pabellón.
+
   === Indication: solicitudes de urgencia
 
   `Indication` pertenece a HLTH y se usa para representar atenciones solicitadas. La grilla consulta indicaciones en estado 'Indicada' de la categoría 'Intervención en pabellón'. Esa categoría agrupa los tipos 'Electiva ambulatoria', 'Electiva' y 'Urgencia'.
@@ -466,27 +474,27 @@
 
   === PatientService: atención quirúrgica iniciada
 
-  `PatientService` pertenece a HLTH y representa la atención del paciente desde preoperatorio en adelante. Es la entidad más relevante del caso iniciado, porque en ella se registran hitos importantes del flujo, como inicio y fin de cirugía, además de ubicación, programación, responsable, intervenciones, diagnósticos, ubicación de origen y datos de creación.
+  `PatientService` pertenece a HLTH y representa la atención del paciente desde preoperatorio en adelante. Es la entidad más relevante del caso iniciado, porque concentra ubicación, programación, responsable, intervenciones, diagnósticos, ubicación de origen, datos de creación y estado operacional.
 
   La propiedad `stateKey` guarda el estado que utiliza el frontend para conocer la etapa actual del proceso. Las evaluaciones generadas durante el flujo también quedan relacionadas con esta atención, incluyendo evaluación preanestésica, pausas quirúrgicas, protocolo quirúrgico y alta quirúrgica.
 
+  Los hitos temporales de pabellón también se registran en el `extendedData` de `PatientService` a medida que el caso avanza. Los hitos principales son entrada a pabellón, inicio de anestesia, inicio de cirugía, fin de cirugía, fin de anestesia e inicio de recuperación. Estos datos permiten mostrar tiempos relevantes durante la intervención y reutilizarlos luego en documentos clínicos como el protocolo quirúrgico.
+
   Para obtener estas entidades se utilizan APIs y filtros disponibles en los microservicios, de modo que cada fuente entregue casos en los estados relevantes para la lista de trabajo. El capítulo de implementación detalla cómo se obtienen esos datos y cómo se unifican en una sola atención quirúrgica para la grilla.
 
-  == Diseño de estados y acciones
+  == Diseño frontend, estados y acciones
 
-  El flujo quirúrgico tiene muchos estados y cada estado habilita un conjunto distinto de acciones. Para manejar esa complejidad, el diseño separa la lógica en clases de estado y clases de acción. Cada estado representa una etapa del proceso y declara las acciones disponibles para esa etapa. Cada acción encapsula su nombre, etiqueta, visibilidad, condición de ejecución e interacción esperada.
+  El frontend se diseñó como una especialización de la aplicación base de listas de trabajo descrita en la @sec-arquitectura-frontend. La estructura común aporta navegación, filtros, grilla y paneles; la lógica quirúrgica queda concentrada en el plugin `surgical_process`.
 
-  Esta separación permite componentizar el comportamiento de la lista de trabajo. La grilla no necesita concentrar reglas específicas para cada combinación de estado y acción; obtiene el estado de la atención quirúrgica y expone las acciones asociadas. Esto simplifica el código de la vista y facilita agregar o modificar acciones sin reescribir la lógica general de la grilla.
+  El diseño usa dos plugins. `standard` aporta modelos y componentes comunes para listas de trabajo, como paciente, clínicos, ubicaciones, admisión y secciones reutilizables de formularios. `surgical_process` define los módulos del flujo quirúrgico, la carga de datos, la adaptación de casos, los componentes de lista, los estados, las acciones, los formularios propios y las suscripciones a eventos.
 
-  Las acciones se separan en simples y complejas. Las acciones simples pueden resolverse con una operación directa o con la apertura de una vista existente. Las acciones complejas requieren más de una modificación, llamadas encadenadas o decisiones según el contexto del caso. Estas acciones se diseñan como orquestaciones, porque ejecutar una secuencia de modificaciones desde el frontend introduce un riesgo operativo: una interrupción de conexión o un cierre de la aplicación puede dejar el flujo a medio ejecutar.
+  Se definen dos módulos. *Atención quirúrgica* muestra los casos activos del flujo diario de pabellón y permite ejecutar acciones. *Atenciones anteriores* permite consultar casos finalizados o suspendidos y revisar documentos clínicos registrados.
 
-  Las acciones también se ordenan mediante un registro común. Ese registro define una prioridad visual para mostrar primero las acciones principales y agrupar las secundarias cuando corresponde. La implementación concreta de cada acción se desarrolla en el capítulo de implementación.
+  Cada módulo monta componentes sobre los espacios provistos por la worklist: banner, barra de filtros y grilla. La grilla prioriza información operacional: paciente, documento, ubicación, especialidad, intervenciones, programación, destino, estado y acciones disponibles. Los estilos e íconos se ubican en la skin de la aplicación dentro de `shared`, lo que permite adaptar la interfaz al hospital sin mezclar presentación con lógica de flujo.
 
-  == Hitos intraoperatorios y tiempos de pabellón
+  La atención quirúrgica adaptada por el frontend contiene un estado, representado por una clase de estado. Como se mostró en la @fig-estados-proceso-quirurgico, cada estado corresponde a una etapa del proceso. Cada clase de estado declara las acciones disponibles para esa etapa, por lo que la lista de trabajo solo muestra acciones válidas para el caso seleccionado.
 
-  El diseño registra los hitos temporales más relevantes entre el ingreso a pabellón y el inicio de recuperación. Estos tiempos permiten mostrar durante la intervención cuánto tiempo lleva el paciente en operación y pueden reutilizarse luego en documentos clínicos como el protocolo quirúrgico.
-
-  Los hitos principales son entrada a pabellón, inicio de anestesia, inicio de cirugía, fin de cirugía, fin de anestesia e inicio de recuperación. El inicio de recuperación marca el cierre de la intervención y el paso a la etapa postoperatoria inmediata.
+  Cada acción se modela como una clase independiente con nombre, etiqueta, visibilidad, condición de ejecución e interacción esperada. Las acciones simples se resuelven con una operación directa o la apertura de una vista existente. Las acciones complejas se delegan a orquestaciones. Un registro común ordena las acciones para priorizar las principales y agrupar las secundarias.
 
   == Formularios y documentos clínicos
 
@@ -504,6 +512,13 @@
 
   El punto de entrada es BPM y la ejecución durable se apoya en Temporal. Sobre esa base, el orquestador dinámico interpreta una definición configurada con validaciones, llamadas HTTP, asignaciones, condiciones y transformaciones de datos. Así, una acción visible para el usuario puede ejecutarse como una secuencia controlada de operaciones.
 
+  El inicio de una orquestación puede venir desde una acción de usuario en la lista de trabajo o desde una automatización basada en eventos. En ambos casos, BPM recibe el identificador de la orquestación y los parámetros de negocio, instancia el workflow correspondiente y delega la ejecución al worker de Temporal. Como se observa en la @fig-inicio-orquestacion-dinamica, el frontend y las automatizaciones solicitan el inicio a la capa de procesos, que queda a cargo de ejecutar la secuencia completa.
+
+  #figure(
+    image("./imagenes/inicio_e_instanciacion_de _a_orquestacion.drawio.png", width: 100%),
+    caption: [Inicio e instanciación de una orquestación dinámica desde una acción de usuario o una automatización basada en eventos.],
+  ) <fig-inicio-orquestacion-dinamica>
+
   Este diseño entrega varias ventajas. Primero, permite reutilizar capacidades existentes: una orquestación puede llamar endpoints ya disponibles y combinarlos para construir una acción de mayor nivel. Segundo, permite ejecutar muchas actividades en una secuencia explícita, usando resultados anteriores para construir los pasos siguientes. Tercero, permite conectar microservicios distintos sin repartir la lógica del flujo entre ellos. Esta diferencia es relevante frente a una coreografía, donde cada servicio reacciona a eventos y el flujo completo queda distribuido entre varios componentes; con orquestación, el orden de ejecución queda descrito en un workflow, lo que mejora la visibilidad y depuración del proceso @NadeemM2022.
 
   Otra ventaja es la velocidad de desarrollo. Muchas acciones del módulo siguen patrones similares: recibir parámetros, consultar contexto, llamar uno o más servicios, actualizar entidades y registrar resultado. Definir esa secuencia como configuración permite agregar acciones nuevas con menos código específico. Además, ejecutar la secuencia en Temporal entrega un entorno más confiable que el frontend: el navegador no queda a cargo de completar varios pasos críticos y una pérdida de conexión del usuario no interrumpe por sí sola la ejecución ya iniciada.
@@ -514,19 +529,22 @@
 
   == Eventos y actualización de la lista de trabajo
 
-  El diseño considera que la lista de trabajo debe mantenerse sincronizada con cambios que no siempre ocurren desde la propia pantalla. Para ello se integran eventos de dominio emitidos por servicios de la plataforma. Estos eventos pueden provenir de cambios en indicaciones, citas, atenciones, traslados o evaluaciones.
+  El diseño considera que la lista de trabajo debe mantenerse sincronizada con cambios que pueden originarse en distintos servicios de la plataforma. Cuando un servicio de dominio actualiza una entidad relevante, envía un mensaje a Kafka. Kafka publica ese evento en la cola correspondiente, desde donde puede ser consumido por más de un servicio backend.
 
-  En el frontend, el servicio de SSE actúa como puente entre eventos de Kafka y la lista de trabajo. La aplicación se suscribe mediante `EventSource` al endpoint expuesto por este servicio y envía filtros para recibir solo los eventos relevantes para la vista. Cuando llega un evento que cumple con esos filtros, la lista actualiza la información de la grilla. Para evitar recargas innecesarias, el diseño incorpora filtros por entidad y la posibilidad de usar listas de valores. También se considera un debounce de actualización, de modo que múltiples eventos cercanos no provoquen una recarga por cada mensaje recibido.
+  En la @fig-diseno-eventos-lista-trabajo se observa este enfoque general. El servicio de SSE consume eventos desde Kafka, mantiene conexiones persistentes con las listas de trabajo mediante `EventSource` y reenvía cada evento solo a los canales cuyos filtros se cumplen. En paralelo, BPM Event Starter consume eventos desde Kafka, revisa sus suscripciones configuradas y decide si corresponde instanciar el workflow asociado.
 
-  En backend, los eventos también pueden activar suscripciones BPM. Este mecanismo permite que ciertos cambios disparen orquestaciones automáticas. Por ejemplo, la creación de una atención quirúrgica puede generar una tarea BPM para completar el protocolo; la creación del protocolo puede completar esa tarea y operar una orden en Gestión Hospitales; la finalización de un traslado puede finalizar la atención quirúrgica; y la finalización de una atención puede actualizar sistemas relacionados. Estos comportamientos permiten que parte del flujo avance como reacción a eventos, no solo por acciones directas de usuario.
+  #figure(
+    image("./imagenes/diagrama_diseno_eventos_1.png", width: 100%),
+    caption: [Modelo conceptual de eventos para actualizar la lista de trabajo y activar coordinaciones de proceso.],
+  ) <fig-diseno-eventos-lista-trabajo>
 
-  == Diseño de la aplicación frontend
+  Las listas de trabajo abren conexiones persistentes con filtros. Al abrir la conexión, cada lista indica qué eventos le interesan. Cuando el servicio de SSE recibe un evento de Kafka, revisa los canales abiertos, identifica aquellos cuyos filtros se cumplen y envía el evento solo por esos canales.
 
-  La nueva aplicación se diseñó como una lista de trabajo dentro de la arquitectura frontend de la plataforma. Su responsabilidad es mostrar pacientes quirúrgicos, filtros, estados, ubicación, programación, intervenciones, documentos y acciones. El usuario debe poder operar desde una sola vista el flujo principal de pabellón.
+  BPM Event Starter carga suscripciones al iniciar o reiniciar y usa sus filtros para decidir si instancia el workflow configurado. Ese workflow puede corresponder a una orquestación dinámica, ya que las orquestaciones dinámicas se ejecutan como workflows de Temporal.
 
-  El diseño separa la grilla, los filtros, el modelo de atención, los adaptadores, los estados y las acciones. Los adaptadores convierten fuentes externas en atenciones quirúrgicas. Los estados definen etiquetas, orden y acciones disponibles. Las acciones encapsulan la interacción y el efecto esperado. Los filtros permiten acotar la lista por fecha, ubicación u otros criterios operacionales. Esta organización busca que el módulo sea más fácil de extender que la versión anterior.
+  Este modelo permite que un mismo evento tenga efectos distintos según sus consumidores. Para la lista de trabajo, el evento actualiza la información visible del caso. Para BPM, el evento puede activar acciones automáticas, como crear o completar tareas del protocolo quirúrgico, finalizar una atención luego de un traslado o actualizar sistemas relacionados cuando se cierra el flujo.
 
-  La experiencia visual se adapta al hospital donde se implementa. Se consideran colores, banner, logo, iconografía y estilos propios del entorno. Además, la grilla prioriza información operacional: programación, ubicación, estado e intervenciones. Las acciones más importantes se muestran directamente, mientras que acciones secundarias se agrupan para evitar saturar la interfaz.
+  La motivación de este diseño es mejorar la eficiencia del flujo quirúrgico. La operación de pabellón requiere que la información visible esté actualizada cuando ocurre un cambio relevante, especialmente si ese cambio afecta el estado del paciente, su programación o las acciones disponibles. Además, el mismo mecanismo de eventos permite reaccionar automáticamente ante hitos del proceso, como la finalización de un traslado, para ejecutar coordinaciones posteriores como el cierre de atenciones de pabellón.
 
 ]
 
@@ -601,26 +619,13 @@
 
   == Implementación del orquestador dinámico
 
-  La idea principal del orquestador dinámico fue reutilizar un mismo workflow de Temporal para ejecutar distintas orquestaciones mediante configuraciones. En lugar de desarrollar un workflow específico para cada acción del proceso quirúrgico, cada orquestación define los parámetros que espera, las actividades que debe ejecutar, las condiciones de ejecución y la forma de construir los datos enviados a cada servicio. De esta manera, acciones complejas pueden coordinarse principalmente mediante llamadas a endpoints ya existentes, reduciendo el código necesario para orquestar operaciones que involucran varios microservicios.
-
-  === Flujo general de una orquestación dinámica
-
-  El flujo general comienza cuando un componente solicita la ejecución de una orquestación. En el caso de acciones iniciadas por usuario, la solicitud proviene del frontend a través de la API de BPM. En el caso de automatizaciones, puede provenir de una suscripción BPM que transforma un evento de negocio en parámetros de entrada para el orquestador.
-
-  BPM recibe el identificador de la orquestación y los parámetros asociados. A partir de esa información prepara la ejecución y la deriva hacia la infraestructura de workflows de la plataforma. El worker registrado ejecuta el workflow del orquestador dinámico, que interpreta la configuración correspondiente.
-
-  Una vez iniciado, el workflow del orquestador dinámico delega la ejecución concreta en una actividad principal. Esa actividad recibe la lista de actividades configuradas y los parámetros de entrada, inicializa el contexto de ejecución y procesa la lista en orden. En cada paso construye la actividad final a partir de plantillas, evalúa si debe ejecutarse, llama a un endpoint o asigna variables intermedias, registra una respuesta y continúa con la siguiente actividad. El flujo de inicio e instanciación se resume en @fig-inicio-orquestacion-dinamica.
-
-  #figure(
-    image("./imagenes/inicio_e_instanciacion_de _a_orquestacion.drawio.png", width: 100%),
-    caption: [Inicio e instanciación de una orquestación dinámica desde una acción de usuario o una automatización basada en eventos.],
-  ) <fig-inicio-orquestacion-dinamica>
+  El orquestador dinámico se implementó mediante cambios en BPM, un workflow de Temporal, una actividad principal de ejecución, validaciones de entrada y un formato configurable de actividades.
 
   === Registro del workflow en la base de datos
 
-  Para que el orquestador pudiera ser instanciado desde BPM, no bastaba con implementar la clase PHP del workflow. Fue necesario agregar una definición en la base de datos de BPM que asociara un identificador de proceso con la clase `DynamicOrchestratorWorkflow`. Esta definición permite que BPM reciba una solicitud, resuelva qué clase de workflow debe iniciar y reutilice su mecanismo estándar de creación de instancias.
+  Para instanciar el orquestador desde BPM, se agregó una definición en la base de datos de BPM que asocia un identificador de proceso con la clase `DynamicOrchestratorWorkflow`. Esta definición permite que BPM reciba una solicitud, resuelva qué clase de workflow debe iniciar y reutilice su mecanismo estándar de creación de instancias.
 
-  Esta decisión fue importante porque evitó crear una ruta paralela para iniciar workflows de Temporal. El orquestador dinámico quedó integrado al mismo mecanismo usado por otros procesos de la plataforma: BPM recibe la solicitud, construye el mensaje de creación, lo envía mediante RabbitMQ y el worker de Temporal ejecuta el workflow registrado. Así, el nuevo componente se incorporó a la arquitectura existente.
+  Con este registro, el orquestador dinámico quedó integrado al mismo mecanismo usado por otros procesos de la plataforma: BPM recibe la solicitud, construye el mensaje de creación, lo envía mediante RabbitMQ y el worker de Temporal ejecuta el workflow registrado.
 
   === Endpoint para iniciar una orquestación dinámica
 
@@ -632,13 +637,13 @@
 
   La implementación debió considerar una restricción importante de Temporal: el tamaño de los payloads enviados como argumentos o retornos de workflows y actividades. La documentación de Temporal para instalaciones self-hosted indica que estos payloads generan advertencias desde 256 KB y errores desde 2 MB @TemporalSelfHostedDefaults. Este límite muestra que los datos intercambiados entre workflow y actividades no deben crecer sin control.
 
-  Esta restricción afectaba directamente al diseño del orquestador. Las orquestaciones dinámicas acumulan respuestas de actividades para que pasos posteriores puedan utilizar resultados previos. Si cada paso configurado fuera una actividad de Temporal independiente, el workflow tendría que enviar a cada actividad un contexto cada vez más grande, compuesto por los parámetros originales y la lista acumulada de respuestas. En acciones que consultan pacientes, citas, atenciones, traslados o evaluaciones, ese contexto podía crecer rápidamente.
+  Esta restricción condicionó la implementación del orquestador. Las orquestaciones dinámicas acumulan respuestas de actividades para que pasos posteriores puedan utilizar resultados previos. Si cada paso configurado fuera una actividad de Temporal independiente, el workflow tendría que enviar a cada actividad un contexto cada vez más grande, compuesto por los parámetros originales y la lista acumulada de respuestas. En acciones que consultan pacientes, citas, atenciones, traslados o evaluaciones, ese contexto podía crecer rápidamente.
 
-  === Decisión de ejecutar el loop en una sola actividad
+  === Loop en una sola actividad de Temporal
 
-  Para reducir el riesgo de exceder límites de payload, se tomó la decisión de ejecutar el loop completo dentro de una única actividad de Temporal. En vez de programar una actividad Temporal por cada paso dinámico, el workflow envía una vez el input inicial a una actividad principal. Esa actividad ejecuta internamente todas las actividades configuradas y solo devuelve un resultado final cuando la configuración lo permite.
+  Para reducir el riesgo de exceder límites de payload, el loop completo se implementó dentro de una única actividad de Temporal. En vez de programar una actividad Temporal por cada paso dinámico, el workflow envía una vez el input inicial a una actividad principal. Esa actividad ejecuta internamente todas las actividades configuradas y solo devuelve un resultado final cuando la configuración lo permite.
 
-  Esta decisión limita algunas ventajas de Temporal. En particular, Temporal deja de observar cada paso dinámico como una actividad independiente, por lo que no puede reintentar desde el paso interno que falló. Si una actividad dinámica falla, el reintento de Temporal vuelve a ejecutar la actividad principal completa, es decir, toda la orquestación desde el inicio.
+  Esta implementación limita algunas ventajas de Temporal. En particular, Temporal deja de observar cada paso dinámico como una actividad independiente, por lo que no puede reintentar desde el paso interno que falló. Si una actividad dinámica falla, el reintento de Temporal vuelve a ejecutar la actividad principal completa, es decir, toda la orquestación desde el inicio.
 
   Este fue un compromiso técnico: se sacrificó granularidad de ejecución en Temporal, pero se mantuvo la ventaja principal requerida por el proyecto, que era coordinar actividades entre microservicios sin depender del motor de procesos propietario y sin desarrollar un workflow específico para cada acción.
 
