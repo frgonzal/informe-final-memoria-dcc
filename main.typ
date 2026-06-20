@@ -910,7 +910,7 @@
 
   === Resultado del orquestador dinámico
 
-  Con esta implementación, el orquestador dinámico no reemplaza la lógica de negocio de los microservicios, sino que la conecta. Su aporte principal es permitir que distintas acciones se definan como configuraciones ejecutadas por un mismo workflow reusable. Esto reduce la necesidad de crear workflows específicos para cada caso, facilita la incorporación de nuevas acciones y permite coordinar actividades complejas utilizando capacidades ya disponibles en la plataforma.
+  Con esta implementación, la plataforma incorporó una capacidad reusable para coordinar acciones compuestas entre microservicios. Las reglas específicas de cada transición quedan expresadas como definiciones configurables, mientras que el workflow común entrega el mecanismo de ejecución, validación y secuenciamiento. Esto permite incorporar nuevas acciones del flujo quirúrgico con menos código específico, aprovechar endpoints existentes y mantener la coordinación fuera del frontend, en una capa más adecuada para ejecutar procesos asincrónicos y trazables.
 
   == Orquestaciones dinámicas del flujo quirúrgico
 
