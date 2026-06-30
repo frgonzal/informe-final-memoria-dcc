@@ -135,3 +135,20 @@ LahuenHealthAbout:
   author: Lahuén Health SpA
   url: https://www.lahuen.health/about.html
   date: 2026-05-23
+
+BaloianPino2024Usabilidad:
+  type: Report
+  title: Guía de Evaluación de Usabilidad de Software
+  author:
+    - Nelson Baloian
+    - José A. Pino
+  year: 2024
+  organization: Departamento de Ciencias de la Computación, Universidad de Chile
+  location: Santiago, Chile
+
+W3SchoolsIframe:
+  type: Web
+  title: HTML iframe Tag
+  author: W3Schools
+  url: https://www.w3schools.com/tags/tag_iframe.ASP
+  date: 2026-06-29

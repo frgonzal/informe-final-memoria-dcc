@@ -505,7 +505,7 @@
 
   El diseño de esta aplicación usa dos plugins. `standard` aporta modelos y componentes comunes para listas de trabajo, como paciente, clínicos, ubicaciones, admisión y secciones reutilizables de formularios. `surgical_process` define los módulos del flujo quirúrgico, la carga de datos, la adaptación de casos, los componentes de lista, los estados, las acciones, los formularios propios y las suscripciones a eventos.
 
-  En la aplicación de pabellón se definen dos módulos. *Atención quirúrgica* muestra los casos activos del flujo diario de pabellón y permite ejecutar acciones. *Atenciones anteriores* permite consultar casos finalizados o suspendidos y revisar documentos clínicos registrados. Cada módulo monta componentes sobre los espacios provistos por la worklist: banner, barra de filtros y grilla. La grilla prioriza información operacional: paciente, documento, ubicación, especialidad, intervenciones, programación, destino, estado y acciones disponibles. Los estilos e íconos se ubican en la skin de la aplicación dentro de `shared`, lo que permite adaptar la interfaz al hospital sin mezclar presentación con lógica de flujo.
+  En la aplicación de pabellón se definen dos módulos. *Atención quirúrgica* muestra los casos activos del flujo diario de pabellón y permite ejecutar acciones. *Atenciones anteriores* permite consultar casos finalizados o suspendidos y revisar documentos clínicos registrados. Cada módulo monta componentes sobre los espacios provistos por la worklist: banner, barra de filtros y grilla. La grilla prioriza información operacional: paciente, documento, ubicación, especialidad, intervenciones, programación, estado y acciones disponibles. Los estilos e íconos se ubican en la skin de la aplicación dentro de `shared`, lo que permite adaptar la interfaz al hospital sin mezclar presentación con lógica de flujo.
 
   La atención quirúrgica adaptada por el frontend contiene un estado, representado por una clase de estado. Como se mostró en la @fig-estados-proceso-quirurgico, cada estado corresponde a una etapa del proceso. Cada clase de estado declara las acciones disponibles para esa etapa, por lo que la lista de trabajo solo muestra acciones válidas para el caso seleccionado.
 
@@ -521,7 +521,7 @@
 
   Las tres aplicaciones comparten un principio de diseño: todas dependen del mismo estado operacional del proceso quirúrgico, pero cada una lo traduce a una experiencia distinta. La aplicación de pabellón permite operar; el monitor de pabellones permite coordinar; y el monitor público permite informar. Esta separación mantiene la coherencia del flujo y evita duplicar reglas clínicas, pero permite ajustar componentes, columnas, filtros y nivel de detalle según el usuario al que se dirige cada pantalla.
 
-  == Formularios y documentos clínicos
+  == Formularios y documentos clínicos <sec-diseno-formularios-documentos-clinicos>
 
   El flujo quirúrgico requiere formularios con distintos niveles de complejidad. Por eso, el diseño usa tres mecanismos según el tipo de información que se debe registrar.
 
@@ -529,7 +529,7 @@
 
   Los formularios tipo checklist se usan para registros simples basados en preguntas, opciones y observaciones. Este mecanismo resulta adecuado para pausas quirúrgicas y cuidados intraoperatorios, porque permite guardar respuestas estructuradas con menor costo de desarrollo.
 
-  Los formularios clínicos más completos se integran desde EHR mediante una vista embebida. Este mecanismo se usa para documentos que pertenecen directamente a la ficha clínica del paciente, como evaluación preanestésica y protocolo quirúrgico. Con esta separación, cada formulario usa el mecanismo más adecuado para su complejidad y para el lugar donde debe persistirse la información.
+  Los formularios clínicos más completos se integran usando un componente compartido de `shared` para cargar evaluaciones de EHR. Internamente, ese componente utiliza el elemento `iframe` para cargar el formulario desde una ruta configurada; este elemento permite embeber otro documento HTML dentro del documento actual mediante una ruta `src` @W3SchoolsIframe. En la plataforma este mecanismo ya existía: los formularios se configuran por base de datos mediante configuraciones JSON que definen la ruta, parámetros y comportamiento de carga. En el módulo quirúrgico se reutilizó para documentos que pertenecen directamente a la ficha clínica del paciente, como evaluación preanestésica y protocolo quirúrgico. Con esta separación, cada formulario usa el mecanismo más adecuado para su complejidad y para el lugar donde debe persistirse la información.
 
   == Diseño del orquestador dinámico
 
@@ -578,39 +578,320 @@
 
   La implementación se realizó de manera incremental. Primero se construyó una lista de trabajo capaz de mostrar casos quirúrgicos desde fuentes distintas. Luego se agregaron acciones clínicas y operacionales, se integraron formularios, se incorporaron eventos para actualización de la grilla y se definieron orquestaciones para las acciones que requerían coordinar varios servicios. Finalmente, se conectó el flujo electivo con Gestión Hospitales y Agenda, permitiendo que las programaciones quirúrgicas ingresaran al nuevo módulo.
 
-  == Implementación frontend
+  == Implementación de la aplicación de proceso quirúrgico
 
-  La nueva vista quirúrgica se implementó dentro de la arquitectura frontend de la plataforma, basada en una aplicación contenedora, listas de trabajo y plugins. En esta organización, la aplicación provee la infraestructura común de carga, navegación y servicios compartidos; la lista de trabajo entrega la estructura base para filtros, grilla y acciones; y el plugin quirúrgico contiene la lógica específica del proceso de pabellón.
+  Esta sección describe la implementación frontend de la aplicación de proceso quirúrgico. La aplicación corresponde a una lista de trabajo operativa de pabellón, construida sobre la arquitectura de worklists de la plataforma y especializada mediante el plugin `surgical_process`. En ella se concentra la visualización diaria de solicitudes, programaciones y atenciones quirúrgicas, junto con los elementos visuales necesarios para operar el flujo desde pabellón.
 
-  La implementación se apoyó en Vue 2 y componentes reutilizables de la plataforma. La pantalla principal se organizó alrededor de una grilla de pacientes quirúrgicos, filtros operacionales, columnas configuradas para el dominio y un conjunto de acciones disponibles según el estado de cada fila. Esta estructura permitió reemplazar una interfaz más acoplada por una implementación donde el estado, las acciones, los adaptadores y los componentes visuales quedan separados.
+  === Modelo unificado de atención quirúrgica <sec-impl-modelo-unificado-atencion-qx>
 
-  Uno de los elementos centrales fue el modelo de atención quirúrgica usado por el frontend. Este modelo adapta información proveniente de indicaciones, citas de Agenda y atenciones clínicas para exponerla como una fila homogénea. La fila contiene datos del paciente, programación, ubicación, intervenciones, diagnósticos, evaluaciones, estado, origen del caso e identificadores necesarios para ejecutar acciones. Gracias a esta capa de adaptación, la grilla puede mostrar casos solicitados, programados o ya iniciados sin que el usuario deba distinguir la estructura técnica de cada fuente.
+  `AtencionQuirurgica` implementa el contrato común que usa la aplicación para operar casos quirúrgicos provenientes de HLTH, Agenda o `PatientService`. La clase normaliza entidades de origen distintas en una estructura estable para grilla, filtros, estados, acciones y formularios del plugin `surgical_process`.
 
-  Para construir ese modelo se implementaron adaptadores específicos. Las indicaciones quirúrgicas permiten representar solicitudes de urgencia. Las citas de Agenda permiten representar cirugías electivas o de urgencia ya programadas. Las atenciones clínicas permiten representar pacientes cuyo flujo quirúrgico ya fue iniciado. Cada adaptador normaliza datos, resuelve campos faltantes cuando corresponde y conserva referencias necesarias para operar sobre la entidad original.
+  La @fig-clase-atencion-qx muestra la estructura implementada. `AtencionQuirurgica` actúa como agregado frontend: contiene datos del paciente, submodelos clínico-operacionales, referencias de trazabilidad y una instancia de `EstadoBase` que resuelve comportamiento dependiente del estado.
 
-  La carga de datos usa consultas separadas por entidad. Para indicaciones se consultan registros de categoría 'Intervención en pabellón', tipos 'Electiva ambulatoria', 'Electiva' y 'Urgencia', y estado 'Indicada'. Para citas se consultan registros en estado 'Agendada' cuyos servicios pertenecen a tipos de cita quirúrgica configurados. Para atenciones se consultan `PatientService` de tipo 'Quirúrgica' en estados activos, principalmente 'Iniciada' y 'Finalizando'. El módulo de atenciones anteriores consulta `PatientService` en estados 'Finalizado' o 'Cancelado'.
+  #figure(
+    image("./imagenes/cap06-DiagramaDeClaseAtencionQx.png", width: 95%),
+    caption: [Diagrama de clases del modelo unificado de atención quirúrgica implementado en la aplicación de proceso quirúrgico.],
+  ) <fig-clase-atencion-qx>
 
-  En citas y atenciones, la información específica de pabellón se obtiene desde `extendedData.pabellon`. Ahí se almacenan datos como programación, responsable, ubicación de origen, tipo de origen del caso, estado del flujo, hitos y datos de creación. También se guarda información estructurada de intervenciones y diagnósticos: cada intervención conserva identificador, descripción, especialidad y tiempo operatorio; cada diagnóstico conserva identificador, descripción y código clínico cuando está disponible.
+  El modelo se divide en subclases para aislar reglas de normalización. `Patient` se reutiliza desde el módulo estándar y adapta pacientes de HLTH o participantes de Agenda mediante `loadHLTHRaw` y `loadAgendaRaw`, evitando duplicar reglas de identificación y formato de nombres. `DatosIntervenciones` encapsula intervenciones, diagnósticos y tiempo operatorio; filtra registros incompletos, conserva campos mínimos para operación y normaliza la duración como número positivo o `null`, porque esos datos pueden venir desde indicaciones, citas o atenciones clínicas. `DatosEvaluaciones` adapta evaluaciones HLTH, filtra tipos válidos del proceso quirúrgico y centraliza consultas por tipo, borradores, evaluaciones válidas y signos vitales; esto permite que estados y acciones dependan de documentos clínicos existentes sin recorrer respuestas crudas de HLTH. `PausasQuirurgicas` deriva desde `DatosEvaluaciones` si las tres pausas quirúrgicas existen y calcula la siguiente pausa pendiente, usando como fuente el registro clínico ya almacenado en HLTH.
 
-  Las indicaciones se crean en un contexto clínico distinto al módulo de pabellón, por lo que su información tiene otra estructura. Para mostrarlas como filas solicitadas, el modelo toma paciente, ubicación, clínico solicitante, especialidad, intervención indicada, diagnósticos y tiempo operatorio. Al aceptar la orden, esa información se usa para crear la cita quirúrgica que continúa el flujo.
+  La clase también mantiene metadatos de trazabilidad. `externalReference` guarda un identificador de relación con otra entidad cuando la fuente lo requiere; en citas de Agenda corresponde a la referencia externa usada para vincular la cita con entidades de otros servicios, mientras que en indicaciones y `PatientService` se completa con el identificador propio de la entidad adaptada. `origenCarga` registra la entidad desde la cual se construyó la atención, su identificador, la atención `PatientService` relacionada, el `careManager` y la ubicación de referencia cuando corresponde; `datosCreacion` conserva vínculos usados para reconstruir cómo se creó el caso, como la indicación, la cita o el `PatientService` original. Estas propiedades permiten ejecutar acciones posteriores sin que la grilla conozca si la operación debe actuar sobre Agenda, HLTH o sobre datos extendidos de pabellón.
 
-  También se implementó un registro explícito de estados y acciones. Cada estado define su etiqueta, orden, presentación visual y acciones disponibles. Las acciones, por su parte, encapsulan la interacción con el usuario y la operación posterior: abrir un modal, solicitar confirmación, cargar datos, invocar un servicio, llamar a BPM o abrir otra aplicación. Esta organización redujo la necesidad de condicionales dispersos en la grilla y facilitó agregar nuevas acciones sin modificar toda la pantalla.
+  La información operacional se mantiene en propiedades explícitas. `tabla` identifica el origen funcional de la atención: `electiva` para casos que ingresan desde Gestión Hospitales y `urgencia` para casos generados desde una indicación quirúrgica. Esta distinción permite aplicar reglas distintas de construcción, admisión y estado inicial. `programacion` almacena fecha, término y ubicación programada con fechas `DateTime` válidas; `ubicacion` normaliza la ubicación HLTH actual del paciente; `especialidad`, `responsable`, `service`, `crmId` y `esCma` alimentan columnas y reglas de operación; `extendedData` conserva el bloque de pabellón persistido para que las acciones reutilicen datos sin reinterpretar la entidad original.
 
-  La grilla fue ajustada para priorizar información operacional. Las columnas de programación, estado, ubicación e intervenciones concentran la información necesaria para la coordinación de pabellón. Se incorporó soporte para nombre social, mejor presentación de intervenciones y diagnósticos, ordenamiento de filas según estados relevantes, mensajes operacionales más claros y agrupación de acciones secundarias para no saturar la interfaz. Además, se adaptó la apariencia visual al entorno hospitalario donde se utilizó la solución, incluyendo colores, logo, banner y estilos de la institución.
+  Los getters evitan repetir lógica en componentes y acciones. `patientService` entrega una referencia segura a la atención clínica solo cuando corresponde; en otros orígenes retorna un objeto vacío con forma conocida. `seRealizoEvaluacionPreAnestesica` y `seRealizoProtocoloQx` consultan `DatosEvaluaciones` para habilitar o restringir operaciones según documentos clínicos registrados.
+
+  La construcción de instancias se concentra en tres adaptadores. `adaptFromIndication` crea una atención solicitada desde HLTH, usando paciente, ubicación, `PatientService` original, intervención indicada, diagnósticos, especialidad y responsable. `adaptFromAppointment` adapta una cita de Agenda, interpreta el tipo de cita, obtiene paciente, pabellón y responsable desde participantes, carga programación e intervenciones y resuelve el estado desde `stateKey` o reglas por defecto. `adaptFromPatientService` adapta una atención clínica existente, cargando programación, ubicación vigente, evaluaciones, pausas, intervenciones, especialidad, responsable y datos extendidos; luego decide el estado efectivo considerando `stateKey`, finalización, cancelación y alta quirúrgica.
+
+  `state` mantiene la instancia de estado operacional asociada al caso. La lógica específica de estados y acciones se describe en las subsecciones siguientes.
+
+  Con esta estructura, cada fila de la lista de trabajo se construye desde una `AtencionQuirurgica` normalizada. Los adaptadores y submodelos concentran la integración con HLTH y Agenda, mientras los componentes visuales consumen propiedades homogéneas del modelo.
+
+  === Modelo base de estados de atención quirúrgica
+
+  Los estados se implementaron como clases que extienden `EstadoBase`. Cada estado conoce la instancia de `AtencionQuirurgica` asociada y define su identificador, descripción, texto complementario, estilo visual y acciones disponibles. La @fig-modelo-estados-acciones muestra la relación entre el estado base, las acciones, los registros de orden y el plugin de la lista de trabajo.
+
+  #figure(
+    image("./imagenes/cap06-modelo_estados_acciones.png", width: 95%),
+    caption: [Modelo de clases utilizado para estados, acciones y registros de orden en la aplicación de proceso quirúrgico.],
+  ) <fig-modelo-estados-acciones>
+
+  El estado persistido en las entidades no se guarda como instancia de clase, sino como `stateKey` dentro de `extendedData`. Ese valor conserva la información mínima del estado, principalmente `id` y `description`, porque originalmente los estados se representaban mediante un identificador y una descripción. Para mantener esa forma de persistencia y diferenciar cada estado de manera única, cada clase de estado conserva ambos valores y `toJSON()` entrega la estructura que necesita el formateador de estado para mostrarlo con diseño en la tabla de trabajo.
+
+  A partir de esa persistencia fue necesario implementar un mecanismo que tradujera el `stateKey` guardado en la entidad a una clase de estado de la aplicación. Para esto se implementó `RegistroEstados`, una clase que mantiene de forma global el conjunto de estados disponibles y su orden operacional. Con ese registro, la lista de trabajo puede obtener el orden de un estado para ordenar filas según la secuencia del flujo quirúrgico, y también puede instanciar el estado específico de una fila usando el `stateKey` recibido desde `extendedData`.
+
+  `EstadoBase` concentra el contrato común de los estados. La clase expone `id`, `description`, `text` y `textClass`, y mantiene una referencia a la atención quirúrgica asociada. `text` y `textClass` se agregaron para que algunos estados puedan mostrar un mensaje adicional en la tabla de trabajo. Con esto se implementó, por ejemplo, la visualización de un aviso cuando el protocolo quirúrgico sigue pendiente y la atención ya se encuentra en etapas finales.
+
+  Los estados que representan hitos relevantes del flujo también exponen `nombreHito`. Esta propiedad permite registrar el momento en que comienza un hito de pabellón: cuando una atención avanza de estado, la acción que realiza el cambio puede usar `nombreHito` junto con la fecha actual para guardar el inicio de ese hito en los datos de la atención.
+
+  El estado también centraliza el manejo de acciones mediante `setActions()`. Cada estado declara las acciones que pueden aplicar a esa etapa del flujo; luego inyecta la instancia del plugin, ordena las acciones con `RegistroAcciones`, descarta las que no cumplen `canExecute()` y construye el mapa que recibe la fila. Esta centralización es relevante porque la lista de trabajo tiene muchas acciones posibles, pero solo tres espacios visuales para acciones con ícono. El estado que contiene las acciones muestra las tres primeras acciones más relevantes y mantiene colapsadas las restantes como acciones secundarias.
+
+  === Modelo base de acciones de atención quirúrgica <sec-modelo-base-acciones-atencion-quirurgica>
+
+  Las acciones se implementaron como clases derivadas de `AccionBase`, según la estructura mostrada en la @fig-modelo-estados-acciones. Cada instancia mantiene una referencia al estado que la creó y, por medio de ese estado, accede a la `AtencionQuirurgica` sobre la cual opera. La clase base define el contrato común de una acción: nombre interno, etiqueta visible, tooltip, visibilidad, condición de ejecución, inicio de ejecución, confirmación y despacho de eventos hacia el plugin.
+
+  La disponibilidad de una acción se determina en dos niveles. El primero es el estado operacional: una acción solo puede aparecer si el estado actual la declaró dentro de sus acciones posibles mediante `setActions()`, como se describió en la sección anterior. Esto representa las operaciones que tienen sentido para una etapa del flujo quirúrgico.
+
+  El segundo nivel corresponde a las condiciones propias de la acción. Para esto se implementó `canExecute()`, que permite decidir si una acción declarada por el estado debe mostrarse efectivamente para una atención específica. Esta comprobación usa los datos de la `AtencionQuirurgica` y permite ocultar acciones cuando faltan condiciones necesarias, como información de traslado, evaluaciones requeridas o datos específicos en `extendedData`. De esta forma, los estados definen el conjunto posible de acciones y cada acción decide si cumple las condiciones para quedar disponible en la fila.
+
+  El flujo de ejecución se implementó en dos fases. `trigger()` inicia la acción y controla la interacción inicial con la interfaz. Su responsabilidad es preparar la operación, solicitar datos cuando corresponde y delegar al plugin la apertura del componente necesario. `commit()` ejecuta la operación confirmada con los datos ya capturados y con el usuario de sesión agregado por el plugin. Para coordinar ambas fases, los componentes emiten `surgical_process:commit_action`; el plugin recibe ese evento y llama a `action.commit(data, { sessionUser })`. Así, la acción conserva la lógica de negocio de la operación, mientras el plugin actúa como intermediario para ejecutar efectos sobre la aplicación, servicios y formularios.
+
+  `dispatchEvent()` recibe el nombre del evento y su carga útil, y delega la llamada en la instancia del plugin asociada a la acción. Se usa para enviar al `WorklistSurgicalProcessPlugin` la instrucción que debe ejecutarse y los datos necesarios para resolverla. El plugin atiende esos eventos con las funciones registradas en `worklistInit()` para manejarlos.
+
+  === Módulo de atención quirúrgica
+
+  El módulo de atención quirúrgica corresponde a la vista operativa principal de la aplicación. En este módulo se muestran los casos activos o próximos del flujo diario de pabellón, provenientes de indicaciones quirúrgicas, citas de Agenda y atenciones clínicas. Su objetivo es concentrar en una misma grilla los casos que requieren seguimiento operacional durante la jornada.
+
+  La @fig-vista-pabellon-dev-1 muestra la aplicación de pabellón en el módulo de atención quirúrgica. La navegación lateral, el encabezado institucional y la estructura base de la pantalla provienen de la worklist genérica. La implementación específica del módulo define el título de la vista, el banner, los filtros, las columnas de la tabla y la información que se obtiene para poblarla.
+
+  #figure(
+    image("./imagenes/vista-pabellon-dev-1.png", width: 100%),
+    caption: [Aplicación de pabellón en el módulo de atención quirúrgica.],
+  ) <fig-vista-pabellon-dev-1>
+
+  La ruta `atencion_quirurgica` monta tres componentes principales sobre la worklist: el banner de pabellón, la barra de filtros `CPatientsFilterbar` y la grilla `CPatientsGrid`. El comportamiento general de filtros y tabla es provisto por la infraestructura común de worklists, incluyendo renderizado, estados de carga, mensajes sin resultados, ordenamiento y ejecución de acciones. La implementación quirúrgica define qué filtros existen y qué columnas se muestran. La información que consume la grilla ya viene adaptada desde el modelo `AtencionQuirurgica`, por lo que cada columna puede leer datos normalizados de paciente, programación, ubicación, intervenciones, estado y acciones sin procesar directamente respuestas de HLTH o Agenda.
+
+  En este módulo, la barra de filtros permite acotar la vista por sector y por fecha de programación. El filtro de sector está construido a partir de las áreas operacionales CMA, Pabellón y Recuperación, mientras que el filtro de fecha permite revisar la programación quirúrgica de un día específico.
+
+  La grilla de este módulo muestra la información operacional necesaria para coordinar el flujo activo. Las columnas visibles son:
+
+  - *Documento*: muestra el documento de identificación del paciente.
+  - *Nombre*: muestra el nombre completo del paciente y el nombre social si existe.
+  - *Edad*: calcula la edad a partir de la fecha de nacimiento del paciente.
+  - *Especialidad*: muestra la especialidad de la intervención que se realizará.
+  - *Intervención(es)*: muestra primero las intervenciones asociadas al caso, que corresponden a la información quirúrgica principal, y luego los diagnósticos principales del paciente como información secundaria en gris.
+  - *Programación*: agrupa en una misma celda el nombre abreviado del clínico responsable, la fecha programada y el pabellón donde se programó la intervención. Si la intervención corresponde al día actual, la fecha se muestra como hora; si corresponde a otro día, se muestra también el día de la intervención.
+  - *Ubicación*: muestra el área y cupo actual del paciente. Esta columna permite identificar rápidamente la ubicación del paciente dentro del flujo clínico-operacional.
+  - *Estado*: muestra la descripción del estado actual con el estilo estándar de estados y el color definido por la empresa para cada estado.
+  - *Acciones*: muestra las acciones disponibles para la fila. Las acciones expuestas se presentan como íconos visibles; las acciones no expuestas se muestran al presionar los tres puntos del final como un listado con la descripción de cada acción.
+
+  Todas las filas de la tabla se construyen usando el modelo común `AtencionQuirurgica`, detallado en la @sec-impl-modelo-unificado-atencion-qx.
+
+  === Obtención y adaptación de datos de atención quirúrgica
+
+  La carga de datos del módulo principal se implementó en `fetchAtencionesQuirurgicas`. Este método recibe los criterios activos de la lista de trabajo y construye filtros específicos para cada fuente de datos: atenciones quirúrgicas activas de HLTH, indicaciones quirúrgicas de HLTH, citas quirúrgicas de Agenda y atenciones finalizadas con protocolo quirúrgico pendiente. Para ello se implementaron funciones adaptadoras de filtros, que combinan los filtros seleccionados por el usuario con los filtros que siempre aplica el módulo para buscar datos quirúrgicos.
+
+  El filtro de fecha se usa como fecha operacional de búsqueda. Cuando existe una fecha válida, las consultas se acotan al día seleccionado: las atenciones `PatientService` se solicitan con `date`, las indicaciones con un rango diario en `timeRange` y las citas de Agenda con `scheduledStartDate`. Cuando no se selecciona fecha, la lista consulta una ventana reciente para evitar cargar todo el histórico: las atenciones activas, indicaciones y citas se buscan desde los últimos `SURGICAL_CARE_MAX_AGE_DAYS`, mientras que las atenciones finalizadas con protocolo pendiente usan una ventana más acotada desde el día anterior.
+
+  El filtro de sector se traduce a `areaId` para las consultas de atenciones `PatientService`. Cuando existe filtro de área, el método consulta solo atenciones clínicas abiertas, porque son las entidades que tienen ubicación en las áreas relevantes de pabellón. Las indicaciones y citas representan casos que todavía no tienen una ubicación asociada a esas áreas, por lo que no aportan a una búsqueda por sector de pabellón. Cuando no existe filtro de área, se consultan también indicaciones activas y citas agendadas, permitiendo que la lista muestre tanto casos ya iniciados como solicitudes y programaciones pendientes de admisión.
+
+  Los filtros implementados se mantuvieron acotados a áreas relevantes de pabellón y fecha. Se consideró incorporar filtros capaces de buscar otras ubicaciones, pero no se implementaron por la complejidad de coordinar tres entidades con modelos de consulta distintos. Filtrar simultáneamente indicaciones, citas y atenciones implica adaptar criterios entre servicios, evitar resultados inconsistentes y respetar comportamientos diferentes para un mismo filtro. Por esto, la implementación mantuvo una combinación limitada de filtros, suficiente para la operación diaria del módulo y más controlable técnicamente.
+
+  Las consultas principales se ejecutan en paralelo. El método obtiene atenciones activas, indicaciones, citas y atenciones con protocolo pendiente; luego normaliza la forma de las respuestas para trabajar con arreglos. Las atenciones activas y pendientes se obtienen desde HLTH con tipo quirúrgico y estados configurados para el módulo. Las indicaciones se filtran por categoría quirúrgica y estado activo. Las citas se filtran por tipos de intervención quirúrgica y estado agendado, incluyendo servicio, tipo de cita y participantes necesarios para reconstruir paciente, pabellón y clínico responsable.
+
+  Después de obtener las respuestas, cada grupo se adapta al modelo común `AtencionQuirurgica`. Las indicaciones se transforman con `adaptFromIndication`, las citas con `adaptFromAppointment` y las atenciones clínicas con `adaptFromPatientService`. La adaptación se ejecuta por registro y captura errores individualmente, de modo que un registro mal formado no impide construir el resto de la lista. El resultado final es un arreglo homogéneo de instancias `AtencionQuirurgica` que la grilla puede consumir directamente.
+
+  Todas las filas deben mostrar una ubicación, aunque no provengan de una atención `PatientService`. En citas quirúrgicas, si el paciente tiene una programación y aún no ha sido admisionado, la ubicación se muestra como domicilio; si ya fue admisionado, se muestra como sala de espera; y si el paciente cuenta con una ubicación activa en HLTH, se debe mostrar esa ubicación. Como las citas de Agenda no incluyen la ubicación clínica vigente, `fetchAtencionesQuirurgicas` obtiene los identificadores de pacientes de citas e indicaciones y solicita a HLTH la información del paciente con un embed de su ubicación actual, si existe. Cuando se obtiene esa ubicación, la información se guarda en la `AtencionQuirurgica` creada para la fila. Esto permite mostrar casos en que el paciente ya llegó o fue hospitalizado aunque la cita no contenga esa información. En indicaciones se realiza la misma carga adicional para mantener actualizada la ubicación visible. En atenciones abiertas de pabellón esta consulta adicional no es necesaria, porque la ubicación actual ya viene en la entidad `PatientService`.
+
+  === Módulo de atenciones anteriores
+
+  El módulo de atenciones anteriores se implementó como una vista de consulta para casos que ya no pertenecen a la operación activa del día. Este módulo muestra atenciones `PatientService` finalizadas o canceladas.
+
+  La @fig-vista-pabellon-dev-2 muestra la aplicación en el módulo de atenciones anteriores. Respecto del módulo operativo, cambia el título de la vista, el banner, los filtros disponibles, las columnas visibles y la información consultada para construir la tabla.
+
+  #figure(
+    image("./imagenes/vista-pabellon-dev-2.png", width: 100%),
+    caption: [Aplicación de pabellón en el módulo de atenciones anteriores.],
+  ) <fig-vista-pabellon-dev-2>
+
+  La ruta `atenciones_anteriores` monta el mismo banner y la misma grilla base, pero usa la barra de filtros `CPatientsPreviousFilterbar`. A diferencia del módulo de atención quirúrgica, que está orientado a operar sobre los casos activos del día, este módulo funciona como una búsqueda histórica de atenciones cerradas.
+
+  La tabla reutiliza el mismo componente `CPatientsGrid`, pero oculta la columna `Ubicación`. Como las atenciones mostradas ya están finalizadas o canceladas, no corresponde mostrar una ubicación actual para atenciones que no están activas. La vista muestra solo datos históricos conservados de la atención. Por la misma razón, el módulo elimina los filtros asociados a sector o ubicación y mantiene solo el filtro por fecha de programación.
+
+  === Obtención de datos de atenciones anteriores
+
+  La carga de atenciones anteriores se implementó en `fetchAtencionesAnteriores`. A diferencia del módulo operativo, este método exige una fecha válida antes de consultar datos; si no existe fecha, retorna una lista vacía. Con esto la búsqueda histórica queda acotada a una ventana explícita y no carga atenciones cerradas sin criterio temporal.
+
+  El método construye un filtro histórico para `PatientService` usando el tipo de atención quirúrgica, los estados finalizada y cancelada, y la fecha seleccionada. Luego consulta HLTH y adapta los registros de la misma forma que el resto de atenciones que provienen de un `PatientService`. El método de adaptación identifica si la atención está finalizada o cancelada y devuelve la instancia de `AtencionQuirurgica` con el estado correspondiente. El resultado es la misma estructura de fila usada por el módulo principal, pero construida solo desde atenciones clínicas ya cerradas.
 
   == Acciones implementadas en la lista de trabajo
 
-  La lista de trabajo incorporó acciones para cubrir el flujo de urgencia y el flujo electivo. Entre las acciones principales se implementaron aceptar orden de urgencia, recepcionar paciente, ingresar a pabellón, iniciar anestesia, iniciar cirugía, finalizar cirugía, finalizar anestesia, iniciar recuperación, finalizar recuperación, iniciar traslado, devolver a unidad de origen, egresar paciente, suspender, reagendar, cambiar ubicación, revertir ingreso a pabellón, imprimir brazalete, abrir ficha clínica y cargar evaluaciones.
+  Las acciones se presentan en el mismo orden definido por el registro canónico de la aplicación, salvo la acción de admisión, que se documenta aquí aunque se implementó en otra aplicación. Todas las acciones propias de `surgical_process` se implementan como clases derivadas de `AccionBase`, descrita en la @sec-modelo-base-acciones-atencion-quirurgica.
 
-  Las acciones no se implementaron todas de la misma forma. Algunas son directas y se resuelven con una llamada simple a un servicio o con la apertura de una pantalla existente. Otras requieren obtener contexto, validar condiciones, modificar más de una entidad y registrar hitos. En esos casos, la implementación del frontend delega la coordinación a BPM y a las orquestaciones dinámicas. Así, la interfaz se mantiene centrada en la interacción clínica, mientras la secuencia técnica queda fuera de la capa visual.
+  Para las acciones que modifican el estado de una atención, la interfaz solicita confirmación antes de ejecutar la operación. Esta decisión se alinea con la heurística de prevención de errores, que recomienda pedir confirmación antes de acciones potencialmente propensas a error @BaloianPino2024Usabilidad. Además, una vez ejecutada la acción, la aplicación muestra retroalimentación explícita de éxito o fracaso, siguiendo el principio de visibilidad del estado del sistema y las recomendaciones sobre mensajes de error comprensibles @BaloianPino2024Usabilidad. La @fig-ejemplo-mensaje-exito muestra un ejemplo de confirmación visual después de cambiar correctamente la ubicación de un paciente.
 
-  Las acciones intraoperatorias se implementaron como hitos del proceso. Iniciar anestesia, iniciar cirugía, finalizar cirugía y finalizar anestesia actualizan datos asociados a la atención quirúrgica y permiten mostrar tiempos relevantes en la grilla o en secciones de detalle. Esto permite observar el avance del caso dentro de pabellón sin depender de una instancia externa de proceso como única fuente de estado.
+  #figure(
+    image("./imagenes/cap06-ejemplo-de-mensaje-exito.png", width: 50%),
+    caption: [Mensaje de éxito mostrado después de cambiar la ubicación de un paciente.],
+  ) <fig-ejemplo-mensaje-exito>
 
-  Para los formularios del flujo se reutilizaron tres mecanismos existentes de la plataforma. El primero corresponde a formularios propios del plugin, implementados como componentes Vue. Estos se usaron cuando el formulario requería comportamiento específico de pabellón, como la selección de ubicación al recepcionar un paciente.
+  === Ver ficha
 
-  El segundo mecanismo corresponde a formularios tipo checklist. En estos casos, la acción abre un formulario construido desde la configuración de una escala, con secciones, preguntas, opciones de selección y observaciones. Este enfoque se usó para pausas quirúrgicas y cuidados intraoperatorios, porque ambos registros son simples y se benefician de una definición configurable.
+  La acción `Ver ficha` permite abrir la ficha clínica asociada a la atención quirúrgica. La @fig-accion-ver-ficha-icon muestra la acción disponible en la lista de trabajo. Como esta acción solo abre una vista y no modifica datos, su implementación se resuelve en `trigger()` y no define `commit()`: obtiene la atención quirúrgica, resuelve el `PatientService` que debe usarse para abrir la ficha y emite `surgical_process:view_patient_profile` con ambos datos.
 
-  El tercer mecanismo corresponde a formularios de EHR cargados mediante `iframe`. La acción construye la información necesaria para abrir el formulario de un tipo de evaluación, y la vista embebida carga el componente correspondiente desde la ficha clínica. El resultado se guarda como evaluación en HLTH. Este mecanismo se usó para evaluación preanestésica y protocolo quirúrgico, que son documentos clínicos propios de la ficha del paciente. En el caso del protocolo quirúrgico, además se incorporó la posibilidad de abrir el PDF cuando el documento ya existe.
+  #figure(
+    image("./imagenes/cap06-ver-ficha-icon.png", width: 30%),
+    caption: [Acción para abrir la ficha clínica desde la lista de trabajo quirúrgica.],
+  ) <fig-accion-ver-ficha-icon>
+
+  La acción es común para los estados que incorporan acciones por defecto, pero solo puede ejecutarse si existe un `PatientService` disponible para abrir la ficha. `canExecute()` exige un identificador de atención y un `careManager.id`; para resolverlos, la acción prioriza la atención quirúrgica actual y, si no existe, usa la atención original almacenada en los datos de creación. Esto permite abrir la ficha cuando el paciente ya fue recepcionado o cuando el caso proviene de urgencia u hospitalización, donde existe una atención abierta relacionada. En cambio, las cirugías electivas que aún deben admisionarse no tienen una atención clínica abierta asociada, por lo que la acción no se muestra. Esta disponibilidad es útil para revisar antecedentes de la ficha mientras el paciente espera la recepción en pabellón.
+
+  === Aceptar orden
+
+  La acción `Aceptar orden` está declarada para el estado `Solicitada`, por lo que se muestra sobre indicaciones quirúrgicas de urgencia que aún no han sido aceptadas. La @fig-accion-aceptar-orden-icon muestra la acción disponible en la lista de trabajo. Su objetivo es programar la intervención y convertir la indicación en una cita quirúrgica operable por el resto del flujo.
+
+  #figure(
+    image("./imagenes/cap06-aceptar-orden-icon.png", width: 30%),
+    caption: [Acción para aceptar una orden quirúrgica solicitada desde la lista de trabajo.],
+  ) <fig-accion-aceptar-orden-icon>
+
+  Al seleccionarla, `trigger()` abre un panel lateral mediante `surgical_process:show_action_panel`, siguiendo el mecanismo de formularios laterales definido en la @sec-diseno-formularios-documentos-clinicos. En ese panel se carga `CFormProcesoQuirurgicoProgramarIntervencion`, como se observa en la @fig-accion-aceptar-orden. La sección de información del paciente se reutiliza desde el plugin `standard`; el resto del formulario recibe desde la `AtencionQuirurgica` las intervenciones y el tiempo operatorio estimado. Con esos datos permite seleccionar el pabellón y la fecha de inicio de la intervención.
+
+  #figure(
+    image("./imagenes/cap06-aceptar-orden.png", width: 100%),
+    caption: [Panel para programar la intervención al aceptar una orden quirúrgica de urgencia.],
+  ) <fig-accion-aceptar-orden>
+
+  Al confirmar, `commit()` construye el cuerpo de la orquestación con el usuario ejecutor, la fecha de inicio, el pabellón seleccionado, el identificador de la indicación y los diagnósticos exportados desde los datos de intervención. Luego emite `surgical_process:execute_panel_action` con la acción API `bpm.postDynamicOrchestration` y el identificador de la orquestación de aceptación de orden de urgencia. La operación se confirma como acción asíncrona y no fuerza la actualización inmediata de la grilla; la actualización queda asociada a los eventos emitidos por los servicios involucrados. La secuencia backend que crea la cita y marca la indicación como iniciada se describe en la @sec-orquestacion-aceptar-orden-urgencia.
+
+  === Recepcionar paciente en admisión
+
+  La acción `Recepcionar paciente` de admisión se implementó fuera de `surgical_process`, en la lista legacy de admisión de pacientes. Esta separación responde al contexto operativo de la acción: la ejecutan los admisionistas cuando el paciente llega al establecimiento, antes de que el equipo de pabellón lo reciba en la unidad quirúrgica. Ubicarla en la lista de pabellón habría mezclado responsabilidades de admisión administrativa con la gestión clínica-operativa del proceso quirúrgico.
+
+  Para soportarla, la lista de admisión se extendió para mostrar citas quirúrgicas electivas provenientes de Agenda junto con las admisiones, instancias y traslados que ya manejaba. La @fig-admision-paciente-lista muestra una fila de este tipo: una cita de Agenda que representa una atención quirúrgica programada y que se presenta en la lista de admisión para iniciar el ingreso administrativo. Las filas de cita se identifican como registros de Agenda, cargan el paciente desde el participante de tipo paciente y exponen la acción `Recepcionar paciente`. Al seleccionarla, se abre el formulario de admisión con los datos de la cita y del paciente; al confirmar, se ejecuta la orquestación dinámica de admisión descrita en la @sec-orquestacion-admisionar-paciente. Al terminar, la cita queda recepcionada y en estado operacional `En espera`, lista para continuar con la recepción de pabellón dentro de `surgical_process`.
+
+  #figure(
+    image("./imagenes/cap06-admision-paciente-lista.png", width: 100%),
+    caption: [Lista de admisión con una cita quirúrgica de Agenda disponible para recepcionar al paciente.],
+  ) <fig-admision-paciente-lista>
+
+  Para alimentar esta lista también se ajustó el backend de admisión de HEGC. El endpoint de admisión agrega citas de tipo intervención quirúrgica electiva en estado agendado, con sus participantes embebidos, y las devuelve junto con el resto de entidades usadas por la aplicación. Con esto se completa la acción necesaria para conectar las intervenciones programadas con el resto del flujo quirúrgico, ya que la admisión del paciente es una etapa indispensable antes de la recepción en pabellón.
+
+  === Recepcionar paciente
+
+  La acción `Recepcionar paciente` se muestra sobre atenciones quirúrgicas que ya pasaron por admisión y quedaron en estado `En espera`. La @fig-accion-recepcionar-paciente-icon muestra la acción disponible en la lista de trabajo. Esta acción registra el ingreso operacional del paciente a una ubicación de la unidad quirúrgica.
+
+  #figure(
+    image("./imagenes/cap06-recepcion-paciente-icon.png", width: 30%),
+    caption: [Acción para recepcionar al paciente desde la lista de trabajo quirúrgica.],
+  ) <fig-accion-recepcionar-paciente-icon>
+
+  Al seleccionarla, `trigger()` abre un panel lateral mediante `surgical_process:show_action_panel` y carga `CFormProcesoQuirurgicoCambiarUbicacionPaciente`, como se observa en la @fig-accion-recepcionar-paciente. La sección de información del paciente se reutiliza desde el plugin `standard`; el resto del formulario recibe la `AtencionQuirurgica` y permite seleccionar la ubicación de destino. Para esta acción se habilitaron como sectores posibles CMA y Recuperación, usando un filtro de ubicaciones restringido a esas áreas, y la etiqueta de confirmación del panel se configuró como `Ingresar`.
+
+  #figure(
+    image("./imagenes/cap06-recepcion-paciente.png", width: 100%),
+    caption: [Panel de recepción de paciente, con selección de sector y ubicación de destino.],
+  ) <fig-accion-recepcionar-paciente>
+
+  Al confirmar, `commit()` construye el cuerpo de la orquestación con `appointmentId`, `locationId`, `locationDescription`, `username`, `tabla` y `patientId`. Luego emite `surgical_process:execute_panel_action` con la acción API `bpm.postDynamicOrchestration` y el identificador de la orquestación de recepción. La acción se ejecuta como confirmación asíncrona y espera antes de resolver para dar tiempo a que se completen los cambios y eventos asociados. La secuencia backend que deriva entre flujo electivo y de urgencia se describe en la @sec-orquestacion-recepcionar-paciente.
+
+  === Ingresar a Pabellón
+
+  === Continuar cirugía
+
+  === Iniciar recuperación
+
+  === Finalizar recuperación
+
+  === Iniciar traslado
+
+  === Devolver a unidad de origen
+
+  === Egresar paciente
+
+  === Cargar evaluación
+
+  La acción `Cargar evaluación` no representa un único formulario fijo. Es una clase parametrizada por tipo de evaluación, de modo que el mismo modelo de acción puede mostrarse con etiquetas, títulos y condiciones distintas. En la implementación actual se usa para la evaluación preanestésica y el protocolo quirúrgico. Ambas comparten el mecanismo de carga, pero se diferencian por el tipo de evaluación, el momento del flujo en que se muestran y la información clínica que registran.
+
+  Para la evaluación preanestésica, la acción se muestra en el estado `Preoperatorio`, antes del ingreso a pabellón, como se observa en la @fig-accion-eval-pre-icon. La acción usa el tipo de evaluación preanestésica para definir la etiqueta `Evaluación preanestésica`, el título del modal y la condición de ejecución. Si la atención ya tiene una evaluación preanestésica registrada, `canExecute()` evita volver a mostrarla como acción disponible.
+
+  #figure(
+    image("./imagenes/cap06-accion-eval-pre-icon.png", width: 35%),
+    caption: [Acción para cargar la evaluación preanestésica en estado preoperatorio.],
+  ) <fig-accion-eval-pre-icon>
+
+  Al ejecutarla, `trigger()` busca el último borrador existente para ese tipo de evaluación y emite `surgical_process:load_evaluation` con el tipo de evaluación, título, identificadores del paciente, `PatientService`, `careManager` y evaluación en borrador cuando existe. El plugin recibe el evento y delega la carga a `loadModalEvaluation`, reutilizando el mecanismo de formularios embebidos descrito en la @sec-diseno-formularios-documentos-clinicos. La información se muestra dentro de un modal de paciente: a la izquierda se presenta la cápsula con datos básicos del paciente y al centro se carga el formulario clínico de EHR mediante `iframe`, como muestra la @fig-accion-eval-pre.
+
+  #figure(
+    image("./imagenes/cap06-accion-eval-pre.png", width: 100%),
+    caption: [Formulario embebido para registrar la evaluación preanestésica desde la lista de trabajo quirúrgica.],
+  ) <fig-accion-eval-pre>
+
+  La diferencia principal entre las acciones de evaluación está en el tipo de evaluación que reciben: ese identificador define el rótulo visible, el título del modal, el borrador que se recupera y la regla que impide repetir documentos ya completados. En el caso preanestésico, el formulario muestra información de la intervención, antecedentes médicos y revisión por sistemas. En el protocolo quirúrgico, la misma clase abre el documento operatorio asociado a la intervención y usa el tipo de evaluación de protocolo. Al finalizar cualquiera de estos registros, la evaluación queda asociada a la atención clínica del paciente y la lista de trabajo se actualiza; si el documento ya fue completado, la acción correspondiente deja de mostrarse para esa atención.
+
+  === Pausa quirúrgica
+
+  === Cuidados intraoperatorios
+
+  === Cambiar ubicación
+
+  La acción `Cambiar ubicación` permite mover al paciente dentro de las ubicaciones operacionales disponibles para su etapa actual. Se declara en estados donde ya existe una atención quirúrgica con ubicación clínica, como preoperatorio, recuperación, espera de traslado o estados intraoperatorios. La acción se presenta como secundaria en el menú de tres puntos, como muestra la @fig-accion-cambiar-ubicacion-icon.
+
+  #figure(
+    image("./imagenes/cap06-cambiar-ubicacion-icon.png", width: 35%),
+    caption: [Acción secundaria para cambiar la ubicación del paciente desde la lista de trabajo.],
+  ) <fig-accion-cambiar-ubicacion-icon>
+
+  Al seleccionarla, `trigger()` abre un panel lateral mediante `surgical_process:show_action_panel`. El panel carga `CFormProcesoQuirurgicoCambiarUbicacionPaciente`, como se observa en la @fig-accion-cambiar-ubicacion. La sección de información del paciente proviene del plugin `standard`; el resto del formulario usa la `AtencionQuirurgica` para restringir las áreas disponibles. Si el paciente está en pabellón, solo permite ubicaciones de pabellón; en otros casos permite CMA y Recuperación.
+
+  #figure(
+    image("./imagenes/cap06-cambiar-ubicacion.png", width: 100%),
+    caption: [Panel para seleccionar una nueva ubicación del paciente.],
+  ) <fig-accion-cambiar-ubicacion>
+
+  Al confirmar, `commit()` envía al plugin una acción `hlth.patchPatientServiceChangeLocation` con el identificador del `PatientService`, la nueva ubicación, la ruta descriptiva y el usuario ejecutor. Si la operación finaliza correctamente, la grilla se actualiza para reflejar la nueva ubicación.
+
+  === Reagendar cirugía
+
+  La acción `Reagendar cirugía` permite modificar la fecha, hora y pabellón de una cita quirúrgica programada. La @fig-accion-reagendar-icon muestra la acción disponible en la lista de trabajo para una atención programada.
+
+  #figure(
+    image("./imagenes/cap06-accion-reagendar-icon.png", width: 30%),
+    caption: [Acción para abrir el reagendamiento de una cirugía desde la tabla de atención quirúrgica.],
+  ) <fig-accion-reagendar-icon>
+
+  La @fig-accion-reagendar muestra el formulario de reagendamiento. En él se presenta información de la atención quirúrgica, incluyendo datos del paciente, intervenciones, duración estimada, pabellón programado y fecha de intervención.
+
+  #figure(
+    image("./imagenes/cap06-accion_reagendar.png", width: 100%),
+    caption: [Formulario de reagendamiento de cirugía desde la lista de trabajo de pabellón.],
+  ) <fig-accion-reagendar>
+
+  Al seleccionar la acción, `trigger()` abre un panel lateral de programación de intervención mediante `surgical_process:show_action_panel`. La sección de información del paciente proviene del plugin `standard`, mientras que los datos quirúrgicos se obtienen desde la `AtencionQuirurgica`: intervenciones, tiempo operatorio, pabellón programado y fecha de inicio programada. Esa información permite conservar el contexto de la cirugía y modificar solo la nueva programación.
+
+  Al confirmar el formulario, `commit()` recibe la nueva ubicación y la nueva fecha de inicio. Con esos datos construye el cuerpo de actualización de la cita: usuario ejecutor, nueva fecha `scheduledStart`, participantes actualizados y datos extendidos. En Agenda, el pabellón se representa como un participante de la cita; por ello, para cambiarlo se reconstruye y reenvía la lista completa de participantes, reemplazando el participante de pabellón por la nueva ubicación seleccionada y manteniendo el participante paciente asociado a la atención.
+
+  La ejecución se delega al plugin mediante `surgical_process:execute_panel_action`, usando la acción API `agenda.patchAppointmentReschedule`. Esa acción termina llamando al endpoint de Agenda `PATCH /agenda/appointments/{id}/_reschedule`, donde `{id}` corresponde a la cita de origen de la atención quirúrgica. Si la operación finaliza correctamente, el panel informa la nueva fecha y pabellón, y la grilla se actualiza.
+
+  === Revertir ingreso a Pabellón
+
+  === Ver PDF protocolo
+
+  === Imprimir brazalete
+
+  La acción `Imprimir brazalete` se incorporó para reutilizar el mecanismo de impresión ya existente en la plataforma. La @fig-accion-imprimir-brazalete-icon muestra la acción disponible en la lista de trabajo.
+
+  #figure(
+    image("./imagenes/cap06-imprimir-brazalete-icon.png", width: 100%),
+    caption: [Confirmación para imprimir el brazalete del paciente desde la lista de trabajo quirúrgica.],
+  ) <fig-accion-imprimir-brazalete-icon>
+
+  Al seleccionarla, `trigger()` abre un diálogo de confirmación mediante `surgical_process:run_dialogs`, como se observa en la @fig-accion-imprimir-brazalete. Si el usuario confirma, la acción emite `surgical_process:print_wristband` con la `AtencionQuirurgica`. El plugin recibe ese evento y llama a la clase compartida `BrazaleteBpm`, pasando el identificador del paciente y la acción BPM de impresión. No se implementó un mecanismo nuevo de impresión; solo se conectó la acción del módulo quirúrgico con la clase ya disponible porque pabellón necesita imprimir el brazalete durante el flujo.
+
+  #figure(
+    image("./imagenes/cap06-imprimir-brazalete.png", width: 100%),
+    caption: [Diálogo de confirmación antes de enviar a imprimir el brazalete.],
+  ) <fig-accion-imprimir-brazalete>
+
+  === Suspender cirugía
+
+  La acción `Suspender cirugía` permite cancelar operacionalmente una intervención desde la lista de trabajo. Esta acción se presenta como acción secundaria, dentro del menú de tres puntos, como muestra la @fig-accion-suspender-icon.
+
+  #figure(
+    image("./imagenes/cap06-accion-suspender-icon.png", width: 30%),
+    caption: [Acción de suspensión disponible como acción secundaria en la tabla de atención quirúrgica.],
+  ) <fig-accion-suspender-icon>
+
+  Al seleccionar la acción, `trigger()` abre un diálogo de confirmación mediante `surgical_process:run_dialogs`. El diálogo muestra el paciente asociado y carga el formulario `CFormSurgicalProcessSuspend`, que solicita motivo, motivo específico y observaciones, como se observa en la @fig-accion-suspender. Los motivos de suspensión se obtienen desde la terminología `causa-suspension-qx` almacenada en MongoDB; el formulario carga solo términos activos y filtra subcausas activas para el motivo seleccionado.
+
+  #figure(
+    image("./imagenes/cap06-accion-suspender.png", width: 90%),
+    caption: [Diálogo de confirmación y formulario de motivos para suspender una intervención quirúrgica.],
+  ) <fig-accion-suspender>
+
+  Al confirmar, el diálogo emite `surgical_process:commit_action` con los datos del formulario. `commit()` construye el cuerpo para la suspensión con el paciente, el clínico ejecutor, la cita asociada, la atención `PatientService` cuando existe, la causa, la subcausa y las observaciones. La acción mapea causa y subcausa al formato que espera la orquestación, conservando identificador, descripción y códigos disponibles.
+
+  Finalmente, `commit()` emite `surgical_process:execute_api_call` con la acción API `bpm.postDynamicOrchestration`, el identificador de la orquestación de suspensión y el cuerpo normalizado por la acción. La secuencia ejecutada por esa orquestación se describe en la @sec-orquestacion-suspender-cirugia.
 
   == Extensiones backend para el flujo quirúrgico
 
@@ -912,27 +1193,53 @@
 
   Con esta implementación, la plataforma incorporó una capacidad reusable para coordinar acciones compuestas entre microservicios. Las reglas específicas de cada transición quedan expresadas como definiciones configurables, mientras que el workflow común entrega el mecanismo de ejecución, validación y secuenciamiento. Esto permite incorporar nuevas acciones del flujo quirúrgico con menos código específico, aprovechar endpoints existentes y mantener la coordinación fuera del frontend, en una capa más adecuada para ejecutar procesos asincrónicos y trazables.
 
-  == Orquestaciones dinámicas del flujo quirúrgico
+  == Orquestaciones dinámicas del flujo quirúrgico <sec-orquestaciones-dinamicas-flujo-qx>
 
   Sobre el orquestador dinámico se configuraron acciones concretas del flujo quirúrgico. Estas orquestaciones no forman un único proceso monolítico; cada una resuelve una transición o automatización acotada, reutilizando servicios de Agenda, HLTH, BPM, EHR, AUTH y HEGC. En conjunto permiten que la lista de trabajo ejecute acciones complejas sin concentrar en el frontend la coordinación entre servicios.
 
-  - *Aceptar orden de urgencia*: La orquestación de aceptación de orden de urgencia transforma una indicación quirúrgica en una programación operable por la lista de trabajo. Para ello obtiene la indicación con datos de paciente y ubicación, prepara información diagnóstica y crea una cita quirúrgica en Agenda. La cita conserva referencias a la indicación original, al paciente, al profesional solicitante, a la ubicación y a los datos extendidos necesarios para continuar el flujo de pabellón. Al final, la indicación se marca como iniciada para reflejar que fue aceptada y convertida en una programación.
+  === Aceptar orden de urgencia <sec-orquestacion-aceptar-orden-urgencia>
 
-  - *Admisionar paciente*: La admisión del paciente coordina la apertura administrativa asociada al ingreso. La orquestación consulta la cita, obtiene datos del profesional, crea un administrador de atención cuando corresponde, actualiza el estado de la cita y registra una admisión clínica con los datos del formulario de admisión. Además, invoca la integración con HEGC para abrir la cuenta en los servicios administrativos requeridos por el hospital. Esta secuencia evita que el usuario tenga que ejecutar manualmente operaciones separadas en componentes distintos.
+  La orquestación de aceptación de orden de urgencia recibe la indicación quirúrgica, la fecha programada, el pabellón seleccionado y los datos del usuario ejecutor. Primero consulta la indicación en HLTH con paciente y ubicación, guarda la respuesta como contexto de trabajo y extrae los diagnósticos GES para poblar la orden. Luego crea una cita quirúrgica en Agenda con participantes de tipo pabellón, paciente y profesional solicitante. La cita queda referenciada a la indicación mediante `externalReference` y almacena en `extendedData` los datos que la lista de trabajo necesita para tratarla como caso de urgencia: especialidad, diagnósticos, intervención original, ubicación de origen, orden, tiempo operatorio y referencia a la atención clínica de origen. Al final ejecuta `_start` sobre la indicación para dejar registrado que la orden fue aceptada.
 
-  - *Recepcionar paciente*: La recepción del paciente se implementó con una orquestación de derivación y dos orquestaciones específicas. La primera decide qué flujo ejecutar según el origen del caso: urgencia o electivo. Esta separación fue necesaria porque ambos escenarios comparten la acción visible para el usuario, pero no las mismas entidades de origen ni los mismos pasos técnicos. En el flujo de urgencia, la orquestación consulta la cita, obtiene el profesional responsable, inicia la indicación y la cita asociada, libera una ubicación anterior si existe una atención previa abierta y crea la atención quirúrgica. La atención queda con datos extendidos de pabellón, programación, responsable, indicación, orden, ubicación de origen, intervenciones, diagnósticos y estado inicial de preoperatorio. En el flujo electivo, la orquestación opera sobre una cita ya programada, obtiene el profesional responsable, crea el administrador de atención, revisa si existe una atención previa abierta y libera su ubicación cuando corresponde. Luego inicia la cita y crea la atención quirúrgica usando los datos provenientes de Agenda y de Gestión Hospitales. También conserva la referencia a la cita original y determina si el caso corresponde a cirugía mayor ambulatoria según el contexto disponible.
+  === Admisionar paciente <sec-orquestacion-admisionar-paciente>
 
-  - *Suspender cirugía*: La suspensión coordina el cierre operacional de un caso que no continuará en el flujo. La orquestación cancela la cita en Agenda, registra causa, subcausa, observaciones y responsable, y si ya existe atención quirúrgica actualiza sus datos extendidos. Cuando corresponde, busca una atención previa del paciente, genera un traslado de retorno, cancela la atención quirúrgica y cierra tareas BPM pendientes asociadas al protocolo. Además, diferencia el origen del caso: para casos electivos informa la suspensión a Gestión Hospitales, mientras que para urgencias cancela la indicación clínica con un motivo construido desde los datos de suspensión.
+  La admisión del paciente opera sobre una cita existente. La orquestación consulta la cita con sus participantes, obtiene desde HLTH el profesional registrado en Agenda y crea un `care-manager` para el paciente, usando el prestador recibido o el valor por defecto configurado. Luego actualiza la cita para dejarla en estado operacional `En espera`, crea una admisión HLTH de tipo `4` con el formulario de admisión y finalmente llama a HEGC para abrir la cuenta administrativa. El cuerpo enviado a HEGC se construye desde el mismo formulario, incluyendo identificación, datos personales, contacto, previsión y ubicación administrativa usada por la integración.
 
-  - *Finalizar recuperación*: Finalizar recuperación consulta la atención quirúrgica y revisa si existen traslados pendientes del paciente. Luego usa asignaciones y condiciones para decidir el estado posterior. Si el paciente corresponde a cirugía mayor ambulatoria y no hay traslados, registra espera de alta. Si no corresponde alta directa y tampoco hay traslados, registra espera de traslado. Si ya existe un traslado pendiente, guarda la información del traslado y deja el caso en el estado correspondiente. La misma secuencia también finaliza la cita asociada y, cuando existe una indicación de urgencia vinculada, la finaliza con motivo de término de recuperación.
+  === Recepcionar paciente <sec-orquestacion-recepcionar-paciente>
 
-  - *Traslados y retorno a unidad de origen*: Se configuraron orquestaciones para iniciar traslado y devolver al paciente a su unidad de origen. Iniciar traslado marca una transferencia como en tránsito y registra en la atención quirúrgica el hito correspondiente. Devolver a unidad de origen consulta la atención, crea una transferencia hacia la ubicación original registrada en los datos de pabellón y actualiza hitos, estado y datos del traslado. Con esto, el flujo quirúrgico queda conectado con el manejo general de ubicaciones y traslados de la plataforma.
+  La recepción se separó en una orquestación de derivación y dos orquestaciones específicas. La derivación recibe `tabla` y ejecuta la variante de urgencia o electiva, conservando una única acción visible en la lista de trabajo. En urgencia, la orquestación consulta la cita, obtiene el profesional responsable, inicia la indicación y la cita, busca una atención abierta previa de hospitalización o urgencia, libera su ubicación si existe y crea una atención HLTH de tipo pabellón en estado `Preoperatorio`. La atención creada conserva la cita, la indicación, la orden, la ubicación de origen, el responsable, intervenciones, diagnósticos y tiempos operatorios.
 
-  - *Finalizar atención quirúrgica*: La finalización de atención se resolvió con orquestaciones que cierran la atención clínica cuando se cumplen las condiciones necesarias. Una de ellas consulta el estado actual de la atención y solo ejecuta el cierre si la atención se encuentra en un estado compatible. Otra permite finalizar directamente una atención quirúrgica a partir de su identificador, y se utiliza en automatizaciones donde la condición ya fue determinada por el evento o la suscripción que inició la orquestación.
+  En el flujo electivo, la orquestación consulta la cita de Agenda, obtiene el profesional responsable, crea el `care-manager`, revisa si el paciente ya tenía una atención abierta y libera esa ubicación cuando corresponde. Esa revisión también define `esCma`: si existe atención previa, el caso se trata como no CMA; si no existe, se marca como CMA. Luego inicia la cita y crea la atención de pabellón con datos provenientes de Agenda y de Gestión Hospitales: programación, pabellón, especialidad, orden, responsable, intervenciones, diagnósticos, tiempos operatorios, ubicación de origen y referencia a la cita.
 
-  - *Tareas BPM de protocolo quirúrgico*: También se implementaron orquestaciones para crear y completar la tarea BPM de completar protocolo quirúrgico. La creación consulta la atención quirúrgica, obtiene el usuario asociado al profesional responsable y crea una tarea BPM con referencia a la atención, datos del paciente y contexto clínico. La finalización consulta el usuario del clínico que guardó el protocolo, busca la tarea pendiente asociada a la atención y la ejecuta si existe. Estas automatizaciones reducen la dependencia de acciones administrativas manuales posteriores al registro clínico.
+  === Suspender cirugía <sec-orquestacion-suspender-cirugia>
 
-  - *Operación de Gestión Hospitales*: La orquestación de operación de Gestión Hospitales consulta la atención quirúrgica con sus evaluaciones, identifica la orden de origen y busca el protocolo quirúrgico guardado. Si el caso es electivo, la atención está en el estado esperado, existe orden asociada y el protocolo ya fue registrado, invoca HEGC para marcar la orden como operada. Así, la actualización hacia Gestión Hospitales queda condicionada a evidencia clínica registrada en la plataforma y no a una acción aislada del frontend.
+  La suspensión coordina el cierre operacional de una cirugía que no continuará en el flujo. La orquestación cancela siempre la cita quirúrgica en Agenda, registrando causa, subcausa, observaciones y responsable en sus datos extendidos. Si el paciente ya fue recepcionado, también registra esos datos en la atención quirúrgica de pabellón y cancela esa atención; si el caso solo estaba programado, no existe atención clínica que cancelar.
+
+  Cuando la suspensión ocurre después de iniciar la atención de pabellón, la orquestación revisa si el paciente tenía una atención previa abierta de hospitalización o urgencia. En ese caso crea un traslado de retorno hacia la ubicación de esa atención, porque la recepción en pabellón deja a la atención previa sin uso de ubicación y la cancelación directa de pabellón dejaría al paciente sin ubicación actual. Luego cancela tareas BPM pendientes de protocolo quirúrgico y propaga la suspensión al origen del caso: para cirugías electivas invoca HEGC para suspender la orden en Gestión Hospitales; para urgencias cancela la indicación quirúrgica en HLTH con un motivo construido desde causa, subcausa y observaciones.
+
+  === Finalizar recuperación
+
+  Finalizar recuperación consulta la atención quirúrgica y luego busca transferencias no finalizadas del paciente. Con esos datos asigna tres variables de trabajo: si el caso es CMA, la lista de traslados abiertos y el primer traslado encontrado. Si el caso es CMA y no hay traslados, actualiza los datos de pabellón con el hito `esperandoAlta` y estado `Esperando Alta`. Si no es CMA y no hay traslados, registra `esperandoTraslado`. Si existe un traslado abierto, conserva su identificador y ubicación en la atención quirúrgica y también deja el estado `Esperando traslado`. Después finaliza la cita de Agenda asociada y, cuando la atención tiene indicación de urgencia, finaliza esa indicación con el motivo `Finalización de la recuperación`.
+
+  === Traslados y retorno a unidad de origen
+
+  La orquestación de iniciar traslado recibe una transferencia, ejecuta `_transit` sobre HLTH y actualiza la atención quirúrgica asociada. En esa actualización registra el hito `enTransito` con la fecha recibida y cambia `stateKey` a `En tránsito`; si no se envía explícitamente la atención, usa la que viene en la respuesta del traslado.
+
+  La orquestación de devolución a unidad de origen parte consultando la atención quirúrgica. Luego crea una transferencia en el `care-manager` de esa atención hacia `extendedData.pabellon.ubicacionDeOrigen`, usando el clínico solicitante recibido. Finalmente actualiza la atención con los hitos `esperandoTraslado` y `enTransito`, deja el estado `En tránsito` y guarda el identificador, ubicación y área del traslado creado.
+
+  === Finalizar atención quirúrgica
+
+  La finalización de atención se implementó con dos variantes. La primera consulta la atención HLTH y solo ejecuta `_finish` si el estado actual es `2`, enviando el clínico responsable en el cuerpo de la solicitud. La segunda variante ejecuta directamente `_finish` sobre el `patientServiceId`; se usa en flujos donde la condición de cierre ya fue resuelta antes de iniciar la orquestación, por ejemplo desde una suscripción o una acción previa.
+
+  === Tareas BPM de protocolo quirúrgico
+
+  La creación de la tarea de protocolo consulta la atención quirúrgica, obtiene desde AUTH el usuario asociado al responsable registrado en `extendedData.pabellon.responsable.id` y crea una tarea BPM de tipo `100`. La tarea queda asignada a ese usuario, usa el identificador de la atención como `reference` y guarda en `extendedData.taskInformation` el nombre `Completar protocolo quirúrgico`, el resumen del paciente, el paciente, el `care-manager` y la atención.
+
+  La finalización de la tarea parte desde el clínico que registró el protocolo. La orquestación consulta AUTH por `entc-id`, busca tareas BPM de tipo `100` asociadas al `patientServiceId` en estados activos `1,2` y ejecuta `_execute` sobre la primera tarea encontrada. La ejecución se condiciona a que exista una tarea pendiente, por lo que no intenta cerrar tareas inexistentes o ya resueltas.
+
+  === Operación de Gestión Hospitales
+
+  La orquestación de operación de Gestión Hospitales consulta la atención quirúrgica con sus evaluaciones embebidas, asigna la atención completa, extrae `extendedData.pabellon.orden.id` y filtra evaluaciones no borrador, no eliminadas y de tipo `14`, correspondiente al protocolo quirúrgico. Si hay protocolo, toma el primero como fuente de fecha. La llamada a HEGC `ordenes-quirurgicas/{ordenGhId}/_operar` se ejecuta solo cuando existe protocolo, el caso pertenece a tabla electiva, la atención está finalizada (`state.id == 3`) y existe identificador de orden de Gestión Hospitales. El cuerpo enviado contiene `fechaProtocolo` tomada desde la evaluación seleccionada.
 
   == Eventos, suscripciones BPM y SSE
 
