@@ -717,7 +717,7 @@
 
   === Ver ficha
 
-  La acción `Ver ficha` permite abrir la ficha clínica asociada a la atención quirúrgica. La @fig-accion-ver-ficha-icon muestra la acción disponible en la lista de trabajo. Como esta acción solo abre una vista y no modifica datos, su implementación se resuelve en `trigger()` y no define `commit()`: obtiene la atención quirúrgica, resuelve el `PatientService` que debe usarse para abrir la ficha y emite `surgical_process:view_patient_profile` con ambos datos.
+  La acción `Ver ficha` permite abrir la ficha clínica asociada a la atención quirúrgica. La @fig-accion-ver-ficha-icon muestra la acción disponible en la lista de trabajo. Como esta acción solo abre una vista y no modifica datos, su implementación se resuelve en `trigger()` y no define el método `commit`: obtiene la atención quirúrgica, resuelve el `PatientService` que debe usarse para abrir la ficha y emite `surgical_process:view_patient_profile` con ambos datos.
 
   #figure(
     image("./imagenes/cap06-ver-ficha-icon.png", width: 30%),
@@ -742,20 +742,7 @@
     caption: [Panel para programar la intervención al aceptar una orden quirúrgica de urgencia.],
   ) <fig-accion-aceptar-orden>
 
-  Al confirmar, `commit()` construye el cuerpo de la orquestación con el usuario ejecutor, la fecha de inicio, el pabellón seleccionado, el identificador de la indicación y los diagnósticos exportados desde los datos de intervención. Luego emite `surgical_process:execute_panel_action` con la acción API `bpm.postDynamicOrchestration` y el identificador de la orquestación de aceptación de orden de urgencia. La operación se confirma como acción asíncrona y no fuerza la actualización inmediata de la grilla; la actualización queda asociada a los eventos emitidos por los servicios involucrados. La secuencia backend que crea la cita y marca la indicación como iniciada se describe en la @sec-orquestacion-aceptar-orden-urgencia.
-
-  === Recepcionar paciente en admisión
-
-  La acción `Recepcionar paciente` de admisión se implementó fuera de `surgical_process`, en la lista legacy de admisión de pacientes. Esta separación responde al contexto operativo de la acción: la ejecutan los admisionistas cuando el paciente llega al establecimiento, antes de que el equipo de pabellón lo reciba en la unidad quirúrgica. Ubicarla en la lista de pabellón habría mezclado responsabilidades de admisión administrativa con la gestión clínica-operativa del proceso quirúrgico.
-
-  Para soportarla, la lista de admisión se extendió para mostrar citas quirúrgicas electivas provenientes de Agenda junto con las admisiones, instancias y traslados que ya manejaba. La @fig-admision-paciente-lista muestra una fila de este tipo: una cita de Agenda que representa una atención quirúrgica programada y que se presenta en la lista de admisión para iniciar el ingreso administrativo. Las filas de cita se identifican como registros de Agenda, cargan el paciente desde el participante de tipo paciente y exponen la acción `Recepcionar paciente`. Al seleccionarla, se abre el formulario de admisión con los datos de la cita y del paciente; al confirmar, se ejecuta la orquestación dinámica de admisión descrita en la @sec-orquestacion-admisionar-paciente. Al terminar, la cita queda recepcionada y en estado operacional `En espera`, lista para continuar con la recepción de pabellón dentro de `surgical_process`.
-
-  #figure(
-    image("./imagenes/cap06-admision-paciente-lista.png", width: 100%),
-    caption: [Lista de admisión con una cita quirúrgica de Agenda disponible para recepcionar al paciente.],
-  ) <fig-admision-paciente-lista>
-
-  Para alimentar esta lista también se ajustó el backend de admisión de HEGC. El endpoint de admisión agrega citas de tipo intervención quirúrgica electiva en estado agendado, con sus participantes embebidos, y las devuelve junto con el resto de entidades usadas por la aplicación. Con esto se completa la acción necesaria para conectar las intervenciones programadas con el resto del flujo quirúrgico, ya que la admisión del paciente es una etapa indispensable antes de la recepción en pabellón.
+  Al confirmar, el método `commit` construye el cuerpo de la orquestación con el usuario ejecutor, la fecha de inicio, el pabellón seleccionado, el identificador de la indicación y los diagnósticos exportados desde los datos de intervención. Luego emite `surgical_process:execute_panel_action` con la acción API `bpm.postDynamicOrchestration` y el identificador de la orquestación de aceptación de orden de urgencia. La operación se confirma como acción asíncrona y no fuerza la actualización inmediata de la grilla; la actualización queda asociada a los eventos emitidos por los servicios involucrados. La secuencia backend que crea la cita y marca la indicación como iniciada se describe en la @sec-orquestacion-aceptar-orden-urgencia.
 
   === Recepcionar paciente
 
@@ -773,17 +760,95 @@
     caption: [Panel de recepción de paciente, con selección de sector y ubicación de destino.],
   ) <fig-accion-recepcionar-paciente>
 
-  Al confirmar, `commit()` construye el cuerpo de la orquestación con `appointmentId`, `locationId`, `locationDescription`, `username`, `tabla` y `patientId`. Luego emite `surgical_process:execute_panel_action` con la acción API `bpm.postDynamicOrchestration` y el identificador de la orquestación de recepción. La acción se ejecuta como confirmación asíncrona y espera antes de resolver para dar tiempo a que se completen los cambios y eventos asociados. La secuencia backend que deriva entre flujo electivo y de urgencia se describe en la @sec-orquestacion-recepcionar-paciente.
+  Al confirmar, el método `commit` construye el cuerpo de la orquestación con `appointmentId`, `locationId`, `locationDescription`, `username`, `tabla` y `patientId`. Luego emite `surgical_process:execute_panel_action` con la acción API `bpm.postDynamicOrchestration` y el identificador de la orquestación de recepción. La acción se ejecuta como confirmación asíncrona y espera antes de resolver para dar tiempo a que se completen los cambios y eventos asociados. La secuencia backend que deriva entre flujo electivo y de urgencia se describe en la @sec-orquestacion-recepcionar-paciente.
 
   === Ingresar a Pabellón
 
+  La acción `Ingresar a Pabellón` se muestra en estado `Preoperatorio` y permite pasar al paciente desde la ubicación preparatoria al quirófano donde se realizará la intervención. La @fig-accion-ingresar-a-pabellon-icon muestra el ícono de la acción.
+
+  #figure(
+    image("./imagenes/cap06-accion-ingresar-a-pabellon-icon.png", width: 30%),
+    caption: [Acción para ingresar al paciente a pabellón desde la lista de trabajo quirúrgica.],
+  ) <fig-accion-ingresar-a-pabellon-icon>
+
+  Al seleccionarla, `trigger()` abre un panel lateral con `CFormProcesoQuirurgicoCambiarUbicacionPaciente`, reutilizando la información del paciente desde `standard` y mostrando el sector `Pabellón` con su ubicación correspondiente, como se observa en la @fig-accion-ingresar-a-pabellon. El pabellón se precarga con el programado, pero el usuario puede seleccionar otro cuando la operación finalmente se realice en un quirófano distinto.
+
+  #figure(
+    image("./imagenes/cap06-accion-ingresar-a-pabellon.png", width: 100%),
+    caption: [Panel para ingresar al paciente a pabellón.],
+  ) <fig-accion-ingresar-a-pabellon>
+
+  El método `commit` ejecuta la acción API `hlth.patchPatientServiceChangeLocation`, que llama al endpoint de HLTH para cambiar la ubicación del paciente al pabellón seleccionado. Esta operación aprovecha la funcionalidad descrita en la @sec-hlth-atencion-quirurgica-ubicacion-datos-extendidos, que permite actualizar el `extendedData` de la atención en el mismo momento en que se produce el cambio de ubicación. Gracias a esto, además del movimiento del paciente, la acción registra el hito de ingreso a pabellón con la fecha y hora actuales; guarda en `extendedData.pabellon.programacion.ubicacionUtilizada` el pabellón efectivamente utilizado, que puede diferir del programado y se requiere para reportes; conserva en `extendedData.pabellon.ubicacionPreOperatoria` la ubicación anterior para poder revertir un ingreso accidental; y actualiza `stateKey` al estado `EstadoEnQuirofanoEntrada`, de modo que el caso queda listo para continuar con los hitos intraoperatorios.
+
   === Continuar cirugía
+
+  La acción `Continuar cirugía` agrupa el avance de los hitos intraoperatorios del proceso quirúrgico. Se trata de una misma clase de acción parametrizada que se instancia de forma distinta en cada estado intraoperatorio, por lo que su etiqueta visible cambia según la etapa actual: `Iniciar anestesia` cuando el paciente acaba de ingresar a pabellón, `Iniciar cirugía` cuando la anestesia ya comenzó, `Finalizar cirugía` cuando la intervención está en curso y `Finalizar anestesia` cuando la cirugía ya terminó. La @fig-accion-continuar-cirugia-icon muestra el ícono de la acción en estado `Anestesia iniciada`, donde la etiqueta corresponde a `Iniciar cirugía`.
+
+  #figure(
+    image("./imagenes/cap06-accion-continuar-cirugia-icon.png", width: 30%),
+    caption: [Acción `Continuar cirugía` mostrada como `Iniciar cirugía` en estado `Anestesia iniciada`.],
+  ) <fig-accion-continuar-cirugia-icon>
+
+  `trigger()` abre un panel lateral con `CFormProcesoQuirurgicoContinuarCirugia`. El formulario muestra la información del paciente, los datos de programación de la intervención y una sección denominada `Hitos del proceso`, que presenta una línea de tiempo con las etapas intraoperatorias: recepción en pabellón, anestesia iniciada, cirugía iniciada, cirugía finalizada y anestesia finalizada. El hito que corresponde al estado actual se resalta, mientras que los hitos ya completados muestran su fecha y hora de registro, y los hitos pendientes aparecen deshabilitados. Esta visualización permite al equipo confirmar en qué momento del proceso se encuentra el paciente antes de avanzar. Además, el panel muestra el tiempo transcurrido de la intervención y el tiempo total en pabellón, como se observa en la @fig-accion-continuar-cirugia.
+
+  #figure(
+    image("./imagenes/cap06-accion-continuar-cirugia.png", width: 100%),
+    caption: [Panel de `Continuar cirugía` con los hitos del proceso y la etapa actual resaltada.],
+  ) <fig-accion-continuar-cirugia>
+
+  El método `commit` actualiza el `extendedData` de la atención mediante `hlth.patchPatientServiceExtendedData`, registrando la fecha y hora actuales en el hito que corresponde al siguiente estado y actualizando el `stateKey`. Después de cada avance, excepto tras `Finalizar anestesia`, la acción vuelve a abrir automáticamente el formulario para permitir que el equipo registre los hitos de forma continua sin tener que volver a seleccionar la acción en la grilla. Así, una sola clase de acción coordina todo el avance intraoperatorio, adaptando su etiqueta y su hito objetivo al estado en que se encuentre la atención.
 
   === Iniciar recuperación
 
+  La acción `Iniciar recuperación` se muestra cuando el paciente ha finalizado la etapa intraoperatoria y debe trasladarse desde el pabellón a una ubicación de recuperación. La @fig-accion-iniciar-recu-icon muestra el ícono de la acción disponible en la lista de trabajo.
+
+  #figure(
+    image("./imagenes/cap06-accion-iniciar-recu-icon.png", width: 30%),
+    caption: [Acción para iniciar la recuperación del paciente desde la lista de trabajo quirúrgica.],
+  ) <fig-accion-iniciar-recu-icon>
+
+  Al seleccionarla, `trigger()` abre un panel lateral con `CFormProcesoQuirurgicoCambiarUbicacionPaciente`, reutilizando la información del paciente desde `standard` y mostrando el sector `Recuperación` con su ubicación correspondiente, como se observa en la @fig-accion-iniciar-recu.
+
+  #figure(
+    image("./imagenes/cap06-accion-iniciar-recu.png", width: 100%),
+    caption: [Panel para iniciar la recuperación del paciente.],
+  ) <fig-accion-iniciar-recu>
+
+  El método `commit` ejecuta la acción API `hlth.patchPatientServiceChangeLocation`, que llama al endpoint de HLTH para cambiar la ubicación del paciente a la ubicación de recuperación seleccionada. Al igual que en el ingreso a pabellón, esta operación aprovecha la funcionalidad descrita en la @sec-hlth-atencion-quirurgica-ubicacion-datos-extendidos, que permite actualizar el `extendedData` de la atención en el mismo momento del cambio de ubicación. Con esto, además del movimiento del paciente, la acción registra el hito de inicio de recuperación con la fecha y hora actuales y actualiza `stateKey` al estado `EstadoEnRecuperacion`, de modo que el caso queda listo para finalizar la recuperación una vez que el paciente esté en condiciones de continuar su egreso o traslado.
+
   === Finalizar recuperación
 
+  La acción `Finalizar recuperación` permite cerrar la etapa de recuperación del paciente una vez que ya no requiere permanecer en esa unidad. Se muestra sobre atenciones en estado `En recuperación` y, al seleccionarla, despliega un diálogo de confirmación con el nombre del paciente.
+
+  #figure(
+    image("./imagenes/cap06-accion-finalizar-recuperacion-icon.png", width: 30%),
+    caption: [Acción para finalizar la recuperación desde la lista de trabajo quirúrgica.],
+  ) <fig-accion-finalizar-recuperacion-icon>
+
+  El diálogo no pide datos adicionales: solo confirma la acción antes de ejecutarla, como muestra la @fig-accion-finalizar-recuperacion. Al aceptar, el método `commit` instancia la orquestación de finalizar recuperación. Esa orquestación decide en qué estado dejar la atención, ya sea `Esperando Alta` o `Esperando traslado`, según la situación del paciente. Cuando el resultado es `Esperando traslado`, además conserva la referencia al traslado activo para que esa información pueda reutilizarse en el frontend.
+
+  #figure(
+    image("./imagenes/cap06-accion-finalizar-recuperacion.png", width: 50%),
+    caption: [Confirmación para finalizar la recuperación del paciente.],
+  ) <fig-accion-finalizar-recuperacion>
+
   === Iniciar traslado
+
+  La acción `Iniciar traslado` permite dar comienzo al traslado del paciente cuando ya no debe permanecer en pabellón o en recuperación. Se muestra solo si la atención tiene un traslado asociado pendiente, y se presenta como acción secundaria en la lista de trabajo, como muestra la @fig-accion-iniciar-traslado-icon.
+
+  #figure(
+    image("./imagenes/cap06-accion-iniciar-traslado-icon.png", width: 30%),
+    caption: [Acción para iniciar el traslado del paciente desde la lista de trabajo quirúrgica.],
+  ) <fig-accion-iniciar-traslado-icon>
+
+  Al seleccionarla, `trigger()` abre un diálogo de confirmación con el destino del traslado, como se observa en la @fig-accion-iniciar-traslado. El mensaje solo pide validar la operación antes de ejecutarla y no solicita información adicional.
+
+  #figure(
+    image("./imagenes/cap06-accion-iniciar-traslado.png", width: 55%),
+    caption: [Confirmación para iniciar el traslado del paciente.],
+  ) <fig-accion-iniciar-traslado>
+
+  Al confirmar, el método `commit` instancia la orquestación de iniciar traslado. Esa orquestación ejecuta el movimiento del paciente, registra el hito `enTransito` y actualiza la atención al estado `En tránsito`. De esta forma, el frontend solo dispara el inicio del traslado y la lógica de transición queda concentrada en la orquestación.
 
   === Devolver a unidad de origen
 
@@ -791,27 +856,75 @@
 
   === Cargar evaluación
 
-  La acción `Cargar evaluación` no representa un único formulario fijo. Es una clase parametrizada por tipo de evaluación, de modo que el mismo modelo de acción puede mostrarse con etiquetas, títulos y condiciones distintas. En la implementación actual se usa para la evaluación preanestésica y el protocolo quirúrgico. Ambas comparten el mecanismo de carga, pero se diferencian por el tipo de evaluación, el momento del flujo en que se muestran y la información clínica que registran.
+  La acción `Cargar evaluación` no representa un único formulario fijo. Es una clase parametrizada por tipo de evaluación, de modo que el mismo modelo de acción puede mostrarse con etiquetas, títulos y condiciones distintas. En la implementación actual se usa para la evaluación preanestésica y el protocolo quirúrgico. Ambas comparten el mismo mecanismo de carga y se diferencian principalmente por el tipo de evaluación, el momento del flujo en que se muestran y la información clínica que registran.
 
-  Para la evaluación preanestésica, la acción se muestra en el estado `Preoperatorio`, antes del ingreso a pabellón, como se observa en la @fig-accion-eval-pre-icon. La acción usa el tipo de evaluación preanestésica para definir la etiqueta `Evaluación preanestésica`, el título del modal y la condición de ejecución. Si la atención ya tiene una evaluación preanestésica registrada, `canExecute()` evita volver a mostrarla como acción disponible.
+  El comportamiento común de la acción es el siguiente. `canExecute()` verifica que la atención aún no tenga registrada una evaluación completa del tipo correspondiente, por lo que la acción se muestra solo si todavía no existe una evaluación de ese tipo. `trigger()` busca el último borrador existente para ese tipo de evaluación y emite `surgical_process:load_evaluation` con el tipo, el título, los identificadores del paciente, el `PatientService`, el `careManager` y el borrador cuando existe. El plugin recibe el evento y delega la carga a `loadModalEvaluation`, reutilizando el mecanismo de formularios embebidos descrito en la @sec-diseno-formularios-documentos-clinicos. El formulario se muestra dentro de un modal de paciente: a la izquierda se presenta la cápsula con datos básicos del paciente y al centro se carga el formulario clínico de EHR mediante `iframe`.
+
+  Para la evaluación preanestésica, la acción se muestra en el estado `Preoperatorio`, antes del ingreso a pabellón, bajo la etiqueta `Evaluación preanestésica`, como se observa en la @fig-accion-eval-pre-icon. El formulario permite registrar información de la intervención, antecedentes médicos y revisión por sistemas, como muestra la @fig-accion-eval-pre.
 
   #figure(
     image("./imagenes/cap06-accion-eval-pre-icon.png", width: 35%),
     caption: [Acción para cargar la evaluación preanestésica en estado preoperatorio.],
   ) <fig-accion-eval-pre-icon>
 
-  Al ejecutarla, `trigger()` busca el último borrador existente para ese tipo de evaluación y emite `surgical_process:load_evaluation` con el tipo de evaluación, título, identificadores del paciente, `PatientService`, `careManager` y evaluación en borrador cuando existe. El plugin recibe el evento y delega la carga a `loadModalEvaluation`, reutilizando el mecanismo de formularios embebidos descrito en la @sec-diseno-formularios-documentos-clinicos. La información se muestra dentro de un modal de paciente: a la izquierda se presenta la cápsula con datos básicos del paciente y al centro se carga el formulario clínico de EHR mediante `iframe`, como muestra la @fig-accion-eval-pre.
-
   #figure(
     image("./imagenes/cap06-accion-eval-pre.png", width: 100%),
     caption: [Formulario embebido para registrar la evaluación preanestésica desde la lista de trabajo quirúrgica.],
   ) <fig-accion-eval-pre>
 
-  La diferencia principal entre las acciones de evaluación está en el tipo de evaluación que reciben: ese identificador define el rótulo visible, el título del modal, el borrador que se recupera y la regla que impide repetir documentos ya completados. En el caso preanestésico, el formulario muestra información de la intervención, antecedentes médicos y revisión por sistemas. En el protocolo quirúrgico, la misma clase abre el documento operatorio asociado a la intervención y usa el tipo de evaluación de protocolo. Al finalizar cualquiera de estos registros, la evaluación queda asociada a la atención clínica del paciente y la lista de trabajo se actualiza; si el documento ya fue completado, la acción correspondiente deja de mostrarse para esa atención.
+  Para el protocolo quirúrgico, la acción se muestra durante y después de la etapa intraoperatoria, bajo la etiqueta `Protocolo quirúrgico`, como se observa en la @fig-accion-protocolo-qx-icon. El formulario carga el documento operatorio asociado a la intervención, precargando algunos datos de la sección `Detalle de la intervención`, como muestra la @fig-accion-protocolo-qx.
+
+  #figure(
+    image("./imagenes/cap06-accion-protocolo-qx-icon.png", width: 30%),
+    caption: [Acción para cargar el protocolo quirúrgico durante la etapa intraoperatoria o de recuperación.],
+  ) <fig-accion-protocolo-qx-icon>
+
+  #figure(
+    image("./imagenes/cap06-accion-protocolo-qx.png", width: 100%),
+    caption: [Formulario embebido para registrar el protocolo quirúrgico desde la lista de trabajo.],
+  ) <fig-accion-protocolo-qx>
+
+  En ambos casos, al finalizar el registro la evaluación queda asociada a la atención clínica del paciente y la lista de trabajo se actualiza.
 
   === Pausa quirúrgica
 
+  La acción `Pausa quirúrgica` permite registrar las tres pausas de seguridad del acto quirúrgico durante la etapa intraoperatoria. Es una acción parametrizada: al instanciarse, consulta el número de la siguiente pausa pendiente de la atención y ajusta su etiqueta y su comportamiento para registrar la pausa correspondiente. Se muestra como acción secundaria en estados intraoperatorios, como se observa en la @fig-accion-pausa-qx-icon.
+
+  #figure(
+    image("./imagenes/cap06-accion-pausa-qx-icon.png", width: 30%),
+    caption: [Acción para registrar una pausa quirúrgica desde la lista de trabajo.],
+  ) <fig-accion-pausa-qx-icon>
+
+  Para soportar cada pausa se configuraron tres tipos de signo vital: `Primera Pausa Quirúrgica`, `Segunda Pausa Quirúrgica` y `Tercera Pausa Quirúrgica`. Cada uno define, dentro de la escala `pausaQuirurgica`, una checklist con las verificaciones propias de su momento: antes de la inducción anestésica, antes de la incisión de la piel y antes de que el paciente abandone el pabellón. Las preguntas cubren identidad del paciente, sitio quirúrgico, consentimiento, funcionamiento de equipos, conteo de elementos, muestras biológicas y destino posterior, entre otros aspectos de seguridad.
+
+  `trigger()` dispara `surgical_process:show_scale_form` con el nombre de la escala, el tipo de signo vital que corresponde a la pausa actual y el identificador del `PatientService`. El formulario se presenta como un modal con la información del paciente a la izquierda y las secciones de la checklist a la derecha, como muestra la @fig-accion-pausa-qx.
+
+  #figure(
+    image("./imagenes/cap06-accion-pausa-qx.png", width: 100%),
+    caption: [Formulario de registro de la primera pausa quirúrgica.],
+  ) <fig-accion-pausa-qx>
+
+  La acción solo está disponible mientras exista una pausa pendiente por registrar; una vez completadas las tres, deja de mostrarse. Al guardarse, cada pausa queda asociada a la atención clínica del paciente y la lista de trabajo se actualiza para reflejar el avance del checklist de seguridad quirúrgica.
+
   === Cuidados intraoperatorios
+
+  La acción `Cuidados intraoperatorios` permite registrar, durante la etapa intraoperatoria, una serie de cuidados de enfermería asociados al paciente en quirófano. Se presenta como acción secundaria dentro del menú de tres puntos cuando la atención se encuentra en estado `En pabellón`, como se observa en la @fig-accion-cuidados-intraoperatorios-icon.
+
+  #figure(
+    image("./imagenes/cap06-accion-cuidados-intraoperatorios-icon.png", width: 30%),
+    caption: [Acción para registrar cuidados intraoperatorios disponible como acción secundaria.],
+  ) <fig-accion-cuidados-intraoperatorios-icon>
+
+  La acción reutiliza el mecanismo de formularios de escala o checklist de la plataforma. Para este caso se configuró un tipo de signo vital denominado `Cuidados intraoperatorios`, cuyo `vstp_abbreviation` identifica la escala y cuyos datos extendidos definen una checklist con las preguntas operacionales relevantes: riesgo de lesión por presión en pabellón, posición quirúrgica, protección de puntos de apoyo, protección ocular y limpieza de piel preoperatoria, cada una con sus opciones y, en algunos casos, campo de observaciones. El registro se guarda como una evaluación de tipo checklist asociada a la atención del paciente.
+
+  Al ejecutarla, `trigger()` dispara `surgical_process:show_scale_form` con el identificador de la escala, el tipo de signo vital y el `patientServiceId`. El formulario se muestra como un modal con la información del paciente a la izquierda y las preguntas de la checklist a la derecha, como se observa en la @fig-accion-cuidados-intraoperatorios.
+
+  #figure(
+    image("./imagenes/cap06-accion-cuidados-intraoperatorios.png", width: 100%),
+    caption: [Formulario de registro de cuidados de enfermería intraoperatorios.],
+  ) <fig-accion-cuidados-intraoperatorios>
+
+  `canExecute()` verifica que la atención aún no tenga registrado un signo vital de este tipo, de modo que la acción deja de mostrarse una vez que los cuidados intraoperatorios fueron guardados. Este comportamiento es consistente con el resto de las evaluaciones del proceso quirúrgico, que se ocultan después de ser completadas para evitar duplicidades.
 
   === Cambiar ubicación
 
@@ -829,7 +942,7 @@
     caption: [Panel para seleccionar una nueva ubicación del paciente.],
   ) <fig-accion-cambiar-ubicacion>
 
-  Al confirmar, `commit()` envía al plugin una acción `hlth.patchPatientServiceChangeLocation` con el identificador del `PatientService`, la nueva ubicación, la ruta descriptiva y el usuario ejecutor. Si la operación finaliza correctamente, la grilla se actualiza para reflejar la nueva ubicación.
+  Al confirmar, el método `commit` envía al plugin una acción `hlth.patchPatientServiceChangeLocation` con el identificador del `PatientService`, la nueva ubicación, la ruta descriptiva y el usuario ejecutor. Si la operación finaliza correctamente, la grilla se actualiza para reflejar la nueva ubicación.
 
   === Reagendar cirugía
 
@@ -849,13 +962,50 @@
 
   Al seleccionar la acción, `trigger()` abre un panel lateral de programación de intervención mediante `surgical_process:show_action_panel`. La sección de información del paciente proviene del plugin `standard`, mientras que los datos quirúrgicos se obtienen desde la `AtencionQuirurgica`: intervenciones, tiempo operatorio, pabellón programado y fecha de inicio programada. Esa información permite conservar el contexto de la cirugía y modificar solo la nueva programación.
 
-  Al confirmar el formulario, `commit()` recibe la nueva ubicación y la nueva fecha de inicio. Con esos datos construye el cuerpo de actualización de la cita: usuario ejecutor, nueva fecha `scheduledStart`, participantes actualizados y datos extendidos. En Agenda, el pabellón se representa como un participante de la cita; por ello, para cambiarlo se reconstruye y reenvía la lista completa de participantes, reemplazando el participante de pabellón por la nueva ubicación seleccionada y manteniendo el participante paciente asociado a la atención.
+  Al confirmar el formulario, el método `commit` recibe la nueva ubicación y la nueva fecha de inicio. Con esos datos construye el cuerpo de actualización de la cita: usuario ejecutor, nueva fecha `scheduledStart`, participantes actualizados y datos extendidos. En Agenda, el pabellón se representa como un participante de la cita; por ello, para cambiarlo se reconstruye y reenvía la lista completa de participantes, reemplazando el participante de pabellón por la nueva ubicación seleccionada y manteniendo el participante paciente asociado a la atención.
 
   La ejecución se delega al plugin mediante `surgical_process:execute_panel_action`, usando la acción API `agenda.patchAppointmentReschedule`. Esa acción termina llamando al endpoint de Agenda `PATCH /agenda/appointments/{id}/_reschedule`, donde `{id}` corresponde a la cita de origen de la atención quirúrgica. Si la operación finaliza correctamente, el panel informa la nueva fecha y pabellón, y la grilla se actualiza.
 
   === Revertir ingreso a Pabellón
 
+  La acción `Revertir Ingreso a Pabellón` permite corregir un ingreso accidental al quirófano devolviendo al paciente a la etapa preoperatoria. Se presenta como acción secundaria dentro del menú de tres puntos cuando la atención se encuentra en estado `En pabellón`, como se observa en la @fig-accion-revertir-ingreso-pabellon-icon.
+
+  #figure(
+    image("./imagenes/cap06-revertir-ingreso-pabellon-icon.png", width: 30%),
+    caption: [Acción para revertir el ingreso a pabellón disponible como acción secundaria.],
+  ) <fig-accion-revertir-ingreso-pabellon-icon>
+
+  Al seleccionarla, `trigger()` abre un panel lateral con `CFormProcesoQuirurgicoCambiarUbicacionPaciente`, como muestra la @fig-accion-revertir-ingreso-pabellon. El formulario precarga como ubicación de destino la `ubicacionPreOperatoria` guardada previamente al momento del ingreso, de modo que el usuario pueda devolver al paciente exactamente a donde estaba. También permite seleccionar otra ubicación de CMA o Recuperación si la situación operativa lo requiere.
+
+  #figure(
+    image("./imagenes/cap06-revertir-ingreso-pabellon.png", width: 100%),
+    caption: [Panel para revertir el ingreso de un paciente a pabellón.],
+  ) <fig-accion-revertir-ingreso-pabellon>
+
+  El método `commit` ejecuta la acción API `hlth.patchPatientServiceChangeLocation`, reutilizando el mismo endpoint de cambio de ubicación pero indicando `revertLocationChange: true` para que HLTH trate el movimiento como una reversión. Aprovechando la funcionalidad descrita en la @sec-hlth-atencion-quirurgica-ubicacion-datos-extendidos, la misma operación actualiza el `extendedData` de la atención, estableciendo el `stateKey` de vuelta a `EstadoPreOperatorio`. De este modo, el paciente regresa tanto físicamente como operativamente a la etapa previa al ingreso a pabellón.
+
   === Ver PDF protocolo
+
+  La acción `Ver PDF protocolo` permite abrir el documento generado a partir del protocolo quirúrgico ya registrado. Se presenta como acción secundaria en la lista de trabajo, como muestra la @fig-accion-ver-pdf-icon.
+
+  #figure(
+    image("./imagenes/cap06-accion-ver-pdf-icon.png", width: 30%),
+    caption: [Acción para ver el PDF del protocolo quirúrgico.],
+  ) <fig-accion-ver-pdf-icon>
+
+  `canExecute()` valida que la atención ya tenga realizado el protocolo y que exista una evaluación de protocolo con datos completos, por lo que la acción solo aparece cuando el documento puede generarse. Al seleccionarla, `trigger()` abre un modal de espera indicando que el PDF se está generando, como se observa en la @fig-accion-ver-pdf.
+
+  #figure(
+    image("./imagenes/cap06-accion-ver-pdf.png", width: 40%),
+    caption: [Modal mostrado mientras se genera el PDF del protocolo quirúrgico.],
+  ) <fig-accion-ver-pdf>
+
+  Una vez preparado, el sistema entrega el protocolo en formato PDF, como se muestra en la @fig-pdf-protocolo. El documento reúne la información clínica y operacional registrada durante la intervención, incluyendo los datos principales de la atención, el equipo clínico y el detalle del acto quirúrgico.
+
+  #figure(
+    image("./imagenes/cap06-pdf-protocolo.png", width: 55%),
+    caption: [PDF generado del protocolo quirúrgico.],
+  ) <fig-pdf-protocolo>
 
   === Imprimir brazalete
 
@@ -889,9 +1039,22 @@
     caption: [Diálogo de confirmación y formulario de motivos para suspender una intervención quirúrgica.],
   ) <fig-accion-suspender>
 
-  Al confirmar, el diálogo emite `surgical_process:commit_action` con los datos del formulario. `commit()` construye el cuerpo para la suspensión con el paciente, el clínico ejecutor, la cita asociada, la atención `PatientService` cuando existe, la causa, la subcausa y las observaciones. La acción mapea causa y subcausa al formato que espera la orquestación, conservando identificador, descripción y códigos disponibles.
+  Al confirmar, el diálogo emite `surgical_process:commit_action` con los datos del formulario. El método `commit` construye el cuerpo para la suspensión con el paciente, el clínico ejecutor, la cita asociada, la atención `PatientService` cuando existe, la causa, la subcausa y las observaciones. La acción mapea causa y subcausa al formato que espera la orquestación, conservando identificador, descripción y códigos disponibles.
 
-  Finalmente, `commit()` emite `surgical_process:execute_api_call` con la acción API `bpm.postDynamicOrchestration`, el identificador de la orquestación de suspensión y el cuerpo normalizado por la acción. La secuencia ejecutada por esa orquestación se describe en la @sec-orquestacion-suspender-cirugia.
+  Finalmente, el método `commit` emite `surgical_process:execute_api_call` con la acción API `bpm.postDynamicOrchestration`, el identificador de la orquestación de suspensión y el cuerpo normalizado por la acción. La secuencia ejecutada por esa orquestación se describe en la @sec-orquestacion-suspender-cirugia.
+
+  == Acciones implementadas fuera de la lista de espera
+
+  La acción `Recepcionar paciente` de admisión se implementó en una aplicación legacy de admisión de pacientes, fuera de la aplicación de proceso quirúrgico. Esa aplicación no comparte el mismo modelo de `Accion` ni de `Estado` usado por la nueva lista de trabajo, por lo que la adaptación se limitó a agregar lógica para obtener intervenciones programadas de pabellón que ahora se representan como citas de Agenda, sin realizar cambios visuales en la interfaz existente.
+
+  Para soportarla, la lista legacy se extendió para mostrar citas quirúrgicas electivas junto con las admisiones, instancias y traslados que ya manejaba. La @fig-admision-paciente-lista muestra una cita de Agenda que representa una atención quirúrgica programada y que puede recepcionarse desde esa aplicación. Al seleccionarla, se abre el formulario de admisión con los datos de la cita y del paciente; al confirmar, se ejecuta la admisión y la cita queda lista para continuar con la recepción en pabellón dentro del flujo quirúrgico.
+
+  #figure(
+    image("./imagenes/cap06-admision-paciente-lista.png", width: 100%),
+    caption: [Lista de admisión con una cita quirúrgica de Agenda disponible para recepcionar al paciente.],
+  ) <fig-admision-paciente-lista>
+
+  Para alimentar esta vista también se ajustó el backend de admisión de HEGC, de modo que se puedan obtener las citas quirúrgicas electivas agendadas para el día desde la aplicación legacy.
 
   == Extensiones backend para el flujo quirúrgico
 
@@ -905,7 +1068,7 @@
 
   Para resolverlo, el adaptador de participantes permite recibir participantes sin UUID interno de Agenda, siempre que incluyan `externalReference` y `typeId`. Agenda busca con esa dupla porque es segura como identificador único del participante dentro de su tipo. Si el participante existe, se reutiliza; si no existe y el tipo corresponde a paciente, se crea en Agenda con la referencia externa y los datos disponibles. Además, `DefaultAppointmentStore` usa el comportamiento común de entidades participables para reemplazar las relaciones en `appointment_participant` al guardar la cita. Con esto, las citas quirúrgicas quedan vinculadas al paciente aunque este no hubiera estado sincronizado previamente en Agenda.
 
-  === HLTH: atención quirúrgica, ubicación y datos extendidos
+  === HLTH: atención quirúrgica, ubicación y datos extendidos <sec-hlth-atencion-quirurgica-ubicacion-datos-extendidos>
 
   En HLTH se realizaron tres ajustes principales para soportar la atención quirúrgica como entidad operativa del flujo. Primero, se extendió la actualización de datos extendidos de `PatientService` mediante `updateDataPathMode`. Este parámetro permite indicar cómo debe combinarse el nuevo contenido con el objeto existente en una ruta determinada de `extendedData`. Los modos soportados son `replace`, `append`, `merge-replace`, `merge-deep` y `merge-ignore`. En el flujo quirúrgico fue especialmente útil `merge-deep`, porque permite combinar objetos de forma recursiva: una acción puede modificar valores internos de `extendedData.pabellon`, como un hito o un `stateKey`, sin reconstruir ni sobrescribir ramas completas como programación, diagnósticos o intervenciones.
 
@@ -1217,7 +1380,7 @@
 
   Cuando la suspensión ocurre después de iniciar la atención de pabellón, la orquestación revisa si el paciente tenía una atención previa abierta de hospitalización o urgencia. En ese caso crea un traslado de retorno hacia la ubicación de esa atención, porque la recepción en pabellón deja a la atención previa sin uso de ubicación y la cancelación directa de pabellón dejaría al paciente sin ubicación actual. Luego cancela tareas BPM pendientes de protocolo quirúrgico y propaga la suspensión al origen del caso: para cirugías electivas invoca HEGC para suspender la orden en Gestión Hospitales; para urgencias cancela la indicación quirúrgica en HLTH con un motivo construido desde causa, subcausa y observaciones.
 
-  === Finalizar recuperación
+  === Finalizar recuperación <sec-orquestacion-finalizar-recuperacion>
 
   Finalizar recuperación consulta la atención quirúrgica y luego busca transferencias no finalizadas del paciente. Con esos datos asigna tres variables de trabajo: si el caso es CMA, la lista de traslados abiertos y el primer traslado encontrado. Si el caso es CMA y no hay traslados, actualiza los datos de pabellón con el hito `esperandoAlta` y estado `Esperando Alta`. Si no es CMA y no hay traslados, registra `esperandoTraslado`. Si existe un traslado abierto, conserva su identificador y ubicación en la atención quirúrgica y también deja el estado `Esperando traslado`. Después finaliza la cita de Agenda asociada y, cuando la atención tiene indicación de urgencia, finaliza esa indicación con el motivo `Finalización de la recuperación`.
 
