@@ -121,14 +121,6 @@ NadeemM2022:
     location: Pittsburgh, Pennsylvania, USA
     year: 2022
 
-WHO2009Checklist:
-  type: Report
-  title: Lista de verificación de la seguridad de la cirugía
-  author: Organización Mundial de la Salud
-  year: 2009
-  organization: Organización Mundial de la Salud
-  url: https://www.who.int/publications/i/item/9789241598590
-
 LahuenHealthAbout:
   type: Web
   title: Nuestra empresa
@@ -145,6 +137,23 @@ BaloianPino2024Usabilidad:
   year: 2024
   organization: Departamento de Ciencias de la Computación, Universidad de Chile
   location: Santiago, Chile
+
+Brooke1996SUS:
+  type: Article
+  title: "SUS: A quick and dirty usability scale"
+  author: John Brooke
+  page-range: 189-194
+  parent:
+    type: Book
+    title: Usability Evaluation in Industry
+    publisher: Taylor & Francis
+    location: London
+    year: 1996
+    editor:
+      - Patrick W. Jordan
+      - Bruce Thomas
+      - Bernard A. Weerdmeester
+      - Ian L. McClelland
 
 W3SchoolsIframe:
   type: Web

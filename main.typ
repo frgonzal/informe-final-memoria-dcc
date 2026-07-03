@@ -197,7 +197,7 @@
 
   == Procesos de negocio y workflows
 
-  Un proceso quirúrgico no corresponde a una única operación puntual. Se trata de un flujo de larga duración compuesto por eventos, decisiones, esperas, excepciones y cambios de estado. Además, el proceso tiene hitos clínicos relevantes. La lista de verificación de seguridad quirúrgica de la Organización Mundial de la Salud, por ejemplo, estructura la operación en momentos antes de la inducción anestésica, antes de la incisión y antes de que el paciente salga del quirófano @WHO2009Checklist. Aunque este trabajo no implementa directamente esa lista como protocolo clínico, sí muestra que el dominio quirúrgico se organiza naturalmente alrededor de hitos verificables y secuencias controladas.
+  Un proceso quirúrgico no corresponde a una única operación puntual. Se trata de un flujo de larga duración compuesto por eventos, decisiones, esperas, excepciones y cambios de estado. Además, por motivos legales y de trazabilidad, el sistema debe registrar tiempos, hitos y otras acciones relevantes del proceso. Eso exige modelar la operación como una secuencia verificable de estados y transiciones, más que como una acción aislada.
 
   En sistemas de microservicios, existen dos formas comunes de coordinar este tipo de procesos: coreografía y orquestación. En una coreografía, los servicios reaccionan a eventos y cada uno decide localmente qué hacer. En una orquestación, existe un componente que coordina explícitamente la secuencia de actividades. La coreografía reduce dependencias directas, pero puede dificultar la observación global del proceso cuando el flujo queda distribuido entre múltiples servicios. La orquestación, en cambio, permite representar el proceso de forma más explícita y facilita entender qué actividades se ejecutaron, cuáles fallaron y en qué estado se encuentra una instancia @NadeemM2022.
 
@@ -350,13 +350,13 @@
 
   == Requerimientos de aplicaciones y monitores
 
-  La modernización frontend no debía limitarse a una única pantalla de operación. El proceso quirúrgico requiere distintos niveles de visibilidad según el tipo de usuario y el contexto de uso. Por ello, se requirió construir tres aplicaciones complementarias: la aplicación principal de pabellón, el monitor interno de pacientes en pabellón y el monitor público de pabellón.
+  La modernización frontend no debía limitarse a una única pantalla de operación. El proceso quirúrgico requiere distintos niveles de visibilidad según el tipo de usuario y el contexto de uso. Por ello, se requirió construir tres aplicaciones complementarias: la aplicación principal de pabellón, el Monitor de pabellones y el Monitor de pacientes.
 
   La primera aplicación corresponde a la vista de pabellón. Su objetivo es permitir que los equipos clínicos y operacionales gestionen el flujo quirúrgico desde una lista de trabajo, ejecutando acciones sobre cada caso, revisando documentos, cambiando estados, registrando hitos y consultando atenciones anteriores. Esta aplicación concentra la operación activa del proceso.
 
-  La segunda aplicación corresponde al monitor de pacientes en pabellón. Su objetivo es entregar una vista de coordinación interna orientada al uso de pabellones. A diferencia de la lista de trabajo, esta aplicación no busca exponer todas las acciones disponibles, sino mostrar qué pabellones existen, cuáles están siendo utilizados, qué cirugía se encuentra en curso en cada uno y qué cirugías están programadas o próximas. El requerimiento principal de este monitor fue entregar información rápida para jefaturas y equipos de coordinación, de modo que pudieran identificar ocupación de quirófanos, ubicación del paciente, estado de la cirugía e información relevante para anticipar el flujo de la jornada.
+  La segunda aplicación corresponde al Monitor de pabellones. Su objetivo es entregar una vista de coordinación interna orientada al uso de pabellones. A diferencia de la lista de trabajo, esta aplicación no busca exponer todas las acciones disponibles, sino mostrar qué pabellones existen, cuáles están siendo utilizados, qué cirugía se encuentra en curso en cada uno y qué cirugías están programadas o próximas. El requerimiento principal de este monitor fue entregar información rápida para jefaturas y equipos de coordinación, de modo que pudieran identificar ocupación de quirófanos, ubicación del paciente, estado de la cirugía e información relevante para anticipar el flujo de la jornada.
 
-  La tercera aplicación corresponde al monitor público de pabellón. Esta vista está orientada a familiares o acompañantes que esperan fuera del área clínica. Su objetivo es informar de manera simple en qué etapa del proceso se encuentra la persona atendida, sin exponer detalles clínicos innecesarios ni acciones operacionales. Por ello, el requerimiento fue construir una pantalla de lectura, adecuada para sala de espera, que mostrara una identificación acotada del paciente, su estado general y su ubicación o etapa visible del proceso.
+  La tercera aplicación corresponde al Monitor de pacientes. Esta vista está orientada a familiares o acompañantes que esperan fuera del área clínica. Su objetivo es informar de manera simple en qué etapa del proceso se encuentra la persona atendida, sin exponer detalles clínicos innecesarios ni acciones operacionales. Por ello, el requerimiento fue construir una pantalla de lectura, adecuada para sala de espera, que mostrara una identificación acotada del paciente, su estado general y su ubicación o etapa visible del proceso.
 
   Estas tres aplicaciones comparten la necesidad de leer entidades quirúrgicas desde los servicios de la plataforma, adaptarlas a modelos frontend y mantenerse actualizadas ante eventos. Sin embargo, cada una presenta la información con un propósito distinto: operar el flujo, coordinar pabellones o informar a familiares. Esta separación permite responder a necesidades de usuarios diferentes sin sobrecargar una sola interfaz con todos los usos posibles.
 
@@ -386,7 +386,7 @@
 
   La extensibilidad también era esencial. El módulo quirúrgico debía quedar preparado para incorporar nuevos estados, acciones, formularios, eventos o integraciones. Esto se relaciona con el uso de registros de estados y acciones en frontend, con la necesidad de coordinar acciones mediante definiciones reutilizables y con la reutilización de componentes compartidos de la plataforma.
 
-  La interoperabilidad fue otro requisito clave. La solución debía integrarse con Gestión Hospitales, Agenda, HLTH, EHR, BPM, Temporal, el servicio de SSE y los mecanismos de eventos de la plataforma. Esta integración debía hacerse sin concentrar toda la lógica en un único componente, respetando las responsabilidades de cada servicio.
+  La interoperabilidad fue otro requisito clave. La solución debía integrarse con Gestión Hospitales, Agenda, HLTH, la aplicación EHR para formularios clínicos, BPM, Temporal, el servicio de SSE y los mecanismos de eventos de la plataforma. Esta integración debía hacerse sin concentrar toda la lógica en un único componente, respetando las responsabilidades de cada parte de la plataforma.
 
   La trazabilidad debía mejorar respecto de la versión anterior, especialmente en el registro de fechas y horas de hitos relevantes del proceso. El sistema debía conservar información sobre recepción, ingreso a pabellón, hitos de anestesia y cirugía, recuperación, traslado, egreso y otros momentos clínico-operativos. Esta trazabilidad permite reconstruir el recorrido del paciente y apoyar análisis posteriores. Sin embargo, el alcance del trabajo no resuelve completamente toda la auditoría posible del proceso. Aún existen mejoras futuras, como registrar de manera más sistemática quién ejecuta cada acción y cubrir hitos que se producen como reacción a eventos y no siempre quedan guardados con el mismo nivel de detalle.
 
@@ -409,7 +409,7 @@
   - Escuchar eventos relevantes en el frontend mediante un canal persistente de eventos y actualizar la grilla con menor latencia.
   - Mejorar los filtros de eventos para aceptar listas de valores y reducir eventos irrelevantes.
   - Reaccionar a eventos desde BPM para ejecutar coordinaciones asociadas a tareas, protocolo, traslados y cierre de atenciones.
-  - Implementar tres aplicaciones frontend complementarias: vista operativa de pabellón, monitor interno de pabellones y monitor público para familiares.
+  - Implementar tres aplicaciones frontend complementarias: vista operativa de pabellón, Monitor de pabellones y Monitor de pacientes.
   - Entregar visibilidad interna sobre ocupación de pabellones, cirugías en curso y próximas atenciones quirúrgicas.
   - Entregar una visualización pública y acotada del estado del proceso para familiares o acompañantes en sala de espera.
   - Integrar formularios clínicos de EHR mediante una carga embebida y adaptar evaluación preanestésica, pausas quirúrgicas, protocolo y cuidados intraoperatorios.
@@ -511,15 +511,15 @@
 
   Cada acción se modela como una clase independiente con nombre, etiqueta, visibilidad, condición de ejecución e interacción esperada. Las acciones simples se resuelven con una operación directa o la apertura de una vista existente. Las acciones complejas se delegan a orquestaciones. Un registro común ordena las acciones para priorizar las principales y agrupar las secundarias.
 
-  La segunda aplicación es el monitor de pacientes en pabellón. Su diseño responde a una necesidad distinta: entregar visibilidad agregada sobre el uso de quirófanos. Esta aplicación se construye sobre `WebApp`, carga pabellones desde ubicaciones del área de pabellón y obtiene atenciones quirúrgicas desde atenciones clínicas y citas de Agenda. Luego agrupa la información por pabellón, separando la cirugía en curso de las cirugías programadas o próximas. Con ello, la pantalla permite identificar rápidamente qué pabellones están ocupados, cuál está disponible, qué paciente se encuentra en cada quirófano, en qué estado está la cirugía y qué atenciones siguen en la programación.
+  La segunda aplicación es el Monitor de pabellones. Su diseño responde a una necesidad distinta: entregar visibilidad agregada sobre el uso de quirófanos. Esta aplicación se construye sobre `WebApp`, carga pabellones desde ubicaciones del área de pabellón y obtiene atenciones quirúrgicas desde atenciones clínicas y citas de Agenda. Luego agrupa la información por pabellón, separando la cirugía en curso de las cirugías programadas o próximas. Con ello, la pantalla permite identificar rápidamente qué pabellones están ocupados, cuál está disponible, qué paciente se encuentra en cada quirófano, en qué estado está la cirugía y qué atenciones siguen en la programación.
 
   En este monitor, los estados no se usan para habilitar acciones, sino para clasificar la información mostrada. Los estados intraoperatorios permiten identificar la cirugía en curso dentro de un pabellón, mientras que los estados de preparación y programación permiten listar próximas cirugías. La visualización incorpora tiempos relevantes, como el tiempo transcurrido desde el ingreso a pabellón y la comparación con la duración operatoria planificada cuando esa información está disponible. Por esto, el monitor funciona como una herramienta de coordinación interna y no como una interfaz de edición del caso.
 
-  La tercera aplicación es el monitor público de pabellón, orientado a familiares o acompañantes en sala de espera. Esta aplicación también se construye sobre `WebApp`, consulta atenciones quirúrgicas y citas, y adapta los datos a un modelo reducido. A diferencia de la vista operativa, su diseño elimina acciones clínicas y restringe la información visible a datos necesarios para orientación general: nombre abreviado del paciente, estado del proceso y ubicación o etapa actual. La pantalla se presenta como una tabla de lectura, con paginación automática cuando existen más casos que los que caben en una sola vista.
+  La tercera aplicación es el Monitor de pacientes, orientado a familiares o acompañantes en sala de espera. Esta aplicación también se construye sobre `WebApp`, consulta atenciones quirúrgicas y citas, y adapta los datos a un modelo reducido. A diferencia de la vista operativa, su diseño elimina acciones clínicas y restringe la información visible a datos necesarios para orientación general: nombre abreviado del paciente, estado del proceso y ubicación o etapa actual. La pantalla se presenta como una tabla de lectura, con paginación automática cuando existen más casos que los que caben en una sola vista.
 
-  El monitor público reutiliza los estados del flujo, pero los simplifica para un público no clínico. Por ejemplo, los estados intraoperatorios se presentan como una etapa general de pabellón, evitando exponer detalles que no aportan a la comprensión de los familiares. Esta decisión mantiene la utilidad informativa de la pantalla y al mismo tiempo reduce el riesgo de mostrar información clínica innecesaria.
+  El Monitor de pacientes reutiliza los estados del flujo, pero los simplifica para un público no clínico. Por ejemplo, los estados intraoperatorios se presentan como una etapa general de pabellón, evitando exponer detalles que no aportan a la comprensión de los familiares. Esta decisión mantiene la utilidad informativa de la pantalla y al mismo tiempo reduce el riesgo de mostrar información clínica innecesaria.
 
-  Las tres aplicaciones comparten un principio de diseño: todas dependen del mismo estado operacional del proceso quirúrgico, pero cada una lo traduce a una experiencia distinta. La aplicación de pabellón permite operar; el monitor de pabellones permite coordinar; y el monitor público permite informar. Esta separación mantiene la coherencia del flujo y evita duplicar reglas clínicas, pero permite ajustar componentes, columnas, filtros y nivel de detalle según el usuario al que se dirige cada pantalla.
+  Las tres aplicaciones comparten un principio de diseño: todas dependen del mismo estado operacional del proceso quirúrgico, pero cada una lo traduce a una experiencia distinta. La aplicación de pabellón permite operar; el Monitor de pabellones permite coordinar; y el Monitor de pacientes permite informar. Esta separación mantiene la coherencia del flujo y evita duplicar reglas clínicas, pero permite ajustar componentes, columnas, filtros y nivel de detalle según el usuario al que se dirige cada pantalla.
 
   == Formularios y documentos clínicos <sec-diseno-formularios-documentos-clinicos>
 
@@ -584,7 +584,7 @@
 
   === Modelo unificado de atención quirúrgica <sec-impl-modelo-unificado-atencion-qx>
 
-  `AtencionQuirurgica` implementa el contrato común que usa la aplicación para operar casos quirúrgicos provenientes de HLTH, Agenda o `PatientService`. La clase normaliza entidades de origen distintas en una estructura estable para grilla, filtros, estados, acciones y formularios del plugin `surgical_process`.
+  `AtencionQuirurgica` implementa el contrato común que usa la aplicación para operar casos quirúrgicos provenientes de HLTH, Agenda o `PatientService`. La clase normaliza entidades de origen distintas en una estructura estable para grilla, filtros, estados, acciones y formularios de la aplicación de proceso quirúrgico.
 
   La @fig-clase-atencion-qx muestra la estructura implementada. `AtencionQuirurgica` actúa como agregado frontend: contiene datos del paciente, submodelos clínico-operacionales, referencias de trazabilidad y una instancia de `EstadoBase` que resuelve comportamiento dependiente del estado.
 
@@ -704,15 +704,37 @@
 
   El método construye un filtro histórico para `PatientService` usando el tipo de atención quirúrgica, los estados finalizada y cancelada, y la fecha seleccionada. Luego consulta HLTH y adapta los registros de la misma forma que el resto de atenciones que provienen de un `PatientService`. El método de adaptación identifica si la atención está finalizada o cancelada y devuelve la instancia de `AtencionQuirurgica` con el estado correspondiente. El resultado es la misma estructura de fila usada por el módulo principal, pero construida solo desde atenciones clínicas ya cerradas.
 
+  == Aplicaciones de monitoreo
+
+  Además de la lista de trabajo operativa, se implementaron dos aplicaciones de monitoreo sobre el mismo flujo quirúrgico: el Monitor de pabellones y el Monitor de pacientes. Como la versión actual dejó de utilizar instancias de workflows del motor de procesos propietario, las aplicaciones anteriores de monitoreo ya no eran compatibles con la nueva representación del proceso. Por ello, se reconstruyeron sobre la arquitectura frontend actual de Lahuén, leyendo atenciones clínicas y citas quirúrgicas desde los servicios de la plataforma.
+
+  En ambas aplicaciones se reutilizó la barra superior de la plataforma y se agregó un componente de fecha y hora visible en la esquina superior derecha. El diseño visual de las tablas y de la estructura de los monitores se implementó a partir de diseños entregados por el líder del proyecto, complementados con recomendaciones de una persona del área de diseño. La implementación buscó replicar esos diseños con el mayor detalle posible.
+
+  El Monitor de pabellones permite identificar rápidamente qué pabellones se están utilizando, cuáles están disponibles y cuántas atenciones hay programadas en cada pabellón. Además, muestra información relevante del procedimiento, como intervención, especialidad, tiempos programados y tiempo transcurrido, como se observa en la @fig-vista-monitor-pabellones.
+
+  #figure(
+    image("./imagenes/vista-monitor-pabellones-2.png", width: 100%),
+    caption: [Monitor de pabellones.],
+  ) <fig-vista-monitor-pabellones>
+
+  El Monitor de pacientes está orientado a informar a familiares o acompañantes. Muestra una versión reducida de la atención quirúrgica, limitada al nombre visible del paciente, su estado general y la ubicación o etapa del proceso, sin exponer acciones clínicas ni detalles operatorios, como muestra la @fig-vista-monitor-pabellones-publico.
+
+  #figure(
+    image("./imagenes/vista-monitor-pabellones-publico-2.png", width: 100%),
+    caption: [Monitor de pacientes para familiares o acompañantes.],
+  ) <fig-vista-monitor-pabellones-publico>
+
+  Las dos aplicaciones se actualizan con eventos de atenciones y citas, usando el mismo enfoque de suscripciones SSE descrito para la lista de trabajo. De esta forma se obtiene la información de los pacientes y los pabellones en tiempo real.
+
   == Acciones implementadas en la lista de trabajo
 
-  Las acciones se presentan en el mismo orden definido por el registro canónico de la aplicación, salvo la acción de admisión, que se documenta aquí aunque se implementó en otra aplicación. Todas las acciones propias de `surgical_process` se implementan como clases derivadas de `AccionBase`, descrita en la @sec-modelo-base-acciones-atencion-quirurgica.
+  Las acciones se presentan en el mismo orden definido por el registro canónico de la aplicación, salvo la acción de admisión, que se documenta aquí aunque se implementó en otra aplicación. Todas las acciones propias de la aplicación de proceso quirúrgico se implementan como clases derivadas de `AccionBase`, descrita en la @sec-modelo-base-acciones-atencion-quirurgica.
 
-  Para las acciones que modifican el estado de una atención, la interfaz solicita confirmación antes de ejecutar la operación. Esta decisión se alinea con la heurística de prevención de errores, que recomienda pedir confirmación antes de acciones potencialmente propensas a error @BaloianPino2024Usabilidad. Además, una vez ejecutada la acción, la aplicación muestra retroalimentación explícita de éxito o fracaso, siguiendo el principio de visibilidad del estado del sistema y las recomendaciones sobre mensajes de error comprensibles @BaloianPino2024Usabilidad. La @fig-ejemplo-mensaje-exito muestra un ejemplo de confirmación visual después de cambiar correctamente la ubicación de un paciente.
+  Para las acciones que modifican el estado de una atención, la interfaz solicita confirmación antes de ejecutar la operación. Esta decisión se alinea con la heurística de prevención de errores, que recomienda pedir confirmación antes de acciones potencialmente propensas a error @BaloianPino2024Usabilidad. Además, una vez ejecutada la acción, la aplicación muestra retroalimentación explícita de éxito o fracaso, siguiendo el principio de visibilidad del estado del sistema y las recomendaciones sobre mensajes de error comprensibles @BaloianPino2024Usabilidad. La @fig-ejemplo-mensaje-exito muestra un ejemplo de confirmación visual después de egresar correctamente a un paciente.
 
   #figure(
     image("./imagenes/cap06-ejemplo-de-mensaje-exito.png", width: 50%),
-    caption: [Mensaje de éxito mostrado después de cambiar la ubicación de un paciente.],
+    caption: [Mensaje de éxito mostrado después de egresar a un paciente.],
   ) <fig-ejemplo-mensaje-exito>
 
   === Ver ficha
@@ -852,7 +874,35 @@
 
   === Devolver a unidad de origen
 
+  La acción `Devolver a unidad de origen` permite retornar al paciente a la unidad desde la que provenía. Antes de ejecutarla, muestra una confirmación con la ubicación de destino.
+
+  #figure(
+    image("./imagenes/cap06-accion-devolver-a-unidad-de-origen-icon.png", width: 30%),
+    caption: [Acción para devolver al paciente a su unidad de origen.],
+  ) <fig-accion-devolver-unidad-origen-icon>
+
+  #figure(
+    image("./imagenes/cap06-accion-devolver-a-unidad-de-origen.png", width: 60%),
+    caption: [Confirmación para devolver al paciente a la unidad de origen.],
+  ) <fig-accion-devolver-unidad-origen>
+
+  Al aceptar, el sistema inicia la devolución, registra el traslado correspondiente y actualiza la atención para reflejar que el paciente queda en tránsito hacia su unidad de origen.
+
   === Egresar paciente
+
+  La acción `Egresar paciente` ejecuta el egreso del paciente y cierra la atención. Antes de realizar el cierre, solicita confirmación al usuario.
+
+  #figure(
+    image("./imagenes/cap06-accion-egresar-pacinte-icon.png", width: 30%),
+    caption: [Acción para egresar al paciente desde la lista de trabajo.],
+  ) <fig-accion-egresar-paciente-icon>
+
+  #figure(
+    image("./imagenes/cap06-accion-egresar-paciente.png", width: 60%),
+    caption: [Confirmación para egresar al paciente.],
+  ) <fig-accion-egresar-paciente>
+
+  Al aceptar, el sistema cierra la atención y muestra el mensaje de éxito correspondiente.
 
   === Cargar evaluación
 
@@ -1000,26 +1050,21 @@
     caption: [Modal mostrado mientras se genera el PDF del protocolo quirúrgico.],
   ) <fig-accion-ver-pdf>
 
-  Una vez preparado, el sistema entrega el protocolo en formato PDF, como se muestra en la @fig-pdf-protocolo. El documento reúne la información clínica y operacional registrada durante la intervención, incluyendo los datos principales de la atención, el equipo clínico y el detalle del acto quirúrgico.
-
-  #figure(
-    image("./imagenes/cap06-pdf-protocolo.png", width: 55%),
-    caption: [PDF generado del protocolo quirúrgico.],
-  ) <fig-pdf-protocolo>
+  Una vez preparado, el sistema entrega el protocolo en formato PDF. El documento reúne la información clínica y operacional registrada durante la intervención, incluyendo los datos principales de la atención, el equipo clínico y el detalle del acto quirúrgico. Un ejemplo del PDF generado se incluye en el @anexo-pdf-protocolo.
 
   === Imprimir brazalete
 
   La acción `Imprimir brazalete` se incorporó para reutilizar el mecanismo de impresión ya existente en la plataforma. La @fig-accion-imprimir-brazalete-icon muestra la acción disponible en la lista de trabajo.
 
   #figure(
-    image("./imagenes/cap06-imprimir-brazalete-icon.png", width: 100%),
+    image("./imagenes/cap06-imprimir-brazalete-icon.png", width: 30%),
     caption: [Confirmación para imprimir el brazalete del paciente desde la lista de trabajo quirúrgica.],
   ) <fig-accion-imprimir-brazalete-icon>
 
   Al seleccionarla, `trigger()` abre un diálogo de confirmación mediante `surgical_process:run_dialogs`, como se observa en la @fig-accion-imprimir-brazalete. Si el usuario confirma, la acción emite `surgical_process:print_wristband` con la `AtencionQuirurgica`. El plugin recibe ese evento y llama a la clase compartida `BrazaleteBpm`, pasando el identificador del paciente y la acción BPM de impresión. No se implementó un mecanismo nuevo de impresión; solo se conectó la acción del módulo quirúrgico con la clase ya disponible porque pabellón necesita imprimir el brazalete durante el flujo.
 
   #figure(
-    image("./imagenes/cap06-imprimir-brazalete.png", width: 100%),
+    image("./imagenes/cap06-imprimir-brazalete.png", width: 50%),
     caption: [Diálogo de confirmación antes de enviar a imprimir el brazalete.],
   ) <fig-accion-imprimir-brazalete>
 
@@ -1358,7 +1403,7 @@
 
   == Orquestaciones dinámicas del flujo quirúrgico <sec-orquestaciones-dinamicas-flujo-qx>
 
-  Sobre el orquestador dinámico se configuraron acciones concretas del flujo quirúrgico. Estas orquestaciones no forman un único proceso monolítico; cada una resuelve una transición o automatización acotada, reutilizando servicios de Agenda, HLTH, BPM, EHR, AUTH y HEGC. En conjunto permiten que la lista de trabajo ejecute acciones complejas sin concentrar en el frontend la coordinación entre servicios.
+  Sobre el orquestador dinámico se configuraron acciones concretas del flujo quirúrgico. Estas orquestaciones no forman un único proceso monolítico; cada una resuelve una transición o automatización acotada, reutilizando servicios de Agenda, HLTH, BPM, AUTH y HEGC, junto con formularios clínicos provistos por EHR cuando corresponde. En conjunto permiten que la lista de trabajo ejecute acciones complejas sin concentrar en el frontend la coordinación entre componentes de la plataforma.
 
   === Aceptar orden de urgencia <sec-orquestacion-aceptar-orden-urgencia>
 
@@ -1457,14 +1502,81 @@
 
   Durante la implementación se ajustaron los filtros para permitir listas de valores y reducir eventos irrelevantes. También se incorporó un debounce configurable para evitar que múltiples eventos cercanos generen recargas excesivas de la grilla. Esto fue necesario porque una acción orquestada puede modificar más de una entidad y producir varios eventos en poco tiempo. Además, la lista de trabajo puede ser utilizada por múltiples personas de forma independiente, por lo que en operación normal pueden ocurrir muchos cambios con pocos segundos de diferencia. Por esta razón, se buscó usar los filtros del servicio de SSE de la forma más específica posible, escuchando solo los eventos necesarios para la vista, y agrupar recargas cercanas mediante debounce.
 
-  == Resultado de la implementación
-
-  Como resultado, el módulo quirúrgico quedó implementado sobre componentes más mantenibles que los de la versión anterior. La interfaz se organiza como lista de trabajo y plugin especializado; los servicios de dominio almacenan programación, atención, evaluaciones e hitos; BPM y Temporal coordinan acciones complejas; el orquestador dinámico permite definir secuencias reutilizables; los eventos actualizan la lista y disparan automatizaciones; y HEGC integra las programaciones electivas provenientes de Gestión Hospitales.
-
-  Esta implementación conserva el flujo clínico-operativo existente, pero cambia la forma técnica de ejecutarlo. El estado del proceso deja de depender principalmente de una instancia del motor de procesos propietario y pasa a estar respaldado por entidades de dominio, datos extendidos, eventos y orquestaciones acotadas. Con ello se logra una base más modular para operar, mantener y extender el módulo de atención quirúrgica.
 ]
 
 #capitulo(title: "Evaluación y validación")[
+  La evaluación del trabajo se abordó considerando la naturaleza de la solución desarrollada. La mayor parte del esfuerzo estuvo concentrada en construir una nueva aplicación frontend para operar el proceso quirúrgico y en coordinar acciones que involucran distintos microservicios de la plataforma. Por ello, la validación debía comprobar principalmente dos aspectos: que la información mostrada al usuario fuera correcta y completa, y que las acciones ejecutaran los cambios esperados sobre el flujo quirúrgico.
+
+  Los cambios realizados directamente en servicios backend fueron acotados y precisos. La excepción principal fue el orquestador dinámico, que introduce una forma configurable de coordinar actividades entre servicios. Sin embargo, la plataforma no cuenta con una arquitectura de pruebas automatizadas específica para validar orquestaciones completas de este tipo. Construir un conjunto de pruebas automatizadas para todos los casos habría requerido simular múltiples servicios, eventos, respuestas intermedias y estados del proceso, lo que habría consumido una parte importante del tiempo disponible. Por esta razón, se optó por una validación manual y formativa basada en recorridos cognitivos, inspecciones de usabilidad y pruebas funcionales sobre flujos completos.
+
+  == Estrategia de evaluación
+
+  La guía de evaluación de usabilidad usada como referencia distingue métodos rápidos y rigurosos, y describe técnicas como el recorrido cognitivo y la inspección de usabilidad para evaluar sistemas durante el proceso de desarrollo @BaloianPino2024Usabilidad. En este proyecto, esas técnicas resultaron adecuadas porque la solución se encontraba en construcción, debía reemplazar una versión anterior en un plazo acotado y requería validación constante de flujos operacionales.
+
+  El recorrido cognitivo fue aplicado inicialmente por el memorista sobre las funcionalidades desarrolladas. Para cada flujo se verificó si el usuario podría identificar la acción correcta, comprender su efecto, ejecutarla y observar una retroalimentación coherente con el resultado esperado. Esta revisión se aplicó tanto sobre el frontend como sobre las acciones orquestadas, ya que muchas interacciones de la interfaz terminan ejecutando operaciones distribuidas sobre Agenda, HLTH, BPM o HEGC, o abriendo formularios clínicos provistos por EHR.
+
+  Una vez estabilizada una funcionalidad, el líder del proyecto revisaba la versión implementada y realizaba una inspección de usabilidad. Esta revisión permitía validar si el comportamiento era equivalente al flujo esperado, si la información visible era suficiente y si existían oportunidades de mejora en nombres, orden, disponibilidad de acciones o estructura visual. De esta manera, la evaluación no se realizó como una actividad única al final del desarrollo, sino como un proceso iterativo de mejora continua.
+
+  En la evaluación inicial del frontend también se procuró seguir el design system de Lahuén, es decir, los patrones visuales y pautas de comportamiento ya utilizados en otras aplicaciones de la plataforma. Esto permitió mantener continuidad con interfaces previamente conocidas por los usuarios y reducir el costo de adaptación al nuevo módulo.
+
+  == Validación funcional
+
+  La validación funcional consistió en ejecutar manualmente los flujos principales de la aplicación de proceso quirúrgico y verificar el resultado visible en la lista de trabajo, los cambios de estado, la información registrada en la atención y la reacción de los monitores. Las pruebas se enfocaron en los siguientes elementos:
+
+  - *Información mostrada*: se revisó que la grilla presentara correctamente documento, nombre, edad, especialidad, intervención, programación, ubicación, estado y acciones disponibles para cada caso.
+  - *Acciones del flujo*: se probaron acciones como aceptar orden, recepcionar paciente, ingresar a pabellón, avanzar hitos intraoperatorios, iniciar y finalizar recuperación, iniciar traslado, devolver a unidad de origen, egresar paciente, suspender cirugía y cargar documentos clínicos.
+  - *Orquestaciones*: se verificó que las acciones implementadas mediante orquestaciones ejecutaran las transiciones esperadas y actualizaran las entidades correspondientes.
+  - *Integración con Gestión Hospitales*: se validó que el script de importación transformara las órdenes quirúrgicas electivas para crear citas compatibles con Agenda y con la nueva lista de trabajo.
+  - *Monitores*: se revisó que el Monitor de pabellones y el Monitor de pacientes mostraran información coherente con los cambios realizados en el flujo.
+
+  Estas pruebas permitieron detectar diferencias respecto del comportamiento anterior y corregirlas durante el desarrollo. En una primera etapa, el objetivo fue igualar el funcionamiento de la versión previa para evitar que los usuarios percibieran una pérdida de capacidades. Luego se incorporaron mejoras acotadas, como nuevas acciones, ajustes visuales, mayor claridad en estados y mejor presentación de información relevante.
+
+  == Evaluación de usabilidad
+
+  La evaluación de usabilidad combinó inspección experta, recorridos cognitivos y una encuesta SUS. El cuestionario SUS, propuesto por Brooke, es un instrumento breve de diez preguntas en escala Likert que permite obtener una aproximación rápida a la usabilidad percibida de un sistema @Brooke1996SUS. La guía de usabilidad utilizada como referencia recomienda interpretar este instrumento con cautela, especialmente cuando se aplica una traducción ad-hoc y cuando el resultado se encuentra cerca del valor de referencia habitual de 68 puntos @BaloianPino2024Usabilidad.
+
+  La encuesta fue respondida por 10 personas que utilizan el software, incluyendo perfiles de enfermería, técnicos y anestesistas. Las preguntas aplicadas fueron las siguientes:
+
+  - Me gustaría usar esta herramienta frecuentemente.
+  - Considero que esta herramienta es innecesariamente compleja.
+  - Considero que la herramienta es fácil de usar.
+  - Considero necesario el apoyo de personal experto para poder utilizar esta herramienta.
+  - Considero que las funciones de la herramienta están bien integradas.
+  - Considero que la herramienta presenta muchas contradicciones.
+  - Imagino que la mayoría de las personas aprenderían a usar esta herramienta rápidamente.
+  - Considero que el uso de esta herramienta es tedioso.
+  - Me sentí muy confiado al usar la herramienta.
+  - Necesité saber bastantes cosas antes de poder empezar a usar esta herramienta.
+
+  #figure(
+    table(
+      columns: 2,
+      [*Métrica*], [*Resultado*],
+      [Participantes], [10],
+      [Puntaje mínimo], [12,5],
+      [Puntaje máximo], [100],
+      [Promedio], [65,5],
+      [Mediana], [66,25],
+      [Desviación estándar aproximada], [24,4],
+    ),
+    caption: [Resultados agregados de la encuesta SUS.],
+  ) <tab-resultados-sus>
+
+  El sistema alcanzó un puntaje SUS promedio de 65,5 sobre 100. Este valor se encuentra ligeramente por debajo del valor de referencia habitual de 68 puntos, por lo que la usabilidad percibida puede interpretarse como aceptable, aunque con oportunidades de mejora. Dado que el resultado está cercano al umbral, y considerando que en Chile no existe una traducción estándar ampliamente validada del instrumento, este resultado debe entenderse como una evaluación rápida y no como una demostración concluyente de usabilidad.
+
+  Los resultados muestran una percepción mixta. Algunos usuarios evaluaron muy positivamente la herramienta, mientras que otros reportaron una experiencia más negativa. Esta dispersión sugiere que el sistema fue comprensible para una parte de los usuarios, pero que todavía existen aspectos de complejidad, adaptación o claridad que deben mejorarse. En particular, la etapa inicial de salida a producción pudo influir en la percepción, ya que algunos comportamientos no eran idénticos a los de la versión anterior y todavía existían ajustes pendientes propios de una primera versión.
+
+  == Validación en producción y mejora continua
+
+  El producto fue puesto en producción el 8 de abril. Desde ese momento comenzó una nueva etapa de validación con usuarios reales, en la que se identificaron situaciones que no habían aparecido durante el desarrollo. Esto es consistente con el funcionamiento de Lahuén como empresa SaaS: el producto no se considera completamente cerrado al momento de su primera liberación, sino que entra en un ciclo de mejora continua a partir de la retroalimentación de usuarios, incidentes detectados y nuevas necesidades operacionales.
+
+  En este contexto, la primera versión tuvo como objetivo reemplazar la versión anterior de la forma más rápida posible, conservando las funcionalidades necesarias para evitar que los usuarios sintieran una pérdida en su flujo de trabajo. Al mismo tiempo, se incorporaron mejoras puntuales de alto impacto para facilitar la adaptación a la nueva versión. La comunicación posterior con usuarios permitió seguir corrigiendo problemas, ajustar comportamientos y avanzar hacia una versión más madura del módulo.
+
+  == Limitaciones de la evaluación
+
+  La evaluación realizada permitió validar funcionalmente el flujo y obtener una primera aproximación a la usabilidad percibida, pero presenta limitaciones. No se implementó una batería automatizada de pruebas para las orquestaciones dinámicas, por las restricciones técnicas y de tiempo ya señaladas. Además, la encuesta SUS entrega una señal útil, pero su interpretación debe ser cuidadosa por el tamaño de muestra, la dispersión de respuestas y el uso de una traducción no estandarizada.
+
+  Por lo anterior, la validación debe entenderse como evidencia inicial de funcionamiento y aceptabilidad, no como una medición definitiva del impacto clínico u operacional del sistema. La madurez de la solución dependerá de nuevas iteraciones, uso sostenido en producción y futuras evaluaciones con usuarios finales.
 ]
 
 #capitulo(title: "Resultados")[
@@ -1477,3 +1589,10 @@
 ]
 
 #show: end-doc
+
+#apendice(title: "PDF generado del protocolo quirúrgico", label: <anexo-pdf-protocolo>)[
+  #figure(
+    image("./imagenes/cap06-pdf-protocolo.png", width: 60%),
+    caption: [PDF generado mediante la acción `Ver PDF protocolo`.],
+  ) <fig-anexo-pdf-protocolo>
+]
