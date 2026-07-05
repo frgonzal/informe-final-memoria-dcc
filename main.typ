@@ -1576,7 +1576,7 @@
 
   El producto fue puesto en producción el 8 de abril. Desde ese momento comenzó una nueva etapa de validación con usuarios reales, en la que se identificaron situaciones que no habían aparecido durante el desarrollo. Esto es consistente con el funcionamiento de Lahuén como empresa SaaS: el producto no se considera completamente cerrado al momento de su primera liberación, sino que entra en un ciclo de mejora continua a partir de la retroalimentación de usuarios, incidentes detectados y nuevas necesidades operacionales.
 
-  En este contexto, la primera versión tuvo como objetivo reemplazar la versión anterior de la forma más rápida posible, conservando las funcionalidades necesarias para evitar que los usuarios sintieran una pérdida en su flujo de trabajo. Al mismo tiempo, se incorporaron mejoras puntuales de alto impacto para facilitar la adaptación a la nueva versión. La comunicación posterior con usuarios permitió seguir corrigiendo problemas, ajustar comportamientos y avanzar hacia una versión más madura del módulo.
+  En este contexto, la primera versión tuvo como propósito reemplazar la versión anterior en el ambiente de producción, conservando las funcionalidades necesarias para evitar que los usuarios sintieran una pérdida en su flujo de trabajo. Al mismo tiempo, se incorporaron mejoras puntuales de alto impacto para facilitar la adaptación a la nueva versión. La comunicación posterior con usuarios permitió seguir corrigiendo problemas, ajustar comportamientos y avanzar hacia una versión más madura del módulo.
 
   == Limitaciones de la evaluación
 
@@ -1586,7 +1586,7 @@
 ]
 
 #capitulo(title: "Resultados")[
-  El resultado principal del trabajo fue la puesta en producción de una nueva versión del módulo de atención quirúrgica, reemplazando completamente la versión anterior de pabellón. El desarrollo finalizó el 8 de abril y ese mismo día comenzó su operación productiva. Con esto, el flujo quirúrgico dejó de depender del motor de procesos propietario y pasó a ejecutarse sobre la arquitectura actual de la Plataforma Lahuén.
+  El resultado principal del trabajo fue la puesta en producción, en el Hospital Exequiel González Cortés, de una nueva versión del módulo de atención quirúrgica de la Plataforma Lahuén, reemplazando completamente la versión anterior de pabellón. El desarrollo finalizó el 8 de abril y desde ese día la nueva versión comenzó a utilizarse en la operación real del hospital. Con esto, el flujo quirúrgico dejó de depender del motor de procesos propietario y pasó a ejecutarse sobre la arquitectura actual de la plataforma.
 
   == Producto implementado
 
@@ -1636,9 +1636,9 @@
 
   == Cumplimiento de objetivos
 
-  El objetivo central se cumplió: la nueva versión reemplazó completamente a la versión anterior de pabellón y fue puesta en producción. Con ello, el flujo dejó de depender del motor de procesos propietario y pasó a representarse mediante componentes más alineados con la arquitectura actual de Lahuén.
+  El objetivo central se cumplió: se modernizó el módulo de atención quirúrgica de la Plataforma Lahuén, reconstruyendo su flujo operativo sobre la arquitectura actual de la empresa y dejando una nueva versión desplegada y operativa en el Hospital Exequiel González Cortés. Con ello, el flujo dejó de depender de la implementación previa basada en el motor de procesos propietario y pasó a representarse mediante componentes más alineados con la arquitectura actual de Lahuén.
 
-  También se cumplió el objetivo de construir aplicaciones frontend más mantenibles. La aplicación de proceso quirúrgico se implementó como una lista de trabajo con estados, acciones y adaptadores explícitos; además, se reconstruyeron el Monitor de pabellones y el Monitor de pacientes.
+  También se cumplió el objetivo de modernizar la aplicación frontend. La aplicación de proceso quirúrgico se implementó como una lista de trabajo con estados, acciones y adaptadores explícitos, siguiendo el `design system` actual de Lahuén; además, se reconstruyeron el Monitor de pabellones y el Monitor de pacientes.
 
   En términos funcionales, la solución aborda los flujos de urgencia y electivo, integra Gestión Hospitales con Agenda, permite operar las principales etapas del proceso quirúrgico e incorpora documentos clínicos relevantes. También agrega mejoras que no estaban cubiertas explícitamente en la versión anterior.
 
@@ -1668,13 +1668,13 @@
 
   == Reflexión final
 
-  La solución desarrollada no representa la versión definitiva del módulo quirúrgico, pero sí una base más sólida sobre la cual continuar evolucionando. El trabajo permitió pasar desde una implementación difícil de mantener hacia una versión productiva, operable y preparada para mejoras posteriores.
+  La solución desarrollada no representa la versión definitiva del módulo quirúrgico, pero sí una base más sólida sobre la cual continuar evolucionando. El trabajo permitió pasar desde una implementación difícil de mantener hacia una versión desplegada en producción, operable y preparada para mejoras posteriores.
 
-  En el contexto de una empresa SaaS como Lahuén, este resultado es especialmente relevante. El producto debe adaptarse progresivamente a la forma en que cada establecimiento organiza su atención, y esa adaptación requiere pruebas constantes, validación con usuarios y una arquitectura que permita corregir, extender y refinar el flujo sin rehacer el sistema completo. En retrospectiva, varias decisiones podrían haberse diseñado de mejor manera, pero la solución alcanzada fue suficiente para poner en producción un producto funcional y capaz de seguir mejorando. Este trabajo avanza en esa dirección: entrega una primera versión productiva, usable y mejorable, sobre la cual se pueden construir futuras iteraciones para cubrir más casos del proceso quirúrgico y apoyar de mejor manera la gestión de pabellones.
+  En el contexto de una empresa SaaS como Lahuén, este resultado es especialmente relevante. El producto debe adaptarse progresivamente a la forma en que cada establecimiento organiza su atención, y esa adaptación requiere pruebas constantes, validación con usuarios y una arquitectura que permita corregir, extender y refinar el flujo sin rehacer el sistema completo. En retrospectiva, varias decisiones podrían haberse diseñado de mejor manera, pero la solución alcanzada fue suficiente para poner en producción un producto funcional y capaz de seguir mejorando. Este trabajo avanza en esa dirección: entrega una primera versión desplegada en producción, usable y mejorable, sobre la cual se pueden construir futuras iteraciones para cubrir más casos del proceso quirúrgico y apoyar de mejor manera la gestión de pabellones.
 ]
 
 #capitulo(title: "Trabajo futuro")[
-  La versión desarrollada cumple el objetivo de reemplazar el flujo anterior y entregar una base productiva para el módulo quirúrgico. Sin embargo, la experiencia de desarrollo y puesta en producción mostró líneas de mejora importantes. Algunas corresponden a ajustes propios del proceso quirúrgico, mientras que otras afectan componentes transversales de la plataforma, como la coordinación entre microservicios, el orquestador dinámico, el rendimiento de las listas de trabajo y los mecanismos de trazabilidad.
+  La versión desarrollada cumple el objetivo de reemplazar la versión anterior y entregar una base operable en producción para el módulo quirúrgico. Sin embargo, la experiencia de desarrollo y puesta en producción mostró líneas de mejora importantes. Algunas corresponden a ajustes propios del proceso quirúrgico, mientras que otras afectan componentes transversales de la plataforma, como la coordinación entre microservicios, el orquestador dinámico, el rendimiento de las listas de trabajo y los mecanismos de trazabilidad.
 
   == Flexibilización del flujo quirúrgico
 
