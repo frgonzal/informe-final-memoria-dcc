@@ -81,7 +81,7 @@
 
   == Estructura del documento
 
-  El presente informe se organiza de la siguiente manera. En primer lugar, se presenta el estado del arte y el contexto técnico y operativo del problema abordado. Luego, se describen los objetivos del trabajo y la solución propuesta, incluyendo el modelado del flujo de atención quirúrgica y las principales decisiones de diseño. A continuación, se expone el plan de trabajo y el desarrollo realizado, detallando los avances implementados tanto en la vista de atención quirúrgica como en la unificación de datos, el manejo de estados y acciones, y la nueva orquestación del proceso. Finalmente, se presentan la evaluación del trabajo realizado, las conclusiones y las posibles líneas de trabajo futuro.
+  El presente informe se organiza de la siguiente manera. En primer lugar, se presenta el contexto técnico y operativo del problema abordado, incluyendo la situación previa del módulo y la arquitectura de la plataforma. Luego, se describe el diseño de la solución y la forma en que organiza el flujo quirúrgico sobre la arquitectura actual. A continuación, se expone la implementación realizada y su validación. Finalmente, se presentan los resultados obtenidos, las conclusiones y las posibles líneas de trabajo futuro.
 ]
 
 #capitulo(title: "Contexto del proceso quirúrgico y situación actual")[
@@ -140,17 +140,19 @@
 
   == Limitaciones de la versión anterior
 
-  La principal limitación de la versión anterior no era la ausencia de un flujo quirúrgico, sino la forma en que este flujo estaba implementado. El módulo había sido construido originalmente alrededor de 2012, utilizando herramientas y patrones que, más de una década después, resultaban difíciles de mantener y extender. En particular, la aplicación frontend de atención quirúrgica estaba construida en JavaScript con una arquitectura menos definida que la utilizada actualmente por la plataforma, lo que dificultaba separar responsabilidades, reutilizar componentes y agregar nuevas funcionalidades de manera controlada.
+  La principal limitación de la versión anterior no era la ausencia de un flujo quirúrgico, sino la forma en que este flujo estaba implementado. El módulo había sido construido originalmente alrededor de 2012, utilizando herramientas y patrones que, más de una década después, resultaban difíciles de mantener y extender. En particular, la aplicación frontend de atención quirúrgica estaba construida en JavaScript con una arquitectura menos definida que la utilizada actualmente por la plataforma, lo que dificultaba separar responsabilidades entre vista, acciones, modelo y lógica de integración. Esto no solo afectaba la evolución visual de la interfaz, sino también la incorporación controlada de nuevas funcionalidades, la reutilización de componentes comunes y el ajuste de acciones según el estado clínico-operativo del caso.
 
-  En el backend, la coordinación del proceso dependía de un motor de procesos propietario de la empresa. Este motor permitía instanciar flujos quirúrgicos, mantener el contexto de cada caso, ejecutar actividades asincrónicas y avanzar en función de señales o llamadas realizadas desde el sistema. Esta capacidad fue útil para representar un proceso de larga duración con múltiples estados, pero generaba una dependencia técnica importante: comprender, mantener o modificar el comportamiento del flujo requería conocimiento especializado sobre el motor y sobre la forma en que cada instancia de proceso era consultada o actualizada.
+  En el backend, la coordinación del proceso dependía de un motor de procesos propietario de la empresa. Este motor permitía instanciar flujos quirúrgicos, mantener el contexto de cada caso, ejecutar actividades asincrónicas y avanzar en función de señales o llamadas realizadas desde el sistema. Esta capacidad fue útil para representar un proceso de larga duración con múltiples estados, pero generaba una dependencia técnica importante: comprender, mantener o modificar el comportamiento del flujo requería conocimiento especializado sobre el motor y sobre la forma en que cada instancia de proceso era consultada o actualizada. Además, parte del estado operativo quedaba asociado al contexto de ejecución del proceso y no a entidades de dominio consultables mediante servicios estándar. Por ello, una corrección aparentemente simple podía requerir entender la estructura interna de una instancia, el punto exacto del flujo en que se encontraba y la forma en que había llegado hasta ese estado.
 
-  La existencia de un motor de procesos propietario también generaba una asimetría respecto del resto de la plataforma moderna, orientada a microservicios y componentes reutilizables. Mientras otros módulos podían evolucionar mediante APIs, componentes frontend y servicios con responsabilidades más claras, el proceso quirúrgico mantenía parte de su lógica crítica vinculada a un mecanismo especializado. Esto aumentaba el costo de corrección, dificultaba incorporar nuevas acciones y reducía la flexibilidad para adaptar el flujo a nuevos requerimientos.
+  La existencia de un motor de procesos propietario también generaba una asimetría respecto del resto de la plataforma moderna, orientada a microservicios y componentes reutilizables. Mientras otros módulos podían evolucionar mediante APIs, componentes frontend y servicios con responsabilidades más claras, el proceso quirúrgico mantenía parte de su lógica crítica vinculada a un mecanismo especializado. Esto aumentaba el costo de corrección, dificultaba incorporar nuevas acciones y reducía la flexibilidad para adaptar el flujo a nuevos requerimientos. En la arquitectura actual, en cambio, resultaba más natural reconstruir la atención quirúrgica a partir de entidades explícitas del dominio, como indicaciones quirúrgicas, citas de Agenda y atenciones de pacientes.
 
-  Desde el punto de vista de producto, esta situación generaba una tensión importante: el flujo funcional era valioso y debía conservarse, pero su implementación limitaba la evolución del módulo. Por ello, el trabajo de modernización no buscó aprender y replicar cada detalle interno del software anterior, sino rescatar el flujo de atención quirúrgica validado por la experiencia y reconstruirlo con herramientas actuales de la plataforma.
+  Otra limitación era la actualización de la información visible para los usuarios. En un proceso quirúrgico, una acción realizada por otro usuario, un cambio de ubicación, la creación o modificación de una cita, el avance de una atención o el registro de una evaluación clínica pueden alterar lo que debe mostrarse en la lista de trabajo. Cuando la interfaz no cuenta con un mecanismo suficientemente reactivo para escuchar esos cambios, depende de recargas manuales o consultas periódicas, lo que puede mantener información desactualizada en un contexto donde la coordinación operacional es relevante.
+
+  Desde el punto de vista de producto, esta situación generaba una tensión importante: el flujo funcional era valioso y debía conservarse, pero su implementación limitaba la evolución del módulo. Por ello, el trabajo de modernización no buscó aprender y replicar cada detalle interno del software anterior, sino rescatar el flujo de atención quirúrgica validado por la experiencia y reconstruirlo con herramientas actuales de la plataforma, sin cambiar innecesariamente la experiencia esperada por los usuarios.
 
   == Síntesis de la situación actual
 
-  La situación actual puede resumirse en tres ideas. Primero, el proceso quirúrgico es un flujo complejo, longitudinal y crítico para la gestión hospitalaria, cuya operación requiere priorización, programación, coordinación de recursos, registro de hitos y trazabilidad. Segundo, la Plataforma Lahuén ya contaba con una versión funcional del módulo quirúrgico, capaz de representar lista de espera, programación, atención en pabellón, documentos clínicos y monitor de estado. Tercero, la implementación técnica de esa versión presentaba limitaciones relevantes de mantenibilidad, principalmente por el uso de un frontend antiguo y un motor de procesos propietario.
+  La situación actual puede resumirse en tres ideas. Primero, el proceso quirúrgico es un flujo complejo, longitudinal y crítico para la gestión hospitalaria, cuya operación requiere priorización, programación, coordinación de recursos, registro de hitos y trazabilidad. Segundo, la Plataforma Lahuén ya contaba con una versión funcional del módulo quirúrgico, capaz de representar lista de espera, programación, atención en pabellón, documentos clínicos y monitor de estado. Tercero, la implementación técnica de esa versión presentaba limitaciones relevantes de mantenibilidad, principalmente por el uso de un frontend antiguo, un motor de procesos propietario, estado operativo poco separado de la instancia de proceso y mecanismos de actualización menos reactivos que los requeridos por la operación actual.
 
   En consecuencia, la modernización debe entenderse como una reconstrucción tecnológica de un flujo funcional existente. El objetivo no es descartar la experiencia acumulada en la versión anterior, sino implementarla sobre una base más mantenible, integrada y extensible, que permita sostener futuras mejoras del módulo de pabellón dentro de la Plataforma Lahuén.
 ]
@@ -251,179 +253,7 @@
 
   Por ello, la solución debía apoyarse en componentes existentes de la plataforma: una aplicación frontend modular para construir la lista de trabajo, microservicios de dominio para operar sobre datos clínicos y administrativos, eventos para comunicar cambios, BPM y Temporal para coordinar procesos, y servicios específicos para adaptar información proveniente de Gestión Hospitales.
 
-  Esta base tecnológica conecta con los capítulos siguientes. Primero se traduce el problema en requerimientos concretos y luego se explica cómo el diseño del nuevo módulo organiza estados, entidades, acciones, formularios, eventos y coordinación.
-]
-
-#capitulo(title: "Análisis del problema y requerimientos")[
-  Este capítulo traduce la situación descrita en los capítulos anteriores en un conjunto de necesidades concretas para la nueva versión del módulo de atención quirúrgica. El problema abordado no corresponde a la ausencia de un flujo quirúrgico, sino a la necesidad de reconstruir un flujo ya validado sobre una base técnica más mantenible, más integrada con la plataforma actual y capaz de reaccionar oportunamente a los cambios que ocurren durante la operación clínica.
-
-  La definición de requerimientos se realizó durante el desarrollo del proyecto, mediante reuniones de trabajo con los supervisores. Uno de ellos cumplía un rol principalmente técnico y conocía tanto la plataforma como el flujo quirúrgico anterior; el otro aportaba una visión más cercana al negocio y al funcionamiento operativo del proceso. A partir de reuniones de avance, discusiones técnicas y revisión de cada problema funcional, se definieron las tareas necesarias para reconstruir partes del flujo anterior con herramientas nuevas y para resolver las brechas que aparecían al adaptar el proceso a la arquitectura actual de la plataforma.
-
-  == Problema actual
-
-  La versión previa del módulo quirúrgico cumplía una función operacional relevante. Permitía representar solicitudes quirúrgicas, programación, atención en pabellón, recuperación, traslado, documentos clínicos y monitorización. Sin embargo, su implementación presentaba limitaciones que dificultaban la evolución del producto. Estas limitaciones se concentraban en cuatro dimensiones: el motor de procesos propietario, el frontend antiguo, la forma de representar el estado del proceso y la falta de actualización reactiva en la interfaz.
-
-  En primer lugar, el flujo quirúrgico dependía del motor de procesos propietario. Este motor mantenía instancias de proceso de larga duración, conservaba datos en memoria o en el contexto interno de cada ejecución y permitía avanzar el flujo mediante señales o acciones específicas. Aunque esta solución permitió implementar el proceso en su momento, generaba un costo alto de mantención. Resolver errores o modificar datos asociados a una instancia podía ser complejo, ya que parte del estado operativo no se encontraba directamente representado en entidades de dominio consultables mediante servicios estándar, sino dentro de la ejecución del proceso. En consecuencia, una corrección aparentemente simple podía requerir comprender la estructura interna del motor, el estado de la instancia y la forma exacta en que el flujo había llegado hasta ese punto.
-
-  En segundo lugar, la interfaz anterior estaba construida sobre una base tecnológica antigua, con menor separación entre vista, acciones, modelo y lógica de integración. Esto dificultaba agregar nuevas funcionalidades sin afectar comportamiento existente, reutilizar componentes comunes de la plataforma y mantener una experiencia consistente con otras aplicaciones. El problema no era solo visual: un frontend poco modular también aumenta el costo de diagnosticar errores, aplicar reglas por estado y ajustar la disponibilidad de acciones según el contexto clínico.
-
-  En tercer lugar, el modelo de datos anterior dependía en gran medida de la instancia del proceso para conocer información como el estado, el paciente o la etapa de la atención. Esta dependencia era una limitación importante para la nueva arquitectura. La plataforma actual organiza sus capacidades alrededor de servicios de dominio, tales como salud, agenda, evaluaciones y tareas. Por ello, la nueva versión debía dejar de depender de la instancia del motor como fuente principal de verdad y pasar a reconstruir la atención quirúrgica a partir de entidades explícitas: indicaciones quirúrgicas, citas de agenda y atenciones de pacientes.
-
-  En cuarto lugar, la interfaz no contaba con un mecanismo suficientemente reactivo para escuchar cambios relevantes del sistema. En un proceso quirúrgico, una acción realizada por otro usuario, un cambio de ubicación, la creación de una cita, la modificación de una atención o el registro de una evaluación pueden alterar lo que debe mostrarse en la lista de trabajo. Sin eventos hacia el frontend, la aplicación depende de recargas manuales o de consultas periódicas, lo que reduce la capacidad de reacción y puede mostrar información desactualizada en un contexto operacional sensible.
-
-  La combinación de estos problemas generaba una tensión central: el flujo funcional debía conservarse, porque representaba conocimiento operativo acumulado, pero la implementación no ofrecía una base adecuada para evolucionar. La nueva solución debía, por tanto, reconstruir el flujo sin cambiar innecesariamente la experiencia esperada por los usuarios, pero reemplazando los mecanismos que dificultaban mantención, corrección y adaptación futura.
-
-  == Necesidades de modernización
-
-  A partir del problema anterior, la modernización debía satisfacer varias necesidades generales. La primera era preservar el comportamiento funcional del proceso quirúrgico. Los usuarios debían poder operar el flujo desde la nueva lista de trabajo, incluyendo acciones de programación, recepción, avance intraoperatorio, recuperación, cierre, suspensión, documentación clínica y consulta de ficha. La nueva versión no buscaba rediseñar el proceso clínico completo, sino mantener su lógica y reconstruirlo con una arquitectura más clara.
-
-  La segunda necesidad era representar el estado mediante entidades del dominio. Las solicitudes de urgencia debían leerse desde indicaciones; las atenciones ya iniciadas debían leerse desde atenciones de pacientes; y las cirugías programadas debían representarse mediante citas de Agenda. Este cambio era necesario porque, al dejar de depender del motor de procesos propietario, ya no era adecuado obtener la información principal desde una instancia de proceso. La nueva lista de trabajo debía ser capaz de reunir esas fuentes, adaptarlas y presentarlas como una única atención quirúrgica coherente.
-
-  La tercera necesidad era coordinar acciones que involucran múltiples servicios. En el flujo quirúrgico, una acción visible para el usuario puede requerir consultar datos, actualizar una cita, crear una atención, modificar una ubicación, registrar hitos, crear tareas BPM o completar información en Gestión Hospitales. En la versión anterior, parte de esta coordinación se encontraba dentro del motor. En la nueva versión, debía existir un mecanismo capaz de ejecutar esas secuencias de forma mantenible, validando entradas y reduciendo código repetido.
-
-  La cuarta necesidad era mejorar la reactividad operacional. La lista de trabajo quirúrgica debía poder recibir eventos relevantes y actualizarse cuando cambiaran las entidades que componen la atención quirúrgica. Esto implicaba integrar el frontend con un canal persistente de eventos basado en SSE, y mejorar los filtros para que una suscripción pudiera recibir eventos asociados a listas de valores, no solo a valores únicos.
-
-  La quinta necesidad era mejorar la experiencia de uso sin alterar de manera innecesaria el flujo conocido. Además de reconstruir las acciones existentes, la nueva lista de trabajo debía incorporar mejoras acotadas para apoyar situaciones operacionales concretas, como revertir un ingreso accidental a pabellón y registrar digitalmente los cuidados intraoperatorios definidos para la atención de pabellón.
-
-  == Requerimientos funcionales del flujo quirúrgico
-
-  El requerimiento funcional principal fue reconstruir el flujo de atención quirúrgica sobre la nueva lista de trabajo. Esto implicaba soportar los dos orígenes principales del proceso: solicitudes de urgencia y atenciones electivas programadas. En el primer caso, el flujo comienza con una indicación quirúrgica originada desde urgencia. En el segundo, el flujo comienza con una orden quirúrgica programada en Gestión Hospitales, aplicación de Lahuén usada para trabajar con la lista de espera quirúrgica.
-
-  Para las atenciones electivas, se requirió integrar las órdenes de Gestión Hospitales con la nueva versión del flujo. Gestión Hospitales cuenta con una base de datos anterior, orientada a la lista de espera, que contiene información de clínicos, pacientes y órdenes quirúrgicas. En particular, la tabla de órdenes contiene datos necesarios para iniciar la programación en la nueva lista, como fecha de intervención, paciente, cirujano e información asociada a la orden. Como esa estructura no corresponde al esquema actual de microservicios, se diseñó una transformación que toma las órdenes programadas para el día, adapta sus datos y crea una cita programada de atención quirúrgica en Agenda. Esta acción se expuso mediante un endpoint del servicio HEGC, invocado periódicamente cada madrugada por un script ejecutado en uno de los servidores del hospital.
-
-  Para las solicitudes de urgencia, el requerimiento fue dejar de depender de información importada a la instancia del proceso y utilizar directamente los datos de indicaciones. Antes, parte de la información de una solicitud quirúrgica podía incorporarse al flujo mediante eventos o estructuras asociadas al motor. En la nueva versión, la lista de trabajo debía leer indicaciones vigentes, extraer de ellas paciente, ubicación, intervenciones, diagnósticos y datos de origen, y convertir esa información en una representación compatible con el resto de atenciones quirúrgicas.
-
-  En ambos casos, el módulo debía mostrar una visión unificada del paciente quirúrgico. Para lograrlo, se requirió normalizar información proveniente de tres fuentes: indicaciones, citas de Agenda y atenciones de pacientes. Esta normalización debía resolver diferencias de estructura, estado, ubicación, programación, diagnósticos, intervenciones, responsable y datos de creación. El usuario no debía distinguir internamente si una fila provenía de una indicación, una cita o una atención ya iniciada; debía ver una atención quirúrgica con estado, datos relevantes y acciones disponibles.
-
-  El flujo debía conservar los estados y transiciones principales de la versión previa. Entre ellos se consideran estados como solicitada, programada, en espera, preoperatorio, en pabellón, etapas de anestesia y cirugía, recuperación, espera de alta, espera de traslado, espera de egreso, finalizada y suspendida. Cada estado debía habilitar solo las acciones coherentes con el momento clínico-operativo del caso. Por ejemplo, la evaluación preanestésica debe estar disponible antes del ingreso a pabellón, las pausas quirúrgicas deben estar asociadas a etapas intraoperatorias, el protocolo quirúrgico debe poder completarse cuando corresponde y la suspensión debe limitarse a los estados donde aún tiene sentido operacional.
-
-  Además, se requirió implementar acciones explícitas para operar el flujo desde la interfaz. La lista de trabajo debía permitir:
-
-  - Aceptar órdenes.
-  - Recepcionar pacientes.
-  - Ingresar a pabellón.
-  - Iniciar anestesia.
-  - Iniciar cirugía.
-  - Finalizar cirugía.
-  - Finalizar anestesia.
-  - Iniciar recuperación.
-  - Finalizar recuperación.
-  - Iniciar traslado.
-  - Devolver al paciente a su unidad de origen.
-  - Egresar pacientes.
-  - Suspender cirugías.
-  - Reagendar intervenciones.
-  - Cambiar ubicación.
-  - Revertir ingreso a pabellón.
-  - Imprimir brazalete.
-  - Abrir la ficha clínica del paciente.
-  - Cargar y guardar evaluación preanestésica, pausas quirúrgicas, protocolo quirúrgico y cuidados intraoperatorios.
-  - Abrir el PDF del protocolo quirúrgico cuando el documento ya existe.
-
-  La mayoría de estas acciones ya existían funcionalmente en la versión anterior y debían comportarse de forma equivalente desde el punto de vista del usuario. Otras, como la reversa de ingreso a pabellón y el formulario de cuidados intraoperatorios, se incorporaron como mejoras de la nueva lista de trabajo para apoyar casos operacionales específicos y facilitar el trabajo de los usuarios.
-
-  == Requerimientos de información y modelo de datos
-
-  Un requerimiento central de la nueva versión fue separar la atención quirúrgica como modelo frontend de las entidades reales que la originan. La atención quirúrgica visible en la grilla no corresponde a una entidad única de base de datos, sino a una representación construida a partir de fuentes de dominio. Esto exigió definir adaptadores capaces de tomar datos desde HLTH, Agenda e indicaciones, y producir una estructura común para la interfaz.
-
-  Este modelo debía incluir información clínica y operacional suficiente para ejecutar acciones. Entre los datos relevantes se encuentran paciente, documento, nombre social, edad, ubicación actual, ubicación de origen, responsable, programación, intervenciones, diagnósticos, estado, evaluaciones asociadas, hitos cumplidos, tipo de origen, modalidad CMA u hospitalizado y datos de creación. También debía conservar referencias a la entidad original, de modo que cada acción pudiera saber si debía operar sobre una indicación, una cita o una atención de paciente.
-
-  La incorporación de Agenda fue un cambio especialmente relevante. En el modelo anterior, la programación podía quedar asociada a la instancia del proceso. En la nueva versión, una cirugía programada se representa como una cita de Agenda, lo que permite consultar, actualizar, reagendar, iniciar, cancelar o finalizar una programación mediante servicios de dominio. Para ello se requirió soportar tipos de cita quirúrgica, referencias externas, participantes, pabellones como participantes y filtros por tipo de cita.
-
-  La información de intervenciones y diagnósticos también requirió normalización. En el flujo quirúrgico conviven datos provenientes de indicaciones, órdenes de Gestión Hospitales y atenciones ya creadas. La nueva versión debía presentar estos datos de manera comprensible para el usuario, evitando duplicidades, ocultando códigos cuando no aportaban a la operación diaria y priorizando la visualización de intervenciones como dato principal de la grilla.
-
-  == Requerimientos de orquestación y coordinación
-
-  La nueva solución debía reemplazar parte de lo que antes resolvía el motor de procesos propietario. Para ello, se requirió un mecanismo capaz de ejecutar acciones complejas formadas por múltiples llamadas a servicios. Estas acciones no debían quedar codificadas íntegramente en el frontend, porque eso acoplaría la interfaz a detalles de backend y dificultaría cambios futuros. Tampoco era conveniente crear código específico para cada variación del flujo si muchas acciones seguían el mismo patrón: validar entrada, consultar datos, construir payloads, ejecutar llamadas HTTP y usar respuestas previas para pasos posteriores.
-
-  Por esta razón, se definió como requerimiento contar con un mecanismo de coordinación ejecutado fuera del frontend y apoyado en la capa de procesos de la plataforma. Este mecanismo debía recibir parámetros, validarlos, resolver datos de contexto, ejecutar condiciones y llamar a servicios de la plataforma. Debía permitir acciones como aceptar una orden de urgencia, recepcionar pacientes, finalizar recuperación, iniciar traslado, devolver a unidad de origen, suspender, finalizar una atención, crear tareas BPM para completar protocolo quirúrgico y operar una orden en Gestión Hospitales cuando corresponde.
-
-  La coordinación debía soportar encadenamiento de respuestas. Muchas acciones requieren que el resultado de una llamada sea usado por la siguiente: por ejemplo, consultar una cita para obtener participantes, buscar un clínico, crear o iniciar una atención y luego actualizar datos extendidos. Por lo tanto, el mecanismo elegido debía permitir referencias a respuestas previas, asignaciones intermedias, valores por defecto, transformaciones de tipos, condiciones de ejecución y construcción de cuerpos de solicitud.
-
-  También se requirió que el mecanismo fuera reutilizable. El objetivo no era construir un nuevo motor de procesos propietario, sino contar con una forma común de coordinar acciones acotadas que siguieran patrones similares. Esto permitiría agregar nuevas acciones simples o medianamente complejas sin depender siempre de una implementación específica para cada caso.
-
-  == Requerimientos de eventos y actualización de la interfaz
-
-  La lista de trabajo quirúrgica debía reaccionar ante cambios realizados por otros componentes de la plataforma. Para ello, se requirió escuchar eventos de negocio relacionados con atenciones, indicaciones, citas y evaluaciones. Estos eventos son necesarios porque el proceso quirúrgico no ocurre solo dentro de una pantalla: un cambio puede originarse desde Agenda, EHR, HLTH, BPM, una acción de otro usuario o una integración externa.
-
-  En la práctica, la interfaz debía conectarse a un canal persistente de eventos hacia frontend. La implementación de la plataforma se apoya en el servicio de SSE ya descrito, que consume eventos desde Kafka y permite que el navegador reciba mensajes a través de una conexión mantenida abierta. Lo importante desde el punto de vista del requerimiento es que la lista pueda suscribirse a eventos relevantes y actualizar la grilla cuando cambie una entidad asociada al flujo quirúrgico.
-
-  Los filtros de eventos debían ser suficientemente expresivos para evitar recargas innecesarias. Durante el desarrollo se identificó que los filtros existentes eran limitados, porque permitían comparar contra valores únicos, pero no contra listas de valores. Para el flujo quirúrgico esto era insuficiente: una lista de trabajo puede necesitar escuchar varios pacientes, varias citas, varias atenciones o varios tipos de eventos. Por ello se incorporó como requerimiento que el servicio de eventos permitiera filtros con listas, de modo que un cliente pudiera recibir eventos que coincidieran con cualquiera de los valores relevantes.
-
-  Además, el frontend debía evitar recargas excesivas. En un sistema basado en eventos, una misma acción puede generar varios eventos consecutivos. Por lo tanto, la lista de trabajo debía aplicar mecanismos como debounce para agrupar actualizaciones y evitar que la interfaz se recargara múltiples veces de forma innecesaria. Este requerimiento se relaciona tanto con rendimiento como con experiencia de usuario.
-
-  Los eventos también debían habilitar acciones automáticas en BPM. Algunas suscripciones configuradas debían permitir iniciar coordinaciones de proceso al ocurrir eventos relevantes. Por ejemplo, al crearse una atención quirúrgica puede generarse una tarea para completar el protocolo; al guardarse el protocolo puede completarse una tarea BPM y operar la orden en Gestión Hospitales; al finalizar un traslado puede finalizarse la atención quirúrgica; y al finalizar una atención quirúrgica puede notificarse o actualizarse Gestión Hospitales. Estos requerimientos muestran que los eventos no solo actualizan la interfaz, sino que también coordinan efectos posteriores del proceso.
-
-  == Requerimientos de aplicaciones y monitores
-
-  La modernización frontend no debía limitarse a una única pantalla de operación. El proceso quirúrgico requiere distintos niveles de visibilidad según el tipo de usuario y el contexto de uso. Por ello, se requirió construir tres aplicaciones complementarias: la aplicación principal de pabellón, el Monitor de pabellones y el Monitor de pacientes.
-
-  La primera aplicación corresponde a la vista de pabellón. Su objetivo es permitir que los equipos clínicos y operacionales gestionen el flujo quirúrgico desde una lista de trabajo, ejecutando acciones sobre cada caso, revisando documentos, cambiando estados, registrando hitos y consultando atenciones anteriores. Esta aplicación concentra la operación activa del proceso.
-
-  La segunda aplicación corresponde al Monitor de pabellones. Su objetivo es entregar una vista de coordinación interna orientada al uso de pabellones. A diferencia de la lista de trabajo, esta aplicación no busca exponer todas las acciones disponibles, sino mostrar qué pabellones existen, cuáles están siendo utilizados, qué cirugía se encuentra en curso en cada uno y qué cirugías están programadas o próximas. El requerimiento principal de este monitor fue entregar información rápida para jefaturas y equipos de coordinación, de modo que pudieran identificar ocupación de quirófanos, ubicación del paciente, estado de la cirugía e información relevante para anticipar el flujo de la jornada.
-
-  La tercera aplicación corresponde al Monitor de pacientes. Esta vista está orientada a familiares o acompañantes que esperan fuera del área clínica. Su objetivo es informar de manera simple en qué etapa del proceso se encuentra la persona atendida, sin exponer detalles clínicos innecesarios ni acciones operacionales. Por ello, el requerimiento fue construir una pantalla de lectura, adecuada para sala de espera, que mostrara una identificación acotada del paciente, su estado general y su ubicación o etapa visible del proceso.
-
-  Estas tres aplicaciones comparten la necesidad de leer entidades quirúrgicas desde los servicios de la plataforma, adaptarlas a modelos frontend y mantenerse actualizadas ante eventos. Sin embargo, cada una presenta la información con un propósito distinto: operar el flujo, coordinar pabellones o informar a familiares. Esta separación permite responder a necesidades de usuarios diferentes sin sobrecargar una sola interfaz con todos los usos posibles.
-
-  == Requerimientos de documentos y formularios clínicos
-
-  El proceso quirúrgico incluye documentos y evaluaciones clínicas que pertenecen a la ficha del paciente. Entre ellos se encuentran evaluación preanestésica, protocolo quirúrgico, pausas quirúrgicas y cuidados intraoperatorios. Por ello, la nueva lista de trabajo no podía implementar formularios aislados sin integración con EHR. Debía existir una forma de abrir formularios de la ficha desde el módulo quirúrgico, manteniendo la relación con la atención del paciente y con los tipos de evaluación correspondientes.
-
-  Para resolver esto, se requirió cargar formularios de la aplicación EHR desde la lista quirúrgica, utilizando una integración embebida mediante `iframe`. Este enfoque permite reutilizar capacidades de la ficha clínica y mantener los documentos dentro del sistema donde pertenecen. Al mismo tiempo, exigió crear o mejorar formularios, estilos, datos precargados y lógica específica para el flujo quirúrgico.
-
-  Los formularios debían corresponder a nuevas versiones de documentos previos, conservando su objetivo clínico pero adaptándolos a la nueva arquitectura. La evaluación preanestésica debía cargar datos del paciente y de la cirugía; el protocolo quirúrgico debía precargar información del proceso y permitir generar documento; las pausas quirúrgicas debían representarse como secciones de checklist de seguridad; y los cuidados intraoperatorios debían registrarse como evaluación asociada al caso cuando correspondiera.
-
-  También se requirió controlar la disponibilidad de cada evaluación por estado. No todos los documentos tienen sentido en cualquier momento del proceso. Por ejemplo, la evaluación preanestésica debe estar disponible antes del ingreso a pabellón, las pausas quirúrgicas durante el avance intraoperatorio y el protocolo quirúrgico durante o después de la intervención. Esta regla evita que los usuarios ejecuten acciones fuera de contexto y ayuda a mantener consistencia clínica.
-
-  == Requerimientos de experiencia de usuario
-
-  La nueva aplicación debía integrarse a la experiencia visual y operacional del hospital donde se implementa. Esto incluye utilizar el estilo característico del establecimiento, colores, banner, iconografía, distribución de columnas y mensajes coherentes con el resto de la plataforma. La modernización no debía percibirse como una herramienta aislada, sino como una evolución natural del sistema usado por los equipos clínicos.
-
-  La grilla principal debía presentar información suficiente sin sobrecargar al usuario. Para ello se requirió ordenar acciones, limitar la cantidad de acciones expuestas directamente y mover acciones secundarias a menús adicionales. También se requirió mejorar columnas como programación, ubicación, estado e intervenciones, de modo que el usuario pudiera comprender rápidamente qué ocurre con cada paciente.
-
-  Los mensajes de confirmación y error debían ser operacionales. En una interfaz clínica, mostrar respuestas técnicas de API puede confundir al usuario y dificultar la resolución de problemas. Por ello se requirió entregar mensajes orientados a la acción, indicando qué ocurrió, qué no se pudo realizar y, cuando corresponde, qué paciente, ubicación o etapa está involucrada.
-
-  Algunas capacidades nuevas responden directamente a requerimientos de experiencia de usuario y apoyo operacional. La acción de revertir ingreso a pabellón permite corregir un ingreso accidental sin tratarlo como suspensión. El formulario de cuidados intraoperatorios permite registrar dentro de la plataforma información que antes podía quedar fuera del flujo digital. Ambas mejoras son acotadas, pero contribuyen a que la nueva lista sea más práctica para los equipos que operan el proceso.
-
-  == Requerimientos no funcionales
-
-  La mantenibilidad fue uno de los requerimientos no funcionales principales. La solución debía reducir el acoplamiento entre frontend, motor de procesos y reglas de negocio. Para ello, se requería un modelo explícito de estados y acciones, adaptadores de datos por fuente, servicios de dominio reutilizables y orquestaciones configurables para acciones complejas. Esta separación permite modificar una parte del sistema sin afectar innecesariamente las demás.
-
-  La extensibilidad también era esencial. El módulo quirúrgico debía quedar preparado para incorporar nuevos estados, acciones, formularios, eventos o integraciones. Esto se relaciona con el uso de registros de estados y acciones en frontend, con la necesidad de coordinar acciones mediante definiciones reutilizables y con la reutilización de componentes compartidos de la plataforma.
-
-  La interoperabilidad fue otro requisito clave. La solución debía integrarse con Gestión Hospitales, Agenda, HLTH, la aplicación EHR para formularios clínicos, BPM, Temporal, el servicio de SSE y los mecanismos de eventos de la plataforma. Esta integración debía hacerse sin concentrar toda la lógica en un único componente, respetando las responsabilidades de cada parte de la plataforma.
-
-  La trazabilidad debía mejorar respecto de la versión anterior, especialmente en el registro de fechas y horas de hitos relevantes del proceso. El sistema debía conservar información sobre recepción, ingreso a pabellón, hitos de anestesia y cirugía, recuperación, traslado, egreso y otros momentos clínico-operativos. Esta trazabilidad permite reconstruir el recorrido del paciente y apoyar análisis posteriores. Sin embargo, el alcance del trabajo no resuelve completamente toda la auditoría posible del proceso. Aún existen mejoras futuras, como registrar de manera más sistemática quién ejecuta cada acción y cubrir hitos que se producen como reacción a eventos y no siempre quedan guardados con el mismo nivel de detalle.
-
-  La continuidad operacional fue una restricción transversal. El módulo debía integrarse con una plataforma existente y con procesos reales del hospital. Por ello, la modernización debía preservar el comportamiento esperado por los usuarios, evitar rupturas innecesarias con el flujo anterior y permitir ajustes progresivos durante la puesta en marcha.
-
-  Finalmente, la confidencialidad y el resguardo de información interna condicionan la forma de documentar e implementar la solución. El informe describe la arquitectura, los requerimientos y las decisiones principales sin exponer detalles sensibles que no son necesarios para comprender el aporte técnico del trabajo.
-
-  == Síntesis de requerimientos
-
-  En síntesis, la nueva versión del módulo de atención quirúrgica debía cumplir con los siguientes requerimientos principales:
-
-  - Conservar el flujo quirúrgico funcional de la versión previa, incluyendo estados, acciones, hitos y documentos relevantes.
-  - Soportar atenciones originadas tanto en solicitudes de urgencia como en programaciones electivas.
-  - Importar datos desde Gestión Hospitales mediante el servicio HEGC y representarlos como citas quirúrgicas de Agenda.
-  - Normalizar información proveniente de indicaciones, citas y atenciones de pacientes en una única representación de atención quirúrgica.
-  - Ejecutar acciones del proceso quirúrgico desde la lista de trabajo, manteniendo comportamiento equivalente para los usuarios.
-  - Incorporar mejoras operacionales acotadas, como revertir ingreso a pabellón y registrar cuidados intraoperatorios.
-  - Reemplazar la dependencia del motor de procesos propietario por coordinaciones ejecutadas mediante BPM y Temporal.
-  - Permitir que las orquestaciones validen entradas, llamen a múltiples servicios, usen respuestas previas y ejecuten condiciones.
-  - Escuchar eventos relevantes en el frontend mediante un canal persistente de eventos y actualizar la grilla con menor latencia.
-  - Mejorar los filtros de eventos para aceptar listas de valores y reducir eventos irrelevantes.
-  - Reaccionar a eventos desde BPM para ejecutar coordinaciones asociadas a tareas, protocolo, traslados y cierre de atenciones.
-  - Implementar tres aplicaciones frontend complementarias: vista operativa de pabellón, Monitor de pabellones y Monitor de pacientes.
-  - Entregar visibilidad interna sobre ocupación de pabellones, cirugías en curso y próximas atenciones quirúrgicas.
-  - Entregar una visualización pública y acotada del estado del proceso para familiares o acompañantes en sala de espera.
-  - Integrar formularios clínicos de EHR mediante una carga embebida y adaptar evaluación preanestésica, pausas quirúrgicas, protocolo y cuidados intraoperatorios.
-  - Aplicar el estilo visual del hospital y mejorar la experiencia de uso de la grilla, acciones, mensajes y filtros.
-  - Registrar fechas de hitos relevantes del flujo quirúrgico, dejando la auditoría completa de responsables y algunos hitos automáticos como trabajo futuro.
-  - Mantener una arquitectura extensible, interoperable y compatible con la continuidad operacional de la plataforma.
-
-  Estos requerimientos establecen el puente entre el diagnóstico del problema y el diseño de la solución. La siguiente etapa consiste en explicar cómo se organizaron los componentes de frontend, backend, eventos y orquestación para satisfacer estas necesidades sin reconstruir un motor de procesos propietario, pero conservando el flujo quirúrgico que la plataforma ya había validado en su operación.
+  Esta base tecnológica conecta con el diseño de la solución. El capítulo siguiente explica cómo el nuevo módulo organiza estados, entidades, acciones, formularios, eventos y coordinación para conservar el flujo quirúrgico validado por la plataforma sin reconstruir la dependencia anterior del motor de procesos propietario.
 ]
 
 #capitulo(title: "Diseño de la solución")[
@@ -431,9 +261,23 @@
 
   La intención es mostrar las decisiones de diseño antes de entrar en detalles técnicos. La implementación concreta de acciones, servicios, eventos, formularios y orquestaciones se desarrolla en el capítulo siguiente.
 
+  Las funcionalidades se diseñaron durante el desarrollo mediante reuniones de trabajo con tres supervisores que aportaron perspectivas complementarias. El supervisor con rol de Arquitectura de Software apoyó las decisiones técnicas, el entendimiento de la plataforma y la comprensión del flujo anterior para poder replicarlo sobre la arquitectura actual. El líder del proyecto y CEO de la empresa aportó una visión de negocio y de uso operacional, además de participar en revisiones y pruebas de las funcionalidades implementadas. El CTO de la empresa aportó una visión técnica, especialmente al proponer la idea del orquestador dinámico como mecanismo para reemplazar la dependencia del motor de procesos propietario en las acciones complejas del flujo.
+
+  A partir del diagnóstico de la versión anterior, el diseño se orientó por cinco criterios principales:
+
+  + Conservar el comportamiento funcional del proceso quirúrgico, de modo que los usuarios pudieran operar programación, recepción, avance intraoperatorio, recuperación, salida, suspensión, documentación clínica y consulta de ficha sin perder la lógica de trabajo conocida.
+  + Representar el estado del flujo mediante entidades explícitas del dominio, como indicaciones quirúrgicas, citas de Agenda y atenciones de pacientes, en lugar de depender de una instancia del motor de procesos propietario como fuente principal de información.
+  + Coordinar acciones que involucran múltiples servicios sin concentrar esa lógica en el frontend. En el flujo quirúrgico, una acción visible para el usuario puede requerir consultar datos, actualizar una cita, crear una atención, modificar una ubicación, registrar hitos, crear tareas BPM o completar información en Gestión Hospitales.
+  + Mejorar la reactividad operacional mediante eventos, para que la lista de trabajo y los monitores puedan actualizarse cuando cambian las entidades asociadas al caso.
+  + Mejorar la experiencia de uso sin alterar de manera innecesaria el flujo conocido, incorporando ajustes visuales y acciones acotadas que apoyen situaciones operacionales concretas.
+
+  En conjunto, estos criterios apuntan a reducir el acoplamiento entre interfaz, coordinación de procesos y servicios de dominio, dejando una base más mantenible y extensible para incorporar nuevos estados, acciones, formularios o integraciones. Además, como el módulo debía reemplazar una herramienta usada en operación real, el diseño debía integrarse con servicios existentes de la plataforma, preservar continuidad operacional y permitir ajustes progresivos.
+
   == Estados del flujo quirúrgico
 
   El proceso quirúrgico se representó como una secuencia de estados. Estos estados ya existían en la versión anterior del módulo y fueron diseñados por la empresa a lo largo de años de trabajo con el flujo de pabellón. La modernización los mantuvo porque entregan una forma validada de modelar un proceso complejo. Cada estado indica la etapa del paciente, los datos relevantes para la grilla y las acciones disponibles para el usuario.
+
+  Esta decisión también permite conservar las transiciones principales de la versión previa sin trasladar su implementación técnica. El diseño mantiene la lógica de avance por etapas, pero hace explícito que cada estado debe habilitar solo las acciones coherentes con el momento clínico-operativo del caso.
 
   La @fig-estados-proceso-quirurgico muestra una versión simplificada del flujo, centrada en la acción principal de cada estado cuando el caso avanza sin excepciones. El flujo real incluye acciones adicionales, como completar formularios o suspender la atención, y también puede verse afectado por eventos externos. En el diseño, el origen del caso, las acciones disponibles y las condiciones de salida determinan cómo avanza cada paciente.
 
@@ -451,11 +295,13 @@
   - *Estados de salida*: 'Esperando alta' corresponde a pacientes ambulatorios a los que no se les indica hospitalización, por lo que deben recibir el alta para retirarse. 'Esperando egreso' indica que el caso está listo para egresar al paciente. 'Esperando traslado' representa la espera de movimiento hacia otra unidad. 'En tránsito' indica que el paciente ya inició el traslado. 'Finalizada' marca el cierre del caso.
   - *Estado de excepción*: 'Suspendida' representa una atención quirúrgica que fue suspendida. En la aplicación se utiliza en el módulo de atenciones anteriores para identificar esos casos y consultar su información, pero no tiene acciones relevantes dentro del flujo.
 
-  Con estos estados, la lista de trabajo muestra rápidamente quién está pendiente de aceptación, preparado para pabellón, en cirugía, en recuperación o en etapa de salida. También permite reconstruir el recorrido del paciente mediante ubicación, programación, hitos, evaluaciones y documentos disponibles.
+  Con estos estados, la lista de trabajo muestra rápidamente quién está pendiente de aceptación, preparado para pabellón, en cirugía, en recuperación o en etapa de salida. También permite reconstruir el recorrido del paciente mediante ubicación, programación, hitos, evaluaciones y documentos disponibles. El registro de fechas asociadas a hitos relevantes del proceso permite mantener trazabilidad operacional sin depender de la instancia de un proceso propietario como única fuente del recorrido.
 
   == Entradas del flujo quirúrgico
 
   La nueva lista de trabajo quirúrgica obtiene los casos desde entidades explícitas y servicios existentes. Con esto se reemplaza la dependencia de instancias del motor de procesos propietario como fuente principal para representar el caso en la grilla.
+
+  El diseño debía soportar los dos orígenes principales del proceso quirúrgico: solicitudes de urgencia y atenciones electivas programadas. En el primer caso, el flujo comienza con una indicación quirúrgica originada desde urgencia. En el segundo, comienza con una orden quirúrgica programada en Gestión Hospitales, que debe transformarse para operar dentro de los servicios actuales de la plataforma.
 
   === Flujo de urgencia
 
@@ -474,6 +320,12 @@
   == Modelo unificado de atención quirúrgica
 
   La lista de trabajo construye una atención quirúrgica de frontend a partir de tres entidades: `Indication`, `Appointment` y `PatientService`. Cada una pertenece a un servicio distinto y representa una parte diferente del flujo.
+
+  Esta unificación evita que el usuario deba distinguir internamente si una fila proviene de una indicación, una cita o una atención ya iniciada. Desde la interfaz, cada caso se presenta como una atención quirúrgica con estado, datos operacionales y acciones disponibles, aunque su origen técnico sea distinto.
+
+  La atención quirúrgica visible en la grilla no corresponde a una única entidad persistida. Es una representación de frontend construida desde fuentes de dominio distintas. Por ello, el diseño debía conservar tanto una estructura común para mostrar y operar el caso como referencias a la entidad de origen, de modo que cada acción pudiera ejecutarse sobre la indicación, cita o atención correspondiente.
+
+  La normalización también era necesaria para intervenciones, diagnósticos y programación, porque esos datos podían provenir de indicaciones, órdenes de Gestión Hospitales o atenciones ya iniciadas. El modelo unificado prioriza la información útil para la operación diaria y oculta diferencias internas que no aportan al usuario.
 
   Como se explicó en @sec-backend-microservicios, estas entidades pueden incorporar información contextual mediante `extendedData`. El diseño aprovecha esa capacidad para guardar variables propias del flujo quirúrgico sin alterar los atributos generales de cada entidad. Entre esas variables están los datos de programación, intervenciones, diagnósticos, responsable, origen del caso, estado operacional e hitos de pabellón.
 
@@ -505,13 +357,13 @@
 
   == Diseño frontend, estados y acciones
 
-  El frontend se diseñó como un conjunto de tres aplicaciones complementarias, cada una orientada a un uso distinto del proceso quirúrgico. La decisión de separarlas evita concentrar en una sola pantalla necesidades que tienen audiencias y niveles de detalle diferentes: operación clínica, coordinación interna de pabellones e información para familiares.
+  El frontend mantiene tres aplicaciones complementarias que cumplen roles distintos dentro del proceso quirúrgico. La aplicación de proceso quirúrgico permite revisar y modificar los casos de pabellón; el Monitor de pabellones permite identificar rápidamente qué ocurre con cada quirófano; y el Monitor de pacientes entrega a familiares y acompañantes una vista acotada del estado del paciente.
 
   La primera aplicación es la vista operativa de pabellón. Esta se diseñó como una especialización de la aplicación base de listas de trabajo descrita en la @sec-arquitectura-frontend. La estructura común aporta navegación, filtros, grilla y paneles; la lógica quirúrgica queda concentrada en el plugin `surgical_process`.
 
   El diseño de esta aplicación usa dos plugins. `standard` aporta modelos y componentes comunes para listas de trabajo, como paciente, clínicos, ubicaciones, admisión y secciones reutilizables de formularios. `surgical_process` define los módulos del flujo quirúrgico, la carga de datos, la adaptación de casos, los componentes de lista, los estados, las acciones, los formularios propios y las suscripciones a eventos.
 
-  En la aplicación de pabellón se definen dos módulos. *Atención quirúrgica* muestra los casos activos del flujo diario de pabellón y permite ejecutar acciones. *Atenciones anteriores* permite consultar casos finalizados o suspendidos y revisar documentos clínicos registrados. Cada módulo monta componentes sobre los espacios provistos por la worklist: banner, barra de filtros y grilla. La grilla prioriza información operacional: paciente, documento, ubicación, especialidad, intervenciones, programación, estado y acciones disponibles. Los estilos e íconos se ubican en la skin de la aplicación dentro de `shared`, lo que permite adaptar la interfaz al hospital sin mezclar presentación con lógica de flujo.
+  En la aplicación de pabellón se definen dos módulos. *Atención quirúrgica* muestra los casos activos del flujo diario de pabellón y permite ejecutar acciones. *Atenciones anteriores* permite consultar casos finalizados o suspendidos y revisar documentos clínicos registrados. Cada módulo monta componentes sobre los espacios provistos por la worklist: banner, barra de filtros y grilla. La grilla prioriza información operacional suficiente para actuar sobre el caso sin sobrecargar la pantalla: paciente, documento, ubicación, especialidad, intervenciones, programación, estado y acciones disponibles. Los estilos, íconos y recursos visuales se ubican en la skin de la aplicación dentro de `shared`, lo que permite mantener continuidad con la experiencia visual del hospital y adaptar la interfaz sin mezclar presentación con lógica de flujo.
 
   La atención quirúrgica adaptada por el frontend contiene un estado, representado por una clase de estado. Como se mostró en la @fig-estados-proceso-quirurgico, cada estado corresponde a una etapa del proceso. Cada clase de estado declara las acciones disponibles para esa etapa, por lo que la lista de trabajo solo muestra acciones válidas para el caso seleccionado.
 
@@ -531,6 +383,8 @@
 
   El flujo quirúrgico requiere formularios con distintos niveles de complejidad. Por eso, el diseño usa tres mecanismos según el tipo de información que se debe registrar.
 
+  No todos los registros del flujo tienen la misma naturaleza. Algunos corresponden a interacciones propias del proceso quirúrgico, mientras que otros pertenecen a la ficha clínica del paciente. Por ello, el diseño evitó tratar todos los formularios de la misma forma: cuando el registro correspondía a una evaluación clínica formal, se buscó reutilizar la aplicación EHR y mantener la relación con la atención del paciente y con los tipos de evaluación definidos por la plataforma.
+
   Los formularios propios del plugin se usan cuando la interacción pertenece solo al flujo quirúrgico y requiere comportamiento específico de la lista de trabajo. Un caso de este tipo es la recepción del paciente, que opera con datos del caso y selección de ubicación dentro del contexto de pabellón.
 
   Los formularios tipo checklist se usan para registros simples basados en preguntas, opciones y observaciones. Este mecanismo resulta adecuado para pausas quirúrgicas y cuidados intraoperatorios, porque permite guardar respuestas estructuradas con menor costo de desarrollo.
@@ -540,6 +394,10 @@
   == Diseño del orquestador dinámico
 
   Las acciones complejas del flujo se diseñaron como orquestaciones dinámicas. En este contexto, una orquestación ejecuta una lista de actividades en orden, usando parámetros de entrada, respuestas previas y condiciones de ejecución. Ejemplos de este tipo son aceptar una orden, recepcionar un paciente, finalizar recuperación o suspender una cirugía.
+
+  Esta decisión responde a que varias acciones del flujo quirúrgico no corresponden a una única operación de backend. Una acción visible para el usuario puede requerir consultar contexto, actualizar citas, crear o modificar atenciones, registrar hitos, generar tareas o sincronizar información con Gestión Hospitales. Codificar esas secuencias directamente en el frontend habría acoplado la interfaz a detalles de servicios y habría dificultado cambios posteriores.
+
+  Además, muchas de estas acciones comparten una estructura similar: reciben parámetros, validan entrada, consultan datos, ejecutan llamadas HTTP, usan respuestas previas y deciden si ciertos pasos deben omitirse según el estado del caso. Por ello, el diseño del orquestador dinámico buscó entregar un mecanismo común para coordinar acciones acotadas y reutilizables, sin reconstruir un nuevo motor de procesos propietario.
 
   El punto de entrada es BPM y la ejecución durable se apoya en Temporal. Sobre esa base, el orquestador dinámico interpreta una definición configurada con validaciones, llamadas HTTP, asignaciones, condiciones y transformaciones de datos. Así, una acción visible para el usuario puede ejecutarse como una secuencia controlada de operaciones.
 
@@ -562,6 +420,8 @@
 
   El diseño considera que la lista de trabajo debe mantenerse sincronizada con cambios que pueden originarse en distintos servicios de la plataforma. Cuando un servicio de dominio actualiza una entidad relevante, envía un mensaje a Kafka. Kafka publica ese evento en la cola correspondiente, desde donde puede ser consumido por más de un servicio backend.
 
+  Esta necesidad es especialmente relevante porque el proceso quirúrgico no ocurre solo dentro de una pantalla. Un cambio puede originarse desde otra persona usuaria, desde Agenda, EHR, HLTH, BPM o desde una integración externa. Por ello, el diseño no podía depender únicamente de recargas manuales o consultas periódicas; debía permitir que la interfaz recibiera cambios relevantes del caso y actualizara la información visible con menor latencia.
+
   En la @fig-diseno-eventos-lista-trabajo se observa este enfoque general. El servicio de SSE consume eventos desde Kafka, mantiene conexiones persistentes con las listas de trabajo mediante `EventSource` y reenvía cada evento solo a los canales cuyos filtros se cumplen. En paralelo, BPM Event Starter consume eventos desde Kafka, revisa sus suscripciones configuradas y decide si corresponde instanciar el workflow asociado.
 
   #figure(
@@ -570,6 +430,8 @@
   ) <fig-diseno-eventos-lista-trabajo>
 
   Las listas de trabajo abren conexiones persistentes con filtros. Al abrir la conexión, cada lista indica qué eventos le interesan. Cuando el servicio de SSE recibe un evento de Kafka, revisa los canales abiertos, identifica aquellos cuyos filtros se cumplen y envía el evento solo por esos canales.
+
+  Los filtros debían ser suficientemente expresivos para evitar recargas innecesarias. Una misma lista puede necesitar escuchar cambios asociados a varios pacientes, citas, atenciones o tipos de evaluación, y una acción orquestada puede producir varios eventos cercanos en el tiempo. Por eso, el diseño considera filtros más flexibles y mecanismos de agrupación de actualizaciones, de modo que la interfaz reaccione a cambios relevantes sin recargar la grilla de forma excesiva.
 
   BPM Event Starter carga suscripciones al iniciar o reiniciar y usa sus filtros para decidir si instancia el workflow configurado. Ese workflow puede corresponder a una orquestación dinámica, ya que las orquestaciones dinámicas se ejecutan como workflows de Temporal.
 
