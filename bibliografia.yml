@@ -128,6 +128,22 @@ LahuenHealthAbout:
   url: https://www.lahuen.health/about.html
   date: 2026-05-23
 
+HEGCQuienesSomos:
+  type: Web
+  title: Quiénes somos
+  author: Hospital de Niños Exequiel González Cortés
+  url: https://www.hegc.gob.cl/quienes-somos/
+  date: 2026-07-05
+
+CChC_HEGCInfraestructura:
+  type: Article
+  title: "Hospital Exequiel González Cortés: muy esperado, un cambio de casa"
+  author: Ximena Greene
+  url: https://catalogo.extension.cchc.cl/documentos/documentos/38428-2.pdf
+  parent:
+    type: Periodical
+    title: Cámara Chilena de la Construcción
+
 BaloianPino2024Usabilidad:
   type: Report
   title: Guía de Evaluación de Usabilidad de Software

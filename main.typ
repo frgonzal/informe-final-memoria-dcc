@@ -23,17 +23,23 @@
 
   == Organización
 
-  El presente trabajo se desarrolla en el contexto de Lahuén Health SpA, una empresa chilena de tecnologías de información en salud con experiencia en la digitalización de procesos hospitalarios. Su trabajo se origina en proyectos de innovación desarrollados junto a equipos clínicos del Hospital Exequiel González Cortés, y actualmente se orienta a articular soluciones tecnológicas para el ecosistema de salud mediante su HIS disponible en la Plataforma Lahuén @LahuenHealthAbout. La organización ha construido una plataforma modular que integra distintos componentes relacionados con la atención de pacientes, la gestión asistencial y la operación hospitalaria, con el objetivo de ofrecer una solución extensible e interoperable.
+  El presente trabajo se desarrolla en el contexto de Lahuén Health SpA, una empresa chilena de tecnologías de información en salud con experiencia en la digitalización de procesos hospitalarios. Su enfoque se resume en la idea de desarrollar "Tecnología que se adapta a tu modelo de atención y a tus procesos asistenciales", mediante un HIS (Hospital Information System, o sistema de información hospitalario) disponible en la Plataforma Lahuén @LahuenHealthAbout. La organización opera bajo un modelo de software como servicio, en el que entrega sus soluciones a instituciones de salud mediante suscripción, soporte continuo, comunicación directa con los clientes y mejoras permanentes del software.
 
-  Dentro de esta plataforma, el módulo de pabellón ocupa un lugar estratégico, ya que articula el trabajo quirúrgico con otros componentes clínicos y administrativos del sistema. Su función no es únicamente registrar eventos, sino también apoyar el seguimiento de los pacientes quirúrgicos, facilitar la coordinación entre equipos y entregar visibilidad del estado del proceso. Debido a ello, cualquier mejora o modernización de este módulo tiene un impacto relevante tanto en la operación clínica como en la evolución tecnológica de la plataforma en su conjunto.
+  La Plataforma Lahuén se compone de distintos módulos orientados a procesos asistenciales y operacionales. Entre ellos se encuentran urgencia, hospitalización, atención ambulatoria, cirugía, farmacia, apoyo clínico y monitoreo del cuidado. En conjunto, estos componentes permiten registrar atenciones, coordinar unidades, monitorear procesos en tiempo real, integrar solicitudes clínicas, gestionar recursos y mantener una mirada transversal del paciente dentro del establecimiento. Esta orientación modular permite que la plataforma se adapte a distintos modelos de atención y se integre con otros sistemas del ecosistema hospitalario.
+
+  Uno de los principales clientes de Lahuén es el Hospital de Niños Exequiel González Cortés. Este establecimiento es un hospital pediátrico asistencial docente de alta complejidad, dependiente del Servicio de Salud Metropolitano Sur, orientado a la promoción, prevención, recuperación y rehabilitación de la salud de niños, niñas y adolescentes de la zona sur de la Región Metropolitana @HEGCQuienesSomos. Su infraestructura contempla 168 camas, de las cuales 24 corresponden a cuidados críticos, además de seis pabellones quirúrgicos, por lo que puede considerarse un establecimiento pediátrico de tamaño medio y alta complejidad @CChC_HEGCInfraestructura.
 
   == Problema
+
+  Dentro de la Plataforma Lahuén, el módulo de pabellón ocupa un lugar estratégico, ya que articula el trabajo quirúrgico con otros componentes clínicos y administrativos del sistema. La versión previa de este módulo fue implementada en el Hospital Exequiel González Cortés, lo que permitió resolver necesidades reales de un entorno quirúrgico complejo. Sin embargo, esta implementación quedó fuertemente asociada a tecnologías y patrones anteriores de la plataforma.
 
   A pesar de contar con una implementación funcional del proceso quirúrgico, el módulo existente presenta limitaciones importantes desde el punto de vista tecnológico y de mantenibilidad. La solución actual se apoya en tecnología propietaria de la empresa, específicamente un motor de procesos propietario que permite ejecutar actividades asincrónicas, permanecer a la espera de eventos y mantener el estado de cada instancia de proceso. Si bien este enfoque resolvió necesidades operativas en su momento, hoy dificulta la evolución del sistema y encarece su mantención.
 
   Esta situación genera varios problemas. En primer lugar, la lógica del proceso quirúrgico se encuentra fuertemente acoplada a componentes específicos, lo que hace más costoso modificar el flujo, incorporar nuevas acciones o adaptar el módulo a otros contextos hospitalarios. En segundo lugar, la base tecnológica previa limita la integración con la arquitectura moderna del resto de la plataforma, dificultando la reutilización de componentes y la incorporación de capacidades transversales como mejor observabilidad, manejo robusto de errores y sincronización eficiente con otras partes del sistema. En tercer lugar, la existencia de una solución especializada y dependiente de tecnologías antiguas introduce deuda técnica, afectando la estabilidad, la escalabilidad y la velocidad con que pueden implementarse mejoras.
 
-  Desde una perspectiva funcional, esto se traduce en una brecha entre lo que el sistema ya logra hacer y lo que necesita ofrecer en el futuro. Aunque el módulo permite representar y operar el flujo quirúrgico, no cuenta todavía con una base suficientemente moderna, flexible y reusable como para sostener su evolución de manera segura y sostenible.
+  Desde una perspectiva funcional, esto se traduce en una brecha entre lo que el sistema ya logra hacer y lo que necesita ofrecer en el futuro. Aunque el módulo permite representar y operar el flujo quirúrgico, no cuenta todavía con una base suficientemente moderna, flexible y reusable como para sostener su evolución de manera segura y sostenible. Esto no solo dificulta reutilizar o adaptar el módulo en otros establecimientos, sino también mantenerlo, corregir problemas existentes y agregar nuevas funcionalidades. En la práctica, varios problemas requieren soporte constante por parte de la empresa y resolverlos sobre la base técnica anterior puede demandar un esfuerzo alto en relación con el valor de la mejora.
+
+  Por ello, la modernización busca reconstruir esta capacidad con tecnologías actuales de la plataforma, implementarla primero en el Hospital Exequiel González Cortés, validarla en un entorno quirúrgico real y dejar el módulo mejor preparado para ser utilizado posteriormente en otros hospitales.
 
   == Motivación y relevancia
 
@@ -45,16 +51,16 @@
 
   == Objetivos
 
-  El objetivo general de este trabajo es modernizar el proceso de atención quirúrgica de una plataforma digital de salud, reemplazando la dependencia del motor de procesos propietario por una arquitectura más simple de mantener, más flexible para evolucionar y con un flujo completo y trazable para pacientes quirúrgicos, tanto en cirugías electivas como de urgencia.
+  El objetivo general de este trabajo es modernizar el módulo de atención quirúrgica de la Plataforma Lahuén, reconstruyendo su flujo operativo sobre la arquitectura actual de la empresa para mejorar su mantenibilidad, trazabilidad y capacidad de evolución, y dejando una nueva versión desplegada y operativa en el Hospital Exequiel González Cortés.
 
   Para alcanzar este objetivo general, se plantean los siguientes objetivos específicos:
 
   - Modelar de forma explícita el flujo de atención quirúrgica mediante un conjunto coherente de estados y acciones.
-  - Modernizar la vista de atención quirúrgica para integrarla adecuadamente a la plataforma y representar la información relevante de cada paciente.
-  - Sustituir el motor de procesos propietario por una solución más sencilla de mantener y más adecuada para coordinar acciones complejas del flujo.
-  - Reducir la dependencia de tecnología propietaria difícil de evolucionar, disminuyendo el costo técnico asociado a correcciones, mejoras y cambios futuros.
+  - Modernizar la vista de atención quirúrgica para integrarla adecuadamente a la plataforma, representar la información relevante de cada paciente y utilizar el `design system` actual de Lahuén, con el estilo característico de las nuevas aplicaciones de la empresa.
+  - Sustituir el motor de procesos propietario por una solución más sencilla de mantener y más adecuada para coordinar acciones complejas del flujo, reduciendo la dependencia de tecnología difícil de evolucionar.
   - Mejorar la trazabilidad de los hitos del proceso quirúrgico, de modo que sea posible reconstruir el recorrido de un caso y disponer de información útil para análisis posteriores.
-  - Validar la solución mediante pruebas funcionales y despliegues controlados que permitan verificar su uso en un entorno real.
+  - Validar la solución mediante pruebas funcionales, recorridos cognitivos, inspecciones de usabilidad y despliegues controlados en ambientes de prueba lo más similares posible a producción, simulando escenarios reales del flujo quirúrgico.
+  - Reemplazar la versión anterior del módulo al finalizar el trabajo, dejando la nueva versión desarrollada desplegada en producción.
   - Dejar una base técnica y documental que facilite la evolución futura del módulo de pabellón.
 
   == Resumen de la solución
@@ -67,11 +73,11 @@
 
   == Alcance
 
-  El alcance del trabajo se concentra en la modernización del proceso de atención quirúrgica, especialmente en el flujo intraoperatorio y en las etapas cercanas a este. Esto incluye la representación del flujo de pacientes quirúrgicos, la ejecución de acciones asociadas a cambios de estado y el registro de hitos relevantes para la trazabilidad del proceso.
+  El alcance del trabajo se concentra en la modernización del proceso de atención quirúrgica, especialmente en el flujo operativo de pabellón y en las etapas cercanas a este. Esto incluye representar el recorrido de los pacientes quirúrgicos, ejecutar acciones asociadas a cambios de estado, integrar información clínica y de programación, y registrar hitos relevantes para la trazabilidad del proceso.
 
-  No forma parte del alcance una reconstrucción completa de todo el módulo de pabellón ni un rediseño integral del sistema de listas de espera quirúrgicas. En cambio, el proyecto se enfoca en una parte acotada pero fundamental del problema, buscando construir una base tecnológica moderna sobre la cual puedan apoyarse futuras mejoras y extensiones.
+  No forma parte del alcance una reconstrucción completa de todo el módulo de pabellón ni un rediseño integral del sistema de listas de espera quirúrgicas. Tampoco se pretende resolver en esta etapa todos los escenarios excepcionales del proceso quirúrgico. En cambio, el trabajo prioriza los casos necesarios para operar el flujo principal, asegurar continuidad de uso y dejar una base técnica más mantenible sobre la cual puedan apoyarse futuras mejoras y extensiones.
 
-  Esta delimitación permite trabajar sobre un objetivo abordable dentro del contexto del proyecto, al mismo tiempo que deja preparado el terreno para continuar evolucionando el sistema en etapas posteriores.
+  Esta delimitación también responde a una restricción temporal del proyecto: la nueva versión debía desarrollarse en un periodo cercano a seis meses y quedar desplegada en producción al cierre de ese ciclo. Por ello, la prioridad fue construir una solución funcional, estable y usable en un entorno real, antes que abordar de inmediato todos los casos posibles del dominio quirúrgico.
 
   == Estructura del documento
 
@@ -1517,7 +1523,7 @@
 
   Una vez estabilizada una funcionalidad, el líder del proyecto revisaba la versión implementada y realizaba una inspección de usabilidad. Esta revisión permitía validar si el comportamiento era equivalente al flujo esperado, si la información visible era suficiente y si existían oportunidades de mejora en nombres, orden, disponibilidad de acciones o estructura visual. De esta manera, la evaluación no se realizó como una actividad única al final del desarrollo, sino como un proceso iterativo de mejora continua.
 
-  En la evaluación inicial del frontend también se procuró seguir el design system de Lahuén, es decir, los patrones visuales y pautas de comportamiento ya utilizados en otras aplicaciones de la plataforma. Esto permitió mantener continuidad con interfaces previamente conocidas por los usuarios y reducir el costo de adaptación al nuevo módulo.
+  En la evaluación inicial del frontend también se procuró seguir el `design system` de Lahuén, es decir, los patrones visuales y pautas de comportamiento ya utilizados en otras aplicaciones de la plataforma. Esto permitió mantener continuidad con interfaces previamente conocidas por los usuarios y reducir el costo de adaptación al nuevo módulo.
 
   == Validación funcional
 
