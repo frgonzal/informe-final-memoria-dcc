@@ -1050,7 +1050,7 @@
     caption: [Modal mostrado mientras se genera el PDF del protocolo quirúrgico.],
   ) <fig-accion-ver-pdf>
 
-  Una vez preparado, el sistema entrega el protocolo en formato PDF. El documento reúne la información clínica y operacional registrada durante la intervención, incluyendo los datos principales de la atención, el equipo clínico y el detalle del acto quirúrgico. Un ejemplo del PDF generado se incluye en el @anexo-pdf-protocolo.
+  Una vez preparado, el sistema entrega el protocolo en formato PDF. El documento reúne la información clínica y operacional registrada durante la intervención, incluyendo los datos principales de la atención, el equipo clínico y el detalle del acto quirúrgico. Un ejemplo del documento generado se incluye en el @anexo-documentos-generados.
 
   === Imprimir brazalete
 
@@ -1580,19 +1580,156 @@
 ]
 
 #capitulo(title: "Resultados")[
+  El resultado principal del trabajo fue la puesta en producción de una nueva versión del módulo de atención quirúrgica, reemplazando completamente la versión anterior de pabellón. El desarrollo finalizó el 8 de abril y ese mismo día comenzó su operación productiva. Con esto, el flujo quirúrgico dejó de depender del motor de procesos propietario y pasó a ejecutarse sobre la arquitectura actual de la Plataforma Lahuén.
+
+  == Producto implementado
+
+  La solución entregada quedó compuesta por tres aplicaciones frontend y un conjunto de integraciones backend. La primera corresponde a la aplicación de proceso quirúrgico, organizada como lista de trabajo operativa para pabellón. Esta aplicación permite visualizar pacientes, programaciones, estados, ubicaciones y acciones disponibles para cada etapa del flujo. La segunda corresponde al Monitor de pabellones, orientado a la coordinación interna del uso de quirófanos. La tercera corresponde al Monitor de pacientes, orientado a informar a familiares o acompañantes sobre el estado general del proceso.
+
+  En el backend, el resultado incluyó la integración de cirugías electivas provenientes de Gestión Hospitales, la creación de citas quirúrgicas en Agenda, la coordinación de acciones mediante BPM y Temporal, y la definición de orquestaciones dinámicas para ejecutar transiciones del proceso. También se incorporaron suscripciones SSE para actualizar la información visible ante cambios relevantes de atenciones, citas, indicaciones y evaluaciones.
+
+  Esta combinación permitió reconstruir el flujo funcional existente con una base técnica más mantenible. La información principal del caso quirúrgico ya no depende de una instancia del motor de procesos propietario, sino de entidades de dominio como indicaciones, citas y atenciones clínicas. Esto simplifica el soporte, facilita la observación de los datos y reduce el costo de futuras modificaciones.
+
+  == Cobertura funcional alcanzada
+
+  La nueva versión cubre los casos operacionales principales que abordaba la versión anterior y agrega mejoras acotadas sobre el flujo. Se implementó soporte para cirugías de urgencia y cirugías electivas, incluyendo la transformación de órdenes provenientes de Gestión Hospitales hacia citas quirúrgicas operables desde la lista de trabajo.
+
+  La aplicación permite ejecutar las acciones necesarias para avanzar el proceso quirúrgico: aceptar órdenes de urgencia, recepcionar pacientes, ingresar a pabellón, registrar hitos intraoperatorios, iniciar recuperación, finalizar recuperación, iniciar traslados, devolver a unidad de origen, egresar pacientes, suspender cirugías, consultar ficha, cargar documentos clínicos, generar PDF del protocolo e imprimir brazaletes. Además, se incorporó la reversa de ingreso a pabellón, una mejora que permite corregir un caso operacional que podía ocurrir en la práctica y que antes no estaba abordado de forma explícita.
+
+  En términos de documentación clínica, la solución permite cargar evaluación preanestésica, protocolo quirúrgico, pausas quirúrgicas y cuidados intraoperatorios, manteniendo la relación con la atención del paciente.
+
+  La trazabilidad del proceso se mantuvo y se mejoró en algunos aspectos. La mayoría de las acciones relevantes conservan responsable, fecha y cambios de estado, y los hitos del pabellón quedan registrados dentro de la atención quirúrgica. Aunque existe margen para fortalecer la auditoría y homogeneizar responsables en todos los casos, la nueva representación del estado permite reconstruir el recorrido del paciente de manera más clara que en la versión basada en instancias del motor de procesos propietario.
+
+  == Puesta en producción
+
+  El paso a producción fue una etapa compleja debido a la cantidad de cambios involucrados. Para reducir el riesgo, durante el desarrollo se documentaron los ajustes necesarios para el despliegue, las configuraciones requeridas, las definiciones de orquestación y las integraciones con los servicios de la plataforma. Esta preparación permitió realizar el reemplazo completo de la versión anterior.
+
+  Al momento de la salida a producción se realizaron pruebas controladas con un paciente de prueba. Durante el primer día se ejecutaron alrededor de diez atenciones quirúrgicas usando la nueva versión. Como parte del funcionamiento habitual de Lahuén, la empresa entregó soporte durante la jornada, de modo que los errores reportados por los usuarios pudieran ser revisados y corregidos rápidamente.
+
+  Durante esta etapa se identificaron problemas que no habían aparecido en las pruebas de desarrollo. Algunos fueron leves y otros afectaban partes relevantes del flujo, pero fueron abordados mediante soporte constante y correcciones posteriores. Esto permitió estabilizar la operación inicial sin volver a la versión anterior.
+
+  La aplicación comenzó a operar en el flujo real de pabellón, permitió atender pacientes y se mantuvo en uso mientras se realizaban los ajustes necesarios para estabilizar la primera versión.
+
+  == Resultado técnico
+
+  Desde el punto de vista técnico, el trabajo logró eliminar la dependencia operacional del motor de procesos propietario. Las acciones del proceso ya no requieren mantener la lógica principal dentro de instancias de ese motor, sino que se apoyan en servicios de dominio, datos extendidos, eventos y orquestaciones acotadas.
+
+  El orquestador dinámico fue un resultado relevante del trabajo. Permitió crear y modificar acciones complejas con mayor velocidad que si cada transición hubiese requerido un workflow específico. Durante el desarrollo y la salida a producción, algunos ajustes pudieron resolverse modificando definiciones de orquestación, sin realizar cambios grandes en el frontend ni en servicios de dominio.
+
+  == Resultado de usabilidad
+
+  La evaluación SUS obtuvo un promedio de 65,5 puntos con 10 participantes. Este resultado se encuentra cercano al valor de referencia habitual de 68 puntos, por lo que se interpreta como una señal de usabilidad aceptable, aunque mejorable. La dispersión de respuestas indica que algunos usuarios percibieron positivamente la herramienta, mientras que otros encontraron dificultades asociadas a complejidad, tedio o adaptación al nuevo flujo.
+
+  Este resultado es coherente con el contexto de reemplazo de una aplicación utilizada previamente. La nueva versión conserva el flujo conocido, pero también modifica parte de la experiencia de uso y de la forma en que se presentan las acciones. Por ello, la evaluación no debe leerse como un cierre definitivo de usabilidad, sino como una primera medición de percepción en una etapa de transición y estabilización.
+
+  En conjunto, los resultados muestran que se logró construir una versión operable, desplegada en producción y funcionalmente equivalente o superior a la versión anterior en los casos principales.
 ]
 
 #capitulo(title: "Conclusiones")[
+  Este trabajo permitió modernizar el módulo de atención quirúrgica de Lahuén, reemplazando una implementación funcionalmente valiosa pero técnicamente difícil de mantener por una solución integrada a la arquitectura actual de la plataforma. El resultado no fue un rediseño completo del proceso quirúrgico, sino una reconstrucción tecnológica del flujo existente, preservando su lógica operacional y habilitando nuevas capacidades de evolución.
+
+  == Cumplimiento de objetivos
+
+  El objetivo central se cumplió: la nueva versión reemplazó completamente a la versión anterior de pabellón y fue puesta en producción. Con ello, el flujo dejó de depender del motor de procesos propietario y pasó a representarse mediante componentes más alineados con la arquitectura actual de Lahuén.
+
+  También se cumplió el objetivo de construir aplicaciones frontend más mantenibles. La aplicación de proceso quirúrgico se implementó como una lista de trabajo con estados, acciones y adaptadores explícitos; además, se reconstruyeron el Monitor de pabellones y el Monitor de pacientes.
+
+  En términos funcionales, la solución aborda los flujos de urgencia y electivo, integra Gestión Hospitales con Agenda, permite operar las principales etapas del proceso quirúrgico e incorpora documentos clínicos relevantes. También agrega mejoras que no estaban cubiertas explícitamente en la versión anterior.
+
+  == Complejidad del proceso quirúrgico
+
+  Una de las principales conclusiones del trabajo es que el proceso quirúrgico es más complejo que una secuencia lineal de estados. El caso puede originarse en una orden de urgencia o en una cirugía electiva programada, pero durante el recorrido pueden aparecer evaluaciones, como el alta quirúrgica, hospitalizaciones previas o posteriores, solicitudes de traslado, suspensiones u otras acciones realizadas fuera de la aplicación de proceso quirúrgico que modifican el flujo esperado.
+
+  Por esta razón, el flujo implementado debe entenderse como una versión operacionalmente útil y simplificada de un dominio más amplio. El objetivo de esta primera versión fue reemplazar la solución anterior y cubrir la mayor parte de los casos necesarios para operar, no resolver de una sola vez todos los escenarios posibles. Incluso con un esfuerzo importante por perfeccionar el flujo durante el desarrollo, no es realista conocer de antemano todas las variaciones que pueden aparecer en un pabellón. La experiencia en producción confirmó que algunos comportamientos solo aparecen cuando el sistema se enfrenta al uso real y a las variaciones propias del trabajo clínico.
+
+  El caso del estado `Esperando egreso` ilustra esta dificultad. Durante la implementación se modeló una condición que parecía razonable: si el paciente tenía alta quirúrgica, podía entenderse que estaba listo para egresar. Sin embargo, en la práctica el alta puede registrarse antes de que finalice la recuperación, porque el cirujano no necesariamente permanece durante toda esa etapa. Por lo tanto, el sistema debía adaptarse al modelo real de atención del hospital y hacer que esa decisión tuviera efecto solo cuando el paciente estuviera en una etapa compatible con el egreso. El problema no se debió a una falla estructural de la arquitectura, sino a la dificultad de capturar todos los matices del flujo quirúrgico antes de observarlo en operación real.
+
+  Algo similar ocurre con los traslados. La versión implementada permite operar los casos principales, pero existen escenarios más complejos en que el traslado puede cambiar después de finalizar recuperación, puede agregarse una nueva solicitud o puede aparecer una hospitalización definida desde otra aplicación. Estos casos requieren seguir refinando el modelo para adaptarlo mejor a la realidad de cada hospital. Esto es coherente con la orientación de Lahuén de adaptar la tecnología al modelo de atención y a los procesos asistenciales de cada establecimiento @LahuenHealthAbout.
+
+  == Aciertos y decisiones técnicas
+
+  Un acierto relevante fue separar el conocimiento funcional del proceso quirúrgico de la implementación previa basada en el motor de procesos propietario. La versión anterior contenía una lógica operacional valiosa, pero su forma técnica dificultaba observar, corregir y extender el flujo. Al trasladar el estado a entidades de dominio y coordinar acciones mediante servicios y orquestaciones, el sistema queda mejor preparado para evolucionar.
+
+  Otro acierto fue el uso de orquestaciones dinámicas. Aunque el mecanismo tiene limitaciones, permitió acelerar el desarrollo de acciones compuestas y reducir la necesidad de crear workflows específicos para cada transición.
+
+  La modernización del frontend también fue un resultado positivo. La nueva aplicación ofrece una estructura más clara de estados y acciones, incorpora actualización en tiempo real y utiliza patrones actuales de la plataforma. Esto no solo mejora la experiencia del usuario frente a la versión anterior, sino que facilita el mantenimiento por parte del equipo de desarrollo.
+
+  == Limitaciones y aprendizajes
+
+  La principal limitación técnica del orquestador dinámico fue su naturaleza asíncrona. En varios casos esto es aceptable, porque las actualizaciones llegan mediante eventos y la interfaz puede refrescarse posteriormente. Sin embargo, para ciertas acciones habría sido deseable que el frontend pudiera esperar el término efectivo de la orquestación. Implementar orquestaciones dinámicas sincrónicas habría requerido una capacidad adicional que la plataforma no tenía disponible y que podía aumentar significativamente el costo del proyecto.
+
+  También habría sido útil incorporar mecanismos de idempotencia o bloqueo para evitar ejecuciones duplicadas de una misma acción. En un entorno donde múltiples usuarios pueden operar sobre el mismo paciente, la coordinación concurrente es un aspecto importante. Esta mejora no fue priorizada para la primera versión, pero aparece como una línea clara de evolución.
+
+  == Reflexión final
+
+  La solución desarrollada no representa la versión definitiva del módulo quirúrgico, pero sí una base más sólida sobre la cual continuar evolucionando. El trabajo permitió pasar desde una implementación difícil de mantener hacia una versión productiva, operable y preparada para mejoras posteriores.
+
+  En el contexto de una empresa SaaS como Lahuén, este resultado es especialmente relevante. El producto debe adaptarse progresivamente a la forma en que cada establecimiento organiza su atención, y esa adaptación requiere pruebas constantes, validación con usuarios y una arquitectura que permita corregir, extender y refinar el flujo sin rehacer el sistema completo. En retrospectiva, varias decisiones podrían haberse diseñado de mejor manera, pero la solución alcanzada fue suficiente para poner en producción un producto funcional y capaz de seguir mejorando. Este trabajo avanza en esa dirección: entrega una primera versión productiva, usable y mejorable, sobre la cual se pueden construir futuras iteraciones para cubrir más casos del proceso quirúrgico y apoyar de mejor manera la gestión de pabellones.
 ]
 
 #capitulo(title: "Trabajo futuro")[
+  La versión desarrollada cumple el objetivo de reemplazar el flujo anterior y entregar una base productiva para el módulo quirúrgico. Sin embargo, la experiencia de desarrollo y puesta en producción mostró líneas de mejora importantes. Algunas corresponden a ajustes propios del proceso quirúrgico, mientras que otras afectan componentes transversales de la plataforma, como la coordinación entre microservicios, el orquestador dinámico, el rendimiento de las listas de trabajo y los mecanismos de trazabilidad.
+
+  == Flexibilización del flujo quirúrgico
+
+  Una primera línea de trabajo futuro es flexibilizar el flujo quirúrgico frente a cambios externos que hoy no se reflejan de forma suficiente en la atención quirúrgica. El caso más evidente ocurre después de finalizar la recuperación. En la versión actual, el flujo queda limitado por las alternativas previstas durante el desarrollo, pero en la operación real pueden aparecer cambios posteriores. Por ejemplo, un paciente electivo puede requerir un traslado a urgencia o una hospitalización no prevista inicialmente; de forma similar, un traslado solicitado puede cancelarse o modificarse.
+
+  Estos escenarios requieren que la aplicación de proceso quirúrgico no dependa solo de las acciones ejecutadas desde la lista de trabajo. A futuro, el backend debería reaccionar ante eventos o cambios de estado generados en otros módulos, especialmente aquellos relacionados con solicitudes de traslado, hospitalización y atenciones activas. De esta forma, si cambia la situación del paciente, la atención quirúrgica podría actualizar su estado e información asociada para reflejar que el paciente debe ser hospitalizado, que debe aceptarse un traslado, o que un traslado previamente solicitado dejó de estar vigente.
+
+  Una dificultad similar aparece al inicio del proceso. En cirugías electivas, es frecuente que el paciente sea hospitalizado antes de la intervención. En casos de urgencia, puede ocurrir que una indicación quirúrgica se genere desde una atención de urgencia y que luego el paciente sea hospitalizado, pasando a tener una nueva atención activa. Aunque estos casos no impiden necesariamente completar el flujo quirúrgico, generan molestias para los usuarios porque la información visible no siempre corresponde a la atención vigente. Por ello, una mejora relevante es que el flujo pueda reconocer estos cambios tempranos y actualizar la información de la atención quirúrgica para mostrar siempre la ficha y la atención activa del paciente.
+
+  == Múltiples intervenciones en una misma atención
+
+  Otro caso que requiere un mejor modelamiento es el de pacientes con más de una intervención quirúrgica en un mismo día. Actualmente es posible operar este escenario programando más de una cita y generando atenciones separadas, pero la solución puede requerir apoyo del área de soporte y no representa necesariamente el modelo ideal. En la práctica, un paciente puede tener dos o más intervenciones en una misma jornada, y este caso es más frecuente de lo que podría suponerse inicialmente.
+
+  A futuro, el sistema debería permitir representar múltiples intervenciones dentro de una misma atención quirúrgica cuando corresponda. Esto implicaría revisar el modelo de datos, la relación entre cita, intervención, documentos clínicos, hitos y tiempos quirúrgicos. También exigiría definir cómo se registran formularios, pausas, recuperación y protocolos cuando existen varias intervenciones asociadas al mismo episodio de atención. Es un problema difícil, porque no solo afecta la interfaz, sino también la forma en que la plataforma entiende la unidad clínica y operacional del caso quirúrgico.
+
+  == Sincronización de datos entre servicios
+
+  La sincronización de datos entre Agenda, HLTH y XRM constituye otra línea de trabajo futuro relevante. Estos servicios manejan información de pacientes y atenciones desde perspectivas distintas, y no siempre tienen los mismos datos disponibles o actualizados. Como consecuencia, acciones como la recepción de un paciente en pabellón pueden fallar si falta información requerida en alguna de las bases de datos involucradas.
+
+  Este problema no es exclusivo del módulo quirúrgico, sino una consecuencia general del modelo de microservicios de la empresa. Resolverlo requiere mecanismos de sincronización que mantengan actualizada la información compartida entre servicios, reaccionando ante cambios relevantes y actualizando las entidades relacionadas cuando corresponda. Una posible línea de evolución es implementar un componente o conjunto de procesos encargados de sincronizar, completar o igualar datos críticos de pacientes y atenciones entre Agenda, HLTH y XRM, reduciendo fallas derivadas de información desactualizada o incompleta y mejorando la continuidad operacional de las aplicaciones que dependen de esos datos.
+
+  == Evolución del módulo completo de pabellón
+
+  El trabajo desarrollado puede entenderse como un primer paso en la modernización del conjunto de funcionalidades asociadas a pabellón. La nueva aplicación de proceso quirúrgico reemplaza la operación del paciente dentro del flujo de pabellón, pero existen componentes relacionados que aún deben evolucionar. En particular, una mejora mayor sería reconstruir la lista de espera y programación quirúrgica que actualmente opera en Gestión Hospitales.
+
+  Esta evolución permitiría integrar de mejor manera la programación de intervenciones con el proceso quirúrgico implementado en este trabajo. Sin embargo, se trata de un esfuerzo de magnitud comparable al realizado para la aplicación de proceso quirúrgico, porque involucra rediseñar una aplicación completa, preservar conocimiento operacional existente, integrar nuevos flujos con Agenda y asegurar continuidad de operación. Aun así, es un paso necesario para seguir modernizando el módulo completo de pabellón y reducir la dependencia de soluciones técnicas anteriores.
+
+  == Mejoras del orquestador dinámico
+
+  El orquestador dinámico permitió resolver acciones complejas sin crear un workflow específico para cada caso. No obstante, su versión actual tiene limitaciones que deben abordarse. La primera es su naturaleza asíncrona. Hoy, la aplicación no puede esperar directamente el término de una orquestación para aprovechar su respuesta en la interacción con el usuario. En varios casos esto se compensa mediante eventos y actualizaciones posteriores, pero sería preferible contar con una alternativa sincrónica o con un mecanismo que permita obtener una respuesta clara cuando la orquestación finaliza.
+
+  También es necesario mejorar el manejo de fallas y reintentos. Actualmente, una orquestación dinámica puede fallar y no reintentarse automáticamente para evitar riesgos de duplicación de datos u otros efectos no deseados. Una posible mejora sería separar las actividades internas de cada orquestación en actividades individuales del workflow, de modo que si una actividad falla solo se reintente esa parte. Esta estrategia debe considerar las restricciones de Temporal, especialmente el tamaño de las respuestas y datos almacenados durante la ejecución.
+
+  Aun con esa mejora, persisten desafíos importantes. Una orquestación podría quedar detenida en una actividad después de haber modificado parcialmente algunos datos, sin que exista un mecanismo general de compensación o rollback. Implementar ese tipo de comportamiento es complejo, porque el orquestador coordina llamadas a servicios independientes y no controla transacciones distribuidas entre ellos. Además, si se implementan orquestaciones sincrónicas, debe definirse cuidadosamente qué ocurre cuando una actividad falla: si la respuesta espera todos los reintentos, si devuelve un error inmediatamente, o si informa un estado intermedio que luego se completa de forma asíncrona. Estas decisiones son centrales para convertir el orquestador dinámico en un mecanismo más confiable y predecible para coordinar actividades entre microservicios.
+
+  == Rendimiento y carga de información
+
+  Otra mejora importante se relaciona con la cantidad de información que carga la lista de trabajo. En la versión actual, como el número diario de pacientes quirúrgicos es acotado, la aplicación muestra las atenciones del día en una sola lista. Sin embargo, cargar toda la información necesaria puede producir una carga significativa tanto para el servidor como para el frontend, especialmente por los datos provenientes de HLTH.
+
+  El desafío es obtener suficiente información para calcular estados, acciones disponibles, evaluaciones realizadas y datos clínicos relevantes, sin realizar demasiadas llamadas al backend ni solicitar respuestas excesivamente grandes. El uso de datos embebidos permite que una entidad incluya información relacionada, como evaluaciones asociadas a una atención quirúrgica, pero también puede generar respuestas de gran tamaño si se incorporan más datos de los necesarios.
+
+  A futuro se deberían evaluar mecanismos para reducir y filtrar mejor los datos cargados por la lista de trabajo. Esto puede incluir respuestas específicas para la vista de pabellón, proyecciones más acotadas de entidades, criterios de inclusión más finos para datos embebidos, o endpoints orientados a entregar exactamente la información requerida por la grilla. La dificultad principal es que la lista combina entidades de distintos microservicios y necesita suficiente contexto para operar correctamente, por lo que la optimización debe equilibrar número de llamadas, tamaño de respuesta y costo de procesamiento en frontend y backend.
+
+  == Reversión de hitos y edición de tiempos
+
+  En la operación diaria también aparecen necesidades de corrección manual. Durante el avance por las etapas de pabellón puede ocurrir que un usuario registre hitos en un orden equivocado, avance más de lo necesario o ingrese datos que no representan lo que realmente está ocurriendo. Por ello, sería útil incorporar mecanismos controlados para revertir ciertos hitos o etapas del proceso quirúrgico.
+
+  Otra mejora relacionada es permitir modificar manualmente los tiempos registrados en los formularios que avanzan etapas. Actualmente estos formularios muestran información asociada al hito, pero no siempre permiten ajustar los tiempos antes de confirmar la acción. Considerando la importancia legal y operacional de los tiempos quirúrgicos, una futura versión debería permitir corregirlos de forma controlada, dejando trazabilidad clara de quién realizó el cambio, cuándo lo hizo y cuál fue el valor anterior.
+
+  == Trazabilidad, responsables y seguridad de acciones
+
+  Finalmente, una línea de mejora transversal es fortalecer la trazabilidad y seguridad de las acciones ejecutadas en pabellón. A futuro, todas las acciones relevantes deberían registrar de forma explícita el usuario responsable, el momento de ejecución y el contexto en que se realizó la acción. Esto permitiría auditar con mayor claridad el recorrido del paciente y las decisiones tomadas durante la atención quirúrgica.
+
+  Además, la operación de pabellón suele realizarse en computadores compartidos por varios funcionarios. En ese contexto, no basta con autenticar al usuario al inicio de la sesión, porque durante la duración de esa sesión otra persona podría ejecutar acciones usando las credenciales ya abiertas. Una mejora posible es solicitar nuevamente la contraseña antes de ejecutar acciones sensibles, o implementar un mecanismo equivalente de reautenticación frecuente. El desafío es equilibrar seguridad, trazabilidad y usabilidad, evitando que el sistema se vuelva demasiado lento o incómodo para el trabajo clínico, pero asegurando que cada acción quede asociada al responsable real.
 ]
 
 #show: end-doc
 
-#apendice(title: "PDF generado del protocolo quirúrgico", label: <anexo-pdf-protocolo>)[
+#apendice(title: "Documentos generados", label: <anexo-documentos-generados>)[
   #figure(
     image("./imagenes/cap06-pdf-protocolo.png", width: 60%),
     caption: [PDF generado mediante la acción `Ver PDF protocolo`.],
-  ) <fig-anexo-pdf-protocolo>
+  ) <fig-anexo-documento-protocolo>
 ]
