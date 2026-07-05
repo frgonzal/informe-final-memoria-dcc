@@ -1,4 +1,6 @@
-#import "final.typ": agradecimientos, apendice, capitulo, conf, dedicatoria, end-doc, resumen, start-doc
+#import "final.typ": (
+  agradecimientos, apendice, capitulo, conf, dedicatoria, end-doc, frontmatter-section, resumen, start-doc,
+)
 #import "metadata.typ": metadata
 
 #show: conf.with(metadata: metadata)
@@ -8,6 +10,14 @@
 #dedicatoria[]
 
 #agradecimientos[]
+
+#frontmatter-section(title: "Declaración de uso de inteligencia artificial")[
+  En la elaboración de esta memoria se utilizaron herramientas de inteligencia artificial generativa, principalmente modelos de OpenAI a través de chats de IA como ChatGPT y herramientas de asistencia con chats y agentes, incluyendo Codex. Estas herramientas fueron empleadas en etapas de desarrollo de software, documentación y redacción del informe. Todo el contenido incorporado fue revisado y validado críticamente por el autor, quien asume plena responsabilidad por las decisiones, el código, los argumentos y las conclusiones presentadas.
+
+  En el diseño de la solución, el uso de IA fue acotado y se concentró en consultas técnicas específicas o en la exploración de posibles formas de modelar algunos problemas. La mayor parte de las decisiones de diseño surgió de conversaciones de trabajo con los supervisores, quienes conocían en profundidad el sistema, sus capacidades y sus limitaciones. Durante el desarrollo del software, primero se construyó una base de código suficientemente sólida de manera directa; luego, en etapas posteriores, se incorporó el uso de herramientas como Codex para agilizar implementaciones sobre una estructura ya definida. Esto permitió delegar tareas de apoyo con instrucciones precisas, manteniendo siempre el control del desarrollo en el memorista y revisando minuciosamente cada resultado generado con IA antes de integrarlo.
+
+  En la elaboración del informe, la IA se utilizó como apoyo para redactar, reorganizar y condensar información, siempre a partir de decisiones, antecedentes y criterios entregados por el memorista. También se utilizó para explorar el código y la documentación generada durante el proyecto con el fin de resumir cambios, recuperar contexto y ayudar a estructurar contenidos de un trabajo de gran tamaño y complejidad. La metodología de uso y un prompt representativo se describen en el @anexo-uso-ia.
+]
 
 #show: start-doc
 
@@ -1600,4 +1610,33 @@
     image("./imagenes/cap06-pdf-protocolo.png", width: 60%),
     caption: [PDF generado mediante la acción `Ver PDF protocolo`.],
   ) <fig-anexo-documento-protocolo>
+]
+
+#apendice(title: "Uso de inteligencia artificial", label: <anexo-uso-ia>)[
+  == Metodología de uso
+
+  La metodología de uso consistió en definir primero el problema, el contexto y los criterios de salida; luego usar la herramienta para proponer borradores, resúmenes, reorganizaciones o implementaciones acotadas; y finalmente revisar el resultado antes de aceptarlo, corregirlo o descartarlo. La verificación fue siempre manual: en código, contrastando los cambios con la arquitectura del proyecto y validándolos con compilaciones o pruebas funcionales cuando correspondía; en redacción, revisando precisión técnica, tono y consistencia con las decisiones efectivamente tomadas durante el trabajo.
+
+  == Prompt representativo
+
+  El siguiente prompt es representativo del tipo de instrucciones utilizadas para redactar o reorganizar contenido del informe a partir de antecedentes ya definidos por el memorista:
+
+  ```text
+  Estoy trabajando en una memoria sobre la modernización del módulo de atención quirúrgica de la Plataforma Lahuén.
+
+  Necesito reescribir una sección del informe en español formal, con tono de memoria de ingeniería, evitando redundancias con capítulos de diseño e implementación.
+
+  Contexto que debes respetar:
+  - La versión anterior del módulo era funcionalmente valiosa, pero técnicamente difícil de mantener y evolucionar.
+  - No debes presentar la solución anterior como incorrecta o inútil.
+  - La nueva solución conserva el flujo quirúrgico y reemplaza la dependencia del motor de procesos propietario por una arquitectura más mantenible.
+  - No inventes decisiones: usa solo la información entregada.
+  - Si resumes funcionalidades o cambios, prioriza claridad y trazabilidad.
+
+  Tu tarea es:
+  - compactar el texto,
+  - mantener los puntos importantes,
+  - mover al capítulo de diseño solo lo que sea justificación conceptual,
+  - dejar fuera listas largas de acciones si ya están explicadas en implementación.
+  ```
 ]

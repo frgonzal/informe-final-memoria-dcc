@@ -159,17 +159,9 @@ Brooke1996SUS:
   title: "SUS: A quick and dirty usability scale"
   author: John Brooke
   page-range: 189-194
-  parent:
-    type: Book
+  periodical:
     title: Usability Evaluation in Industry
-    publisher: Taylor & Francis
-    location: London
-    year: 1996
-    editor:
-      - Patrick W. Jordan
-      - Bruce Thomas
-      - Bernard A. Weerdmeester
-      - Ian L. McClelland
+  year: 1996
 
 W3SchoolsIframe:
   type: Web
