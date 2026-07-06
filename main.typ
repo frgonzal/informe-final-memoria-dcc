@@ -941,9 +941,9 @@
 
   == Acciones implementadas fuera de la lista de espera
 
-  La acción `Recepcionar paciente` de admisión se implementó en una aplicación legacy de admisión de pacientes, fuera de la aplicación de proceso quirúrgico. Esa aplicación no comparte el mismo modelo de `Accion` ni de `Estado` usado por la nueva lista de trabajo, por lo que la adaptación se limitó a agregar lógica para obtener intervenciones programadas de pabellón que ahora se representan como citas de Agenda, sin realizar cambios visuales en la interfaz existente.
+  La admisión de pacientes es parte del proceso quirúrgico, pero la realiza el personal de admisión y no el equipo que opera la aplicación de atención quirúrgica. Ese proceso conserva su aplicación legacy de admisión de pacientes, que no comparte el modelo de `Accion` ni de `Estado` de la nueva lista de trabajo. Como la programación de pabellón ahora se representa como citas de Agenda, fue necesario adaptar esa aplicación para que el flujo completo —admisión, recepción e intervención— pudiera seguir funcionando de forma coordinada.
 
-  Para soportarla, la lista legacy se extendió para mostrar citas quirúrgicas electivas junto con las admisiones, instancias y traslados que ya manejaba. La @fig-admision-paciente-lista muestra una cita de Agenda que representa una atención quirúrgica programada y que puede recepcionarse desde esa aplicación. Al seleccionarla, se abre el formulario de admisión con los datos de la cita y del paciente; al confirmar, se ejecuta la admisión y la cita queda lista para continuar con la recepción en pabellón dentro del flujo quirúrgico.
+  La adaptación se limitó a extender la lista legacy para mostrar citas quirúrgicas electivas junto con las admisiones, instancias y traslados que ya manejaba. La @fig-admision-paciente-lista muestra una cita de Agenda que representa una atención quirúrgica programada y que puede recepcionarse desde esa aplicación. Al seleccionarla, se abre el formulario de admisión con los datos de la cita y del paciente; al confirmar, se ejecuta la admisión y la cita queda lista para continuar con la recepción en pabellón dentro del flujo quirúrgico.
 
   #figure(
     image("./imagenes/cap06-admision-paciente-lista.png", width: 100%),
