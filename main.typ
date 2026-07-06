@@ -168,56 +168,37 @@
 ]
 
 #capitulo(title: "Marco tecnológico y arquitectura de la plataforma")[
-  Este capítulo presenta las tecnologías y conceptos arquitectónicos sobre los cuales se construye la modernización del módulo de atención quirúrgica. A diferencia del capítulo anterior, que describe el dominio clínico-operativo y la situación inicial del módulo, aquí se revisan los elementos técnicos que permiten implementar la nueva solución: microservicios, frontend modular, workflows, Temporal, eventos y coordinación configurable de procesos.
-
-  El objetivo no es documentar toda la arquitectura interna de la Plataforma Lahuén, sino establecer el marco necesario para comprender las decisiones tomadas durante el desarrollo. En particular, interesa explicar por qué el reemplazo del motor de procesos propietario se apoya en una arquitectura distribuida, en un runtime de workflows durable y en definiciones declarativas que permiten coordinar acciones complejas sin codificar cada flujo de forma rígida.
+  Este capítulo presenta las tecnologías y conceptos arquitectónicos que sustentan la modernización del módulo de atención quirúrgica: microservicios, frontend modular, workflows, Temporal, eventos y coordinación configurable de procesos. Su propósito es establecer el marco técnico necesario para comprender cómo el reemplazo del motor de procesos propietario se resuelve mediante una arquitectura distribuida, un runtime de workflows durable y definiciones declarativas que coordinan acciones complejas. El capítulo siguiente utiliza esta base para explicar cómo se organizan estados, entidades, acciones, formularios, eventos y coordinación del nuevo módulo.
 
   == Arquitectura general de Lahuén
 
-  La Plataforma Lahuén se organiza como un conjunto de aplicaciones y servicios que colaboran para implementar procesos asistenciales. En el backend, la plataforma utiliza microservicios construidos principalmente en PHP, lenguaje orientado al desarrollo de aplicaciones web y servicios de servidor @PHPDocs. Estos servicios concentran responsabilidades por dominio funcional, por ejemplo agenda, registro clínico, hospitalización, formularios, procesos y tareas. Esta separación permite que cada servicio exponga operaciones específicas y que los módulos de la plataforma integren capacidades de distintos dominios sin concentrar toda la lógica en una aplicación monolítica.
-
-  En términos generales, la arquitectura de microservicios busca dividir un sistema en servicios pequeños, desplegables y mantenibles de forma independiente. Esta decisión entrega flexibilidad, pero también introduce desafíos de coordinación: una acción de negocio puede requerir llamadas a varios servicios, manejo de estados intermedios, reintentos, trazabilidad y control de errores. La literatura sobre microservicios reconoce esta tensión entre autonomía de servicios y complejidad de interacción, especialmente cuando los flujos de negocio se distribuyen entre múltiples componentes @NadeemM2022.
-
-  En el contexto de este trabajo, dicha tensión aparece con claridad en el proceso quirúrgico. Acciones como recepcionar un paciente, cambiar su ubicación, registrar hitos intraoperatorios, crear tareas clínicas o finalizar etapas del flujo no pertenecen necesariamente a un único servicio. Por ello, la modernización requiere una forma de coordinar operaciones distribuidas sin volver a construir un motor de procesos propietario acoplado a un módulo específico.
+  La Plataforma Lahuén se organiza como un conjunto de aplicaciones frontend y servicios backend que colaboran para implementar procesos asistenciales. Los servicios backend concentran responsabilidades por dominio funcional, como agenda, registro clínico, hospitalización, formularios, procesos y tareas, mientras que las aplicaciones frontend ofrecen interfaces especializadas para distintos roles y tareas. Esta separación permite evolucionar cada parte de manera relativamente independiente, pero también introduce desafíos de coordinación cuando una acción de negocio cruza varios dominios.
 
   == Backend y microservicios PHP <sec-backend-microservicios>
 
-  Los microservicios backend de Lahuén están implementados principalmente en PHP y se estructuran en torno a APIs, entidades de negocio, servicios, stores y esquemas de validación. Entre los proyectos relevantes para este trabajo aparecen paquetes asociados a dominios como agenda, salud, gestión clínica y procesos. Estos servicios son responsables de consultar y modificar datos de negocio, aplicar reglas propias de cada dominio y emitir eventos cuando ocurren cambios relevantes.
+  Los microservicios backend de Lahuén están implementados principalmente en PHP, lenguaje orientado al desarrollo de aplicaciones web y servicios de servidor @PHPDocs, y se estructuran en torno a APIs, entidades de negocio, servicios, stores y esquemas de validación. Estos servicios son responsables de consultar y modificar datos de negocio, aplicar reglas propias de cada dominio y emitir eventos cuando ocurren cambios relevantes.
 
-  Para el módulo quirúrgico, los servicios backend más relevantes son aquellos que permiten consultar pacientes y atenciones, crear o actualizar citas, mover pacientes entre ubicaciones, registrar documentos clínicos y coordinar tareas del proceso. Esta distribución permite reutilizar capacidades existentes de la plataforma, pero también obliga a que ciertas acciones del flujo quirúrgico sean implementadas como coordinaciones entre servicios. Por ejemplo, una transición de estado puede requerir actualizar una atención clínica, liberar o utilizar una ubicación, registrar una tarea y dejar trazabilidad del evento.
+  Los principales microservicios relevantes para este trabajo son los siguientes:
+  - `HLTH`: gestiona atenciones clínicas, ubicaciones de pacientes y datos de salud.
+  - `XRM`: gestiona el modelo de personas de la plataforma, que incluye pacientes, clínicos y terceros.
+  - `Agenda`: gestiona citas, programación y participantes.
+  - `BPM`: centraliza la instanciación de workflows y tareas de procesos.
+  - `AUTH`: gestiona usuarios, autenticación y permisos.
+  - `FORMS`: genera documentos a partir de plantillas.
+  - `DMS`: permite obtener documentos generados por `FORMS` desde el frontend.
+  - `HEGC`: servicio integrador y orquestador entre microservicios, incluyendo la adaptación de datos de sistemas previos como Gestión Hospitales.
 
-  La decisión de mantener esta separación es importante para la modernización. En lugar de concentrar toda la lógica quirúrgica en una aplicación aislada, la nueva solución se integra con los servicios existentes y utiliza mecanismos de coordinación para acciones que cruzan límites de dominio. Esto permite conservar la modularidad de la plataforma y, al mismo tiempo, disponer de puntos explícitos para ejecutar flujos de negocio.
-
-  Varias entidades de la plataforma incluyen un campo de datos extendidos, o `extendedData`, almacenado como JSON. Este campo permite guardar información estructurada que depende del contexto de uso de la entidad, sin mezclarla con los atributos comunes del modelo. En el módulo quirúrgico, la información específica del flujo se almacena principalmente bajo la propiedad `pabellon`, de modo que datos como estado operacional, programación, intervenciones, diagnósticos, responsable, origen y hitos queden agrupados en una sección propia. Esto es especialmente relevante en entidades reutilizadas por distintos módulos, como la atención de paciente, porque permite agregar información quirúrgica sin afectar otros contextos clínicos.
-
-  Junto a los microservicios de dominio, la plataforma también cuenta con servicios que cumplen funciones de coordinación más específicas. Un caso relevante para el proceso quirúrgico es el servicio HEGC, que integra información proveniente de Gestión Hospitales con servicios de Lahuén como HLTH, XRM y Agenda. Esta forma de coordinación es más imperativa y acoplada al caso de uso, pero resulta necesaria cuando el origen de datos se encuentra en una aplicación anterior de la plataforma, con base de datos, tablas y esquemas distintos a los usados por los microservicios actuales.
+  Varias entidades de la plataforma incluyen un campo de datos extendidos, o `extendedData`, almacenado como JSON. Este campo permite guardar información contextual de un módulo sin mezclarla con los atributos comunes del modelo, lo que resulta útil para conservar datos relevantes de un flujo en entidades reutilizadas por distintos contextos clínicos.
 
   == Arquitectura frontend: aplicaciones, listas de trabajo y plugins <sec-arquitectura-frontend>
 
-  El frontend moderno de Lahuén se construye sobre una arquitectura modular basada en componentes Vue 2 @Vue2Docs. La base compartida de esa arquitectura se encuentra en `shared`, proyecto que concentra elementos reutilizables por distintas aplicaciones: componentes genéricos de interfaz, como tablas, selectores, datepickers y typeaheads; formateadores; utilidades JavaScript; proxies de API; estilos; imágenes; íconos y skins. Las skins agrupan CSS y recursos visuales para adaptar una aplicación a una institución o contexto visual específico.
+  El frontend moderno de Lahuén se construye sobre una arquitectura modular basada en componentes Vue 2 @Vue2Docs. La base compartida `shared` concentra componentes genéricos, utilidades, estilos y recursos visuales reutilizables. Sobre ella, la clase `WebApp` permite construir aplicaciones con un ciclo de vida, configuración, APIs, store, rutas y eventos comunes. Las aplicaciones se extienden mediante plugins, que registran módulos, componentes, formularios y reglas de dominio sin alterar la base compartida.
 
-  Dentro de `shared` también se define `WebApp`, clase reutilizable para construir aplicaciones modernas de la plataforma. `WebApp` inicializa el ciclo de vida de una aplicación, carga configuración, prepara APIs, store, rutas, recursos visuales, autenticación y eventos. Como se observa en la @fig-arquitectura-web-app, una aplicación puede construirse directamente sobre `WebApp` para obtener estas capacidades comunes y luego agregar su propia estructura, componentes y comportamiento.
+  Un patrón frecuente en la plataforma son las listas de trabajo, o worklists, que organizan la operación diaria en torno a una grilla de casos, filtros y acciones. La aplicación de proceso quirúrgico sigue este patrón. El detalle de la arquitectura frontend, incluyendo la relación entre `WebApp`, plugins y recursos compartidos, se describe en el @anexo-arquitectura-plataforma.
 
-  La personalización de una aplicación también se apoya en configuración. Cada proyecto frontend incluye un archivo de manifiesto y la plataforma mantiene una configuración asociada en MongoDB; `WebApp` combina ambas fuentes para obtener la configuración final. En general, el manifiesto define información del paquete y APIs disponibles, mientras que la configuración de MongoDB define variables usadas por la aplicación o por sus plugins, como plugins activos y parámetros de comportamiento.
+  == Orquestación y coreografía de procesos
 
-  #figure(
-    image("./imagenes/arquitectura_web_app_1.png", width: 80%),
-    caption: [Relación entre `WebApp`, aplicaciones, plugins y recursos compartidos en la arquitectura frontend de Lahuén.],
-  ) <fig-arquitectura-web-app>
-
-  `WebApp` también soporta plugins. La clase base `Plugin`, ubicada en `shared`, entrega a cada plugin acceso a la aplicación, store, APIs y eventos. Con este mecanismo, una aplicación puede cargar piezas de funcionalidad separadas y permitir que cada plugin registre comportamiento específico. Los plugins sirven para extender una aplicación sin mezclar toda la lógica en su base común.
-
-  Un tipo frecuente de aplicación en Lahuén son las listas de trabajo, o worklists. Estas aplicaciones organizan la operación diaria alrededor de una grilla de casos, filtros, navegación, panel de acciones, paginación, ordenamiento y actualización de filas. Para este patrón existe una aplicación base de worklists construida sobre `WebApp`, junto con `WorklistPlugin`, una extensión de `Plugin` que agrega comportamiento común para plugins de listas de trabajo.
-
-  La personalización de una worklist se realiza mediante plugins. Un plugin de worklist puede registrar módulos, componentes, menús, filtros, grillas, formularios, suscripciones a eventos y reglas del dominio. De esta forma, la aplicación base conserva la estructura común, mientras que cada plugin define cómo se muestran y operan los casos de un proceso específico.
-
-  En las worklists también existen plugins comunes, como `standard`, que permiten reutilizar modelos y formularios entre aplicaciones. Estos componentes viven en un plugin porque son más específicos que los componentes genéricos de `shared`: por ejemplo, secciones de formularios asociadas a paciente, clínico, ubicación o admisión. En cambio, `shared` contiene piezas más transversales, como componentes de tabla, datepicker, select, typeahead, formateadores, utilidades, skins e íconos.
-
-  == Procesos de negocio y workflows
-
-  Un proceso quirúrgico no corresponde a una única operación puntual. Se trata de un flujo de larga duración compuesto por eventos, decisiones, esperas, excepciones y cambios de estado. Además, por motivos legales y de trazabilidad, el sistema debe registrar tiempos, hitos y otras acciones relevantes del proceso. Eso exige modelar la operación como una secuencia verificable de estados y transiciones, más que como una acción aislada.
-
-  En sistemas de microservicios, existen dos formas comunes de coordinar este tipo de procesos: coreografía y orquestación. En una coreografía, los servicios reaccionan a eventos y cada uno decide localmente qué hacer. En una orquestación, existe un componente que coordina explícitamente la secuencia de actividades. La coreografía reduce dependencias directas, pero puede dificultar la observación global del proceso cuando el flujo queda distribuido entre múltiples servicios. La orquestación, en cambio, permite representar el proceso de forma más explícita y facilita entender qué actividades se ejecutaron, cuáles fallaron y en qué estado se encuentra una instancia @NadeemM2022.
+  En sistemas de microservicios, existen dos formas comunes de coordinar procesos de negocio: coreografía y orquestación. En una coreografía, los servicios reaccionan a eventos y cada uno decide localmente qué hacer. En una orquestación, existe un componente que coordina explícitamente la secuencia de actividades. La coreografía reduce dependencias directas, pero puede dificultar la observación global del proceso cuando el flujo queda distribuido entre múltiples servicios. La orquestación, en cambio, permite representar el proceso de forma más explícita y facilita entender qué actividades se ejecutaron, cuáles fallaron y en qué estado se encuentra una instancia @NadeemM2022.
 
   Para el caso del módulo quirúrgico, la orquestación resulta adecuada porque muchas acciones requieren una secuencia definida y trazable. La recepción de un paciente, el avance de hitos intraoperatorios, la suspensión de una cirugía o la creación de tareas asociadas al protocolo operatorio son ejemplos de acciones donde importa el orden, el resultado de pasos previos y el estado final del proceso. Por ello, los workflows durables son una alternativa técnica pertinente para coordinar operaciones distribuidas sin concentrar toda la lógica en la interfaz de usuario ni repartirla de forma implícita entre servicios.
 
@@ -233,43 +214,28 @@
 
   == Coordinación mediante eventos, BPM y SSE
 
-  Dentro de la solución, el microservicio BPM cumple el rol de punto de integración para procesos. Su responsabilidad no es reemplazar a todos los servicios de dominio, sino ofrecer un mecanismo común para iniciar workflows de Temporal. En términos prácticos, el frontend o un servicio de la plataforma puede solicitar la ejecución de una acción de negocio; BPM recibe la solicitud, instancia el workflow correspondiente y deja su ejecución a cargo de Temporal y de los workers registrados.
+  La plataforma combina tres mecanismos para coordinar procesos y mantener actualizada la interfaz. Los eventos comunican que algo ocurrió en el sistema y permiten que otros componentes reaccionen sin acoplarse al emisor. Las suscripciones BPM convierten ciertos eventos en inicios de workflows de Temporal. Los workflows, por su parte, coordinan acciones que deben ejecutarse como parte de un flujo durable. Finalmente, el servicio de SSE entrega los eventos al frontend mediante una conexión persistente, para que una lista de trabajo se actualice cuando cambian las entidades relevantes.
 
-  La plataforma también utiliza mecanismos de mensajería para comunicar eventos entre componentes. Los microservicios actuales emiten eventos relevantes cuando ejecutan acciones sobre entidades de negocio, por ejemplo cambios en citas, atenciones, indicaciones o evaluaciones. Estos eventos se publican como mensajes en tópicos Kafka, y Kafka se encarga de ponerlos a disposición de los consumidores interesados. De esta manera, otros componentes pueden reaccionar sin acoplarse directamente al servicio que produjo el cambio. Por ejemplo, cuando una atención cambia de estado, el servicio de salud puede emitir un evento que informa el paciente, la atención, el tipo de atención, el estado y el tipo de operación realizada.
+  El microservicio BPM cumple el rol de punto de integración para procesos. Su responsabilidad no es reemplazar a los servicios de dominio, sino ofrecer un mecanismo común para iniciar workflows de Temporal. El frontend o un servicio puede solicitar la ejecución de una acción de negocio; BPM recibe la solicitud, instancia el workflow correspondiente y deja su ejecución a cargo de Temporal y de los workers registrados.
 
-  Estos eventos pueden ser utilizados de dos maneras relevantes para este trabajo. Primero, BPM puede escuchar eventos mediante suscripciones configuradas en base de datos. Cada suscripción define el tópico, filtros y una transformación que permite iniciar un workflow de Temporal cuando ocurre una condición de negocio. Segundo, existe un servicio de SSE, sigla de Server-Sent Events, que actúa como consumidor de eventos Kafka y los entrega al frontend mediante un canal persistente. Este servicio expone un endpoint al que el navegador se conecta mediante una solicitud `GET`; desde ese momento, el servidor puede escribir mensajes en la conexión abierta. En la nueva lista de trabajo quirúrgica, SSE se utiliza para reaccionar ante cambios en atenciones, citas, indicaciones o evaluaciones, actualizando la vista con menor latencia y mejorando la coordinación operativa.
+  Los microservicios actuales emiten eventos relevantes cuando ejecutan acciones sobre entidades de negocio, como cambios en citas, atenciones, indicaciones o evaluaciones. Estos eventos se publican en tópicos Kafka y pueden consumirse de dos formas. Por un lado, BPM escucha eventos mediante suscripciones configuradas en base de datos; cada suscripción define el tópico, filtros y una transformación que permite iniciar un workflow cuando ocurre una condición de negocio. Por otro lado, el servicio de SSE consume eventos de Kafka y los reenvía al frontend mediante un canal persistente, al que el navegador se conecta mediante una solicitud `GET`.
 
-  Esta combinación permite separar tres tipos de comunicación. Los eventos comunican que algo ocurrió en el sistema y permiten que otros componentes reaccionen. Las suscripciones BPM convierten ciertos eventos en inicios de procesos. Los workflows, en cambio, coordinan acciones que deben ejecutarse como parte de un flujo durable. En el módulo quirúrgico estas ideas conviven: algunos cambios se publican como eventos de negocio, algunos eventos gatillan workflows y ciertas acciones críticas se ejecutan mediante orquestaciones explícitas.
+  == Workflows configurables
 
-  == Workflows configurables y DSL
+  Una forma de reducir el acoplamiento en procesos repetitivos es describir parte de la coordinación mediante configuraciones interpretadas por un workflow. En vez de codificar cada secuencia como una implementación distinta, una definición puede indicar qué actividades ejecutar, con qué datos, en qué orden y bajo qué condiciones. En una arquitectura con Temporal, el runtime entrega ejecución durable, historial, workers y reintentos, mientras que la configuración describe la secuencia específica que debe interpretarse. Esto permite separar la infraestructura durable de la descripción concreta de cada acción de negocio.
 
-  Una forma de reducir el acoplamiento en procesos repetitivos es describir parte de la coordinación mediante configuraciones interpretadas por un workflow. En vez de codificar cada secuencia como una implementación distinta, una definición puede indicar qué actividades ejecutar, con qué datos, en qué orden y bajo qué condiciones. Este tipo de enfoque permite separar la infraestructura durable del workflow de la descripción concreta de cada acción de negocio.
-
-  Esta idea se relaciona con el uso de lenguajes específicos de dominio, o DSL, para modelar problemas recurrentes con abstracciones cercanas al dominio. En arquitecturas de microservicios, los DSL pueden ayudar a describir componentes, conexiones y reglas de ejecución de manera más modular y comprensible, reduciendo parte de la complejidad accidental del sistema @SolisCK2025. De forma similar, los workflows guiados por datos permiten que ciertas decisiones de ejecución dependan de la estructura y contenido de los mensajes o configuraciones, moviendo parte de la lógica desde código rígido hacia definiciones interpretadas en tiempo de ejecución @SafinaMM2015.
-
-  En una arquitectura basada en Temporal, este enfoque no reemplaza al runtime de workflows. Temporal entrega ejecución durable, historial, workers y reintentos; la configuración describe la secuencia específica que debe interpretarse. Esta separación resulta útil cuando distintas acciones comparten un patrón similar: recibir parámetros, validar entrada, consultar datos, llamar servicios, usar respuestas previas y decidir si ciertos pasos deben ejecutarse. En esos casos, una coordinación configurable puede reducir la repetición de código y hacer más explícita la relación entre pasos.
+  En este contexto, una configuración declarativa puede expresar secuencias de actividades, decisiones condicionales, transformaciones de datos y referencias a resultados previos, sin que cada flujo deba implementarse como código independiente. El workflow interpreta esa definición en tiempo de ejecución, moviendo parte de la lógica desde código rígido hacia una especificación que puede revisarse y ajustarse de forma más directa. Este enfoque resulta especialmente útil cuando distintas acciones comparten un patrón similar —recibir parámetros, validar entrada, consultar datos, llamar servicios, usar respuestas previas y decidir si ciertos pasos deben ejecutarse—, porque reduce la repetición de código y hace más explícita la relación entre pasos.
 
   == Servicios orquestadores de dominio
 
-  No toda coordinación de la plataforma se resuelve mediante Temporal. En la arquitectura existente también hay servicios de dominio que cumplen un rol orquestador cuando deben integrar aplicaciones o bases de datos con estructuras distintas. Para el proceso quirúrgico, el caso más importante es el servicio HEGC, que contiene lógica para relacionar Gestión Hospitales con componentes actuales de Lahuén.
+  La plataforma ya cuenta con experiencia previa en la coordinación de servicios. Además de Temporal, existen servicios de dominio que cumplen un rol orquestador cuando deben integrar aplicaciones o bases de datos con estructuras distintas. Para el proceso quirúrgico, el caso más importante es el servicio HEGC, que contiene lógica para relacionar Gestión Hospitales con componentes actuales de Lahuén.
 
-  Gestión Hospitales es una aplicación de Lahuén desarrollada previamente para apoyar la gestión de listas de espera. Utiliza una base de datos más antigua, con tablas y esquemas distintos a los usados por los microservicios actuales. Como la programación quirúrgica electiva se registra allí, iniciar el proceso quirúrgico en la nueva lista requiere leer las órdenes programadas para el día, transformar sus datos y vincularlos con servicios como HLTH, XRM y Agenda.
+  HEGC resuelve integraciones específicas mediante clases PHP que llaman a otros servicios, como la creación de citas de Agenda a partir de órdenes quirúrgicas, la finalización de una cirugía o la suspensión de una orden. Sin embargo, este enfoque también tiene limitaciones: la lógica queda codificada en clases concretas, los cambios en datos requieren modificar código y la coordinación queda más acoplada al caso de uso que en una orquestación declarativa.
 
-  El servicio HEGC resuelve este tipo de integración mediante clases PHP que llaman a otros servicios y construyen las estructuras necesarias para la plataforma. Este enfoque permite resolver integraciones específicas, como la creación de citas de Agenda a partir de órdenes quirúrgicas, la finalización de una cirugía o la suspensión de una orden. Sin embargo, también tiene limitaciones: la lógica queda codificada en una clase concreta, los cambios de datos requieren modificar código y la coordinación queda más acoplada al caso de uso que en una orquestación declarativa. Por esta razón, en el desarrollo fue necesario modificar este servicio cuando cambió la forma de importar los datos quirúrgicos.
-
-  == Relación con la modernización del módulo quirúrgico
-
-  Los elementos descritos en este capítulo explican la base técnica necesaria para modernizar el módulo quirúrgico. El problema combina una interfaz de trabajo clínico, entidades distribuidas entre servicios, integración con sistemas previos, coordinación de acciones complejas y actualización oportuna de la información mostrada al usuario.
-
-  Por ello, la solución debía apoyarse en componentes existentes de la plataforma: una aplicación frontend modular para construir la lista de trabajo, microservicios de dominio para operar sobre datos clínicos y administrativos, eventos para comunicar cambios, BPM y Temporal para coordinar procesos, y servicios específicos para adaptar información proveniente de Gestión Hospitales.
-
-  Esta base tecnológica conecta con el diseño de la solución. El capítulo siguiente explica cómo el nuevo módulo organiza estados, entidades, acciones, formularios, eventos y coordinación para conservar el flujo quirúrgico validado por la plataforma sin reconstruir la dependencia anterior del motor de procesos propietario.
 ]
 
 #capitulo(title: "Diseño de la solución")[
-  Este capítulo presenta el diseño conceptual de la solución propuesta para modernizar el módulo de atención quirúrgica. El foco está en explicar cómo se organiza el flujo, qué componentes participan y cómo se conectan para sostener la operación clínica.
-
-  La intención es mostrar las decisiones de diseño antes de entrar en detalles técnicos. La implementación concreta de acciones, servicios, eventos, formularios y orquestaciones se desarrolla en el capítulo siguiente.
+  Este capítulo presenta el diseño conceptual de la solución, enfocado en cómo se organiza el flujo quirúrgico, qué componentes participan y cómo se conectan para sostener la operación clínica. Aquí se describen las decisiones de diseño antes de entrar en los detalles de implementación del capítulo siguiente.
 
   Las funcionalidades se diseñaron durante el desarrollo mediante reuniones de trabajo con tres supervisores que aportaron perspectivas complementarias. El supervisor con rol de Arquitectura de Software apoyó las decisiones técnicas, el entendimiento de la plataforma y la comprensión del flujo anterior para poder replicarlo sobre la arquitectura actual. El líder del proyecto y CEO de la empresa aportó una visión de negocio y de uso operacional, además de participar en revisiones y pruebas de las funcionalidades implementadas. El CTO de la empresa aportó una visión técnica, especialmente al proponer la idea del orquestador dinámico como mecanismo para reemplazar la dependencia del motor de procesos propietario en las acciones complejas del flujo.
 
@@ -305,19 +271,15 @@
   - *Estados de salida*: 'Esperando alta' corresponde a pacientes ambulatorios a los que no se les indica hospitalización, por lo que deben recibir el alta para retirarse. 'Esperando egreso' indica que el caso está listo para egresar al paciente. 'Esperando traslado' representa la espera de movimiento hacia otra unidad. 'En tránsito' indica que el paciente ya inició el traslado. 'Finalizada' marca el cierre del caso.
   - *Estado de excepción*: 'Suspendida' representa una atención quirúrgica que fue suspendida. En la aplicación se utiliza en el módulo de atenciones anteriores para identificar esos casos y consultar su información, pero no tiene acciones relevantes dentro del flujo.
 
-  Con estos estados, la lista de trabajo muestra rápidamente quién está pendiente de aceptación, preparado para pabellón, en cirugía, en recuperación o en etapa de salida. También permite reconstruir el recorrido del paciente mediante ubicación, programación, hitos, evaluaciones y documentos disponibles. El registro de fechas asociadas a hitos relevantes del proceso permite mantener trazabilidad operacional sin depender de la instancia de un proceso propietario como única fuente del recorrido.
-
   == Entradas del flujo quirúrgico
 
   La nueva lista de trabajo quirúrgica obtiene los casos desde entidades explícitas y servicios existentes. Con esto se reemplaza la dependencia de instancias del motor de procesos propietario como fuente principal para representar el caso en la grilla.
 
   El diseño debía soportar los dos orígenes principales del proceso quirúrgico: solicitudes de urgencia y atenciones electivas programadas. En el primer caso, el flujo comienza con una indicación quirúrgica originada desde urgencia. En el segundo, comienza con una orden quirúrgica programada en Gestión Hospitales, que debe transformarse para operar dentro de los servicios actuales de la plataforma.
 
-  === Flujo de urgencia
+  === Flujo de urgencia <sec-flujo-urgencia>
 
-  En urgencia, las atenciones solicitadas se construyen desde Indicaciones, una entidad del microservicio HLTH.
-
-  Cuando un clínico indica un procedimiento quirúrgico de urgencia para un paciente, la nueva lista toma esa Indicación y la adapta al modelo de atención quirúrgica. Así se utiliza la entidad clínica existente para representar la solicitud, sin crear otra entidad para modelar la misma información. Desde el estado solicitado, el usuario puede aceptar la orden y continuar el flujo operativo.
+  En urgencia, las atenciones solicitadas se construyen desde Indicaciones, una entidad del microservicio HLTH. Cuando un clínico indica una intervención quirúrgica para un paciente, la aplicación de proceso quirúrgico lee esas indicaciones y las adapta al modelo de atención quirúrgica, sin crear una entidad adicional para representar la solicitud.
 
   === Flujo electivo
 
@@ -341,27 +303,19 @@
 
   === Indication: solicitudes de urgencia
 
-  `Indication` pertenece a HLTH y se usa para representar atenciones solicitadas. La grilla consulta indicaciones en estado 'Indicada' de la categoría 'Intervención en pabellón'. Esa categoría agrupa los tipos 'Electiva ambulatoria', 'Electiva' y 'Urgencia'.
-
-  En la lista de trabajo, estas indicaciones se muestran en el estado 'Solicitada'. El adaptador toma el paciente, la ubicación, el clínico solicitante, la especialidad y la información quirúrgica almacenada en `extendedData`, como intervención, diagnósticos y tiempo operatorio.
-
-  Cuando la orden se acepta, la indicación pasa al estado 'En Curso' y deja de mostrarse en la lista. Desde ese punto, la cita quirúrgica creada pasa a ser la entidad utilizada por el flujo.
+  Como se explicó en la @sec-flujo-urgencia, el flujo de urgencia se construye a partir de la entidad `Indication` de HLTH. Esta entidad representa una solicitud de intervención clínica, lo que la hace adecuada para modelar el inicio del proceso quirúrgico sin necesidad de crear otra entidad adicional. En la lista de trabajo, `Indication` se utiliza en el estado 'Solicitada'.
 
   === Appointment: programaciones quirúrgicas
 
-  `Appointment` pertenece a Agenda y representa cirugías programadas. La grilla consulta citas agendadas de tipo quirúrgico, tanto electivas como de urgencia. En esta etapa son relevantes los estados 'Programada' y 'En espera'.
+  `Appointment` pertenece a Agenda y representa cirugías programadas, tanto electivas como de urgencia. En la lista de trabajo se utiliza en los estados 'Programada' y 'En espera'.
 
-  La cita concentra la información de programación: fecha, pabellón, paciente, clínico responsable, tipo de intervención y referencias al origen. En su `extendedData.pabellon` se almacena información propia del flujo quirúrgico, como datos de creación, intervenciones, diagnósticos, tiempo operatorio y estado operacional cuando corresponde.
-
-  La cita se utiliza mientras el caso se mantiene como programación o espera de ingreso al flujo operativo. Cuando el caso pasa a 'Preoperatorio', la entidad principal del flujo pasa a ser `PatientService`.
+  Entre las entidades disponibles en la plataforma, la cita es la que mejor encaja con estos estados, porque representa una atención futura con una fecha definida, participantes asignados y recursos programados. Otras entidades no se adaptan tan bien a este contexto: una indicación es solo una solicitud clínica y un `PatientService` ya representa una atención en curso. Por eso, durante el diseño se decidió utilizar citas para gestionar las intervenciones en etapa de programación o espera de ingreso.
 
   === PatientService: atención quirúrgica iniciada
 
-  `PatientService` pertenece a HLTH y representa la atención del paciente desde preoperatorio en adelante. Es la entidad más relevante del caso iniciado, porque concentra ubicación, programación, responsable, intervenciones, diagnósticos, ubicación de origen, datos de creación y estado operacional.
+  `PatientService` pertenece a HLTH y representa una atención abierta del paciente dentro del hospital. En la lista de trabajo se utiliza desde el estado 'Preoperatorio' en adelante. Esta entidad es la adecuada para estas etapas porque refleja que el paciente está efectivamente en atención y concentra información relevante del caso: ubicación, programación, responsable, intervenciones, diagnósticos, ubicación de origen y estado operacional.
 
-  La propiedad `stateKey` guarda el estado que utiliza el frontend para conocer la etapa actual del proceso. Las evaluaciones generadas durante el flujo también quedan relacionadas con esta atención, incluyendo evaluación preanestésica, pausas quirúrgicas, protocolo quirúrgico y alta quirúrgica.
-
-  Los hitos temporales de pabellón también se registran en el `extendedData` de `PatientService` a medida que el caso avanza. Los hitos principales son entrada a pabellón, inicio de anestesia, inicio de cirugía, fin de cirugía, fin de anestesia e inicio de recuperación. Estos datos permiten mostrar tiempos relevantes durante la intervención y reutilizarlos luego en documentos clínicos como el protocolo quirúrgico.
+  La versión anterior también utilizaba `PatientService` en el backend, pero el frontend dependía de las instancias del motor de procesos propietario para representar el caso. Como el flujo hospitalario exige que exista un `PatientService` abierto mientras el paciente está en atención, el diseño actual lo utiliza directamente como entidad principal del flujo, eliminando la dependencia del motor de procesos.
 
   Para obtener estas entidades se utilizan APIs y filtros disponibles en los microservicios, de modo que cada fuente entregue casos en los estados relevantes para la lista de trabajo. El capítulo de implementación detalla cómo se obtienen esos datos y cómo se unifican en una sola atención quirúrgica para la grilla.
 
@@ -379,27 +333,23 @@
 
   Cada acción se modela como una clase independiente con nombre, etiqueta, visibilidad, condición de ejecución e interacción esperada. Las acciones simples se resuelven con una operación directa o la apertura de una vista existente. Las acciones complejas se delegan a orquestaciones. Un registro común ordena las acciones para priorizar las principales y agrupar las secundarias.
 
-  La segunda aplicación es el Monitor de pabellones. Su diseño responde a una necesidad distinta: entregar visibilidad agregada sobre el uso de quirófanos. Esta aplicación se construye sobre `WebApp`, carga pabellones desde ubicaciones del área de pabellón y obtiene atenciones quirúrgicas desde atenciones clínicas y citas de Agenda. Luego agrupa la información por pabellón, separando la cirugía en curso de las cirugías programadas o próximas. Con ello, la pantalla permite identificar rápidamente qué pabellones están ocupados, cuál está disponible, qué paciente se encuentra en cada quirófano, en qué estado está la cirugía y qué atenciones siguen en la programación.
+  Esta división en clases responde a la cantidad de estados y a la complejidad de cada uno. En la versión anterior, los estados y las acciones se manejaban mediante condicionales y un diccionario compartido, lo que acoplaba la lógica de visualización, validación y ejecución en un mismo lugar. Esa estructura dificultaba entender qué acciones correspondían a cada etapa y agregar nuevas transiciones sin afectar código ajeno. En el diseño actual se optó por separar la lógica de cada estado y acción en clases propias, aprovechando que el flujo quirúrgico ya define etapas, acciones y condiciones de forma conceptual. Traducir esa estructura a un modelo de clases hace que el código sea más mantenible y extensible a medida que el flujo evoluciona.
 
-  En este monitor, los estados no se usan para habilitar acciones, sino para clasificar la información mostrada. Los estados intraoperatorios permiten identificar la cirugía en curso dentro de un pabellón, mientras que los estados de preparación y programación permiten listar próximas cirugías. La visualización incorpora tiempos relevantes, como el tiempo transcurrido desde el ingreso a pabellón y la comparación con la duración operatoria planificada cuando esa información está disponible. Por esto, el monitor funciona como una herramienta de coordinación interna y no como una interfaz de edición del caso.
+  La segunda aplicación es el Monitor de pabellones, orientado a entregar visibilidad agregada sobre el uso de quirófanos. Esta aplicación se construye sobre `WebApp`, carga pabellones desde ubicaciones del área de pabellón y obtiene atenciones quirúrgicas desde atenciones clínicas y citas de Agenda. Luego agrupa la información por pabellón, separando la cirugía en curso de las cirugías programadas o próximas. En este monitor, los estados no habilitan acciones sino que clasifican la información mostrada: los estados intraoperatorios identifican la cirugía en curso, mientras que los estados de preparación y programación permiten listar próximas cirugías. Por esto, el monitor funciona como una herramienta de coordinación interna y no como una interfaz de edición del caso.
 
-  La tercera aplicación es el Monitor de pacientes, orientado a familiares o acompañantes en sala de espera. Esta aplicación también se construye sobre `WebApp`, consulta atenciones quirúrgicas y citas, y adapta los datos a un modelo reducido. A diferencia de la vista operativa, su diseño elimina acciones clínicas y restringe la información visible a datos necesarios para orientación general: nombre abreviado del paciente, estado del proceso y ubicación o etapa actual. La pantalla se presenta como una tabla de lectura, con paginación automática cuando existen más casos que los que caben en una sola vista.
-
-  El Monitor de pacientes reutiliza los estados del flujo, pero los simplifica para un público no clínico. Por ejemplo, los estados intraoperatorios se presentan como una etapa general de pabellón, evitando exponer detalles que no aportan a la comprensión de los familiares. Esta decisión mantiene la utilidad informativa de la pantalla y al mismo tiempo reduce el riesgo de mostrar información clínica innecesaria.
+  La tercera aplicación es el Monitor de pacientes, orientado a familiares o acompañantes en sala de espera. Esta aplicación también se construye sobre `WebApp`, consulta atenciones quirúrgicas y citas, y adapta los datos a un modelo reducido. A diferencia de la vista operativa, elimina acciones clínicas y restringe la información visible a datos necesarios para orientación general: nombre abreviado del paciente, estado del proceso y ubicación o etapa actual. Además, reutiliza los estados del flujo pero los simplifica para un público no clínico; por ejemplo, los estados intraoperatorios se presentan como una etapa general de pabellón, evitando exponer detalles clínicos innecesarios.
 
   Las tres aplicaciones comparten un principio de diseño: todas dependen del mismo estado operacional del proceso quirúrgico, pero cada una lo traduce a una experiencia distinta. La aplicación de pabellón permite operar; el Monitor de pabellones permite coordinar; y el Monitor de pacientes permite informar. Esta separación mantiene la coherencia del flujo y evita duplicar reglas clínicas, pero permite ajustar componentes, columnas, filtros y nivel de detalle según el usuario al que se dirige cada pantalla.
 
   == Formularios y documentos clínicos <sec-diseno-formularios-documentos-clinicos>
 
-  El flujo quirúrgico requiere formularios con distintos niveles de complejidad. Por eso, el diseño usa tres mecanismos según el tipo de información que se debe registrar.
+  El flujo quirúrgico requiere registrar información de distinta naturaleza. Algunos registros pertenecen al flujo operativo del pabellón, mientras que otros son documentos clínicos que deben quedar en la ficha del paciente. Por eso, el diseño usa tres mecanismos según el tipo de información que se debe registrar.
 
-  No todos los registros del flujo tienen la misma naturaleza. Algunos corresponden a interacciones propias del proceso quirúrgico, mientras que otros pertenecen a la ficha clínica del paciente. Por ello, el diseño evitó tratar todos los formularios de la misma forma: cuando el registro correspondía a una evaluación clínica formal, se buscó reutilizar la aplicación EHR y mantener la relación con la atención del paciente y con los tipos de evaluación definidos por la plataforma.
-
-  Los formularios propios del plugin se usan cuando la interacción pertenece solo al flujo quirúrgico y requiere comportamiento específico de la lista de trabajo. Un caso de este tipo es la recepción del paciente, que opera con datos del caso y selección de ubicación dentro del contexto de pabellón.
+  Los formularios propios del plugin se usan cuando la interacción pertenece exclusivamente al flujo quirúrgico y requiere comportamiento específico de la lista de trabajo. Un ejemplo es la recepción del paciente, que opera con datos del caso y selección de ubicación dentro del contexto de pabellón.
 
   Los formularios tipo checklist se usan para registros simples basados en preguntas, opciones y observaciones. Este mecanismo resulta adecuado para pausas quirúrgicas y cuidados intraoperatorios, porque permite guardar respuestas estructuradas con menor costo de desarrollo.
 
-  Los formularios clínicos más completos se integran usando un componente compartido de `shared` para cargar evaluaciones de EHR. Internamente, ese componente utiliza el elemento `iframe` para cargar el formulario desde una ruta configurada; este elemento permite embeber otro documento HTML dentro del documento actual mediante una ruta `src` @W3SchoolsIframe. En la plataforma este mecanismo ya existía: los formularios se configuran por base de datos mediante configuraciones JSON que definen la ruta, parámetros y comportamiento de carga. En el módulo quirúrgico se reutilizó para documentos que pertenecen directamente a la ficha clínica del paciente, como evaluación preanestésica y protocolo quirúrgico. Con esta separación, cada formulario usa el mecanismo más adecuado para su complejidad y para el lugar donde debe persistirse la información.
+  Los formularios clínicos formales, como la evaluación preanestésica y el protocolo quirúrgico, se cargan desde EHR mediante un componente compartido de `shared`. Este mecanismo reutiliza la infraestructura existente de formularios clínicos y mantiene la relación con la atención del paciente, de modo que la información queda almacenada en la ficha clínica correspondiente.
 
   == Diseño del orquestador dinámico
 
@@ -1604,6 +1554,27 @@
 ]
 
 #show: end-doc
+
+#apendice(title: "Arquitectura de la plataforma", label: <anexo-arquitectura-plataforma>)[
+  El frontend moderno de Lahuén se construye sobre una arquitectura modular basada en componentes Vue 2 @Vue2Docs. La base compartida de esa arquitectura se encuentra en `shared`, proyecto que concentra elementos reutilizables por distintas aplicaciones: componentes genéricos de interfaz, como tablas, selectores, datepickers y typeaheads; formateadores; utilidades JavaScript; proxies de API; estilos; imágenes; íconos y skins. Las skins agrupan CSS y recursos visuales para adaptar una aplicación a una institución o contexto visual específico.
+
+  Dentro de `shared` también se define `WebApp`, clase reutilizable para construir aplicaciones modernas de la plataforma. `WebApp` inicializa el ciclo de vida de una aplicación, carga configuración, prepara APIs, store, rutas, recursos visuales, autenticación y eventos. Como se observa en la @fig-arquitectura-web-app, una aplicación puede construirse directamente sobre `WebApp` para obtener estas capacidades comunes y luego agregar su propia estructura, componentes y comportamiento.
+
+  La personalización de una aplicación también se apoya en configuración. Cada proyecto frontend incluye un archivo de manifiesto y la plataforma mantiene una configuración asociada en MongoDB; `WebApp` combina ambas fuentes para obtener la configuración final. En general, el manifiesto define información del paquete y APIs disponibles, mientras que la configuración de MongoDB define variables usadas por la aplicación o por sus plugins, como plugins activos y parámetros de comportamiento.
+
+  #figure(
+    image("./imagenes/arquitectura_web_app_1.png", width: 80%),
+    caption: [Relación entre `WebApp`, aplicaciones, plugins y recursos compartidos en la arquitectura frontend de Lahuén.],
+  ) <fig-arquitectura-web-app>
+
+  `WebApp` también soporta plugins. La clase base `Plugin`, ubicada en `shared`, entrega a cada plugin acceso a la aplicación, store, APIs y eventos. Con este mecanismo, una aplicación puede cargar piezas de funcionalidad separadas y permitir que cada plugin registre comportamiento específico. Los plugins sirven para extender una aplicación sin mezclar toda la lógica en su base común.
+
+  Un tipo frecuente de aplicación en Lahuén son las listas de trabajo, o worklists. Estas aplicaciones organizan la operación diaria alrededor de una grilla de casos, filtros, navegación, panel de acciones, paginación, ordenamiento y actualización de filas. Para este patrón existe una aplicación base de worklists construida sobre `WebApp`, junto con `WorklistPlugin`, una extensión de `Plugin` que agrega comportamiento común para plugins de listas de trabajo.
+
+  La personalización de una worklist se realiza mediante plugins. Un plugin de worklist puede registrar módulos, componentes, menús, filtros, grillas, formularios, suscripciones a eventos y reglas del dominio. De esta forma, la aplicación base conserva la estructura común, mientras que cada plugin define cómo se muestran y operan los casos de un proceso específico.
+
+  En las worklists también existen plugins comunes, como `standard`, que permiten reutilizar modelos y formularios entre aplicaciones. Estos componentes viven en un plugin porque son más específicos que los componentes genéricos de `shared`: por ejemplo, secciones de formularios asociadas a paciente, clínico, ubicación o admisión. En cambio, `shared` contiene piezas más transversales, como componentes de tabla, datepicker, select, typeahead, formateadores, utilidades, skins e íconos.
+]
 
 #apendice(title: "Documentos generados", label: <anexo-documentos-generados>)[
   #figure(
