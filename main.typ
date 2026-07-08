@@ -1374,18 +1374,7 @@
 
   La evaluación de usabilidad combinó inspección experta, recorridos cognitivos y una encuesta SUS. El cuestionario SUS, propuesto por Brooke, es un instrumento breve de diez preguntas en escala Likert que permite obtener una aproximación rápida a la usabilidad percibida de un sistema @Brooke1996SUS. La guía de usabilidad utilizada como referencia recomienda interpretar este instrumento con cautela, especialmente cuando se aplica una traducción ad-hoc y cuando el resultado se encuentra cerca del valor de referencia habitual de 68 puntos @BaloianPino2024Usabilidad.
 
-  La encuesta fue respondida por 10 personas que utilizan el software, incluyendo perfiles de enfermería, técnicos y anestesistas. Las preguntas aplicadas fueron las siguientes:
-
-  - Me gustaría usar esta herramienta frecuentemente.
-  - Considero que esta herramienta es innecesariamente compleja.
-  - Considero que la herramienta es fácil de usar.
-  - Considero necesario el apoyo de personal experto para poder utilizar esta herramienta.
-  - Considero que las funciones de la herramienta están bien integradas.
-  - Considero que la herramienta presenta muchas contradicciones.
-  - Imagino que la mayoría de las personas aprenderían a usar esta herramienta rápidamente.
-  - Considero que el uso de esta herramienta es tedioso.
-  - Me sentí muy confiado al usar la herramienta.
-  - Necesité saber bastantes cosas antes de poder empezar a usar esta herramienta.
+  La encuesta fue respondida por 10 personas que utilizan el software, incluyendo perfiles de enfermería, técnicos y anestesistas. El instrumento completo, con las diez preguntas en escala Likert de 1 a 5, se presenta en el @anexo-instrumentos-evaluacion.
 
   #figure(
     table(
@@ -1706,6 +1695,29 @@
     }
   }
   ```
+]
+
+#apendice(title: "Instrumentos de evaluación", label: <anexo-instrumentos-evaluacion>)[
+  El cuestionario SUS aplicado a los participantes se presenta en la @tab-encuesta-sus. Las preguntas utilizan una escala Likert de 1 (totalmente en desacuerdo) a 5 (totalmente de acuerdo).
+
+  #figure(
+    table(
+      columns: (1fr, auto, auto, auto, auto, auto),
+      align: (left, center, center, center, center, center),
+      table.header([*Pregunta*], [*1*], [*2*], [*3*], [*4*], [*5*]),
+      [1. Me gustaría usar esta herramienta frecuentemente.], [], [], [], [], [],
+      [2. Considero que esta herramienta es innecesariamente compleja.], [], [], [], [], [],
+      [3. Considero que la herramienta es fácil de usar.], [], [], [], [], [],
+      [4. Considero necesario el apoyo de personal experto para poder utilizar esta herramienta.], [], [], [], [], [],
+      [5. Considero que las funciones de la herramienta están bien integradas.], [], [], [], [], [],
+      [6. Considero que la herramienta presenta muchas contradicciones.], [], [], [], [], [],
+      [7. Imagino que la mayoría de las personas aprenderían a usar esta herramienta rápidamente.], [], [], [], [], [],
+      [8. Considero que el uso de esta herramienta es tedioso.], [], [], [], [], [],
+      [9. Me sentí muy confiado al usar la herramienta.], [], [], [], [], [],
+      [10. Necesité saber bastantes cosas antes de poder empezar a usar esta herramienta.], [], [], [], [], [],
+    ),
+    caption: [Cuestionario SUS aplicado en la evaluación de usabilidad del módulo de pabellón.],
+  ) <tab-encuesta-sus>
 ]
 
 #apendice(title: "Documentos generados", label: <anexo-documentos-generados>)[
