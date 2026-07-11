@@ -606,7 +606,7 @@
     caption: [Panel de recepción de paciente, con selección de sector y ubicación de destino.],
   ) <fig-accion-recepcionar-paciente>
 
-  Al confirmar, el método `commit` construye el cuerpo de la orquestación con `appointmentId`, `locationId`, `locationDescription`, `username`, `tabla` y `patientId`. Luego emite `surgical_process:execute_panel_action` con la acción API `bpm.postDynamicOrchestration` y el identificador de la orquestación de recepción. La acción se ejecuta como confirmación asíncrona y espera antes de resolver para dar tiempo a que se completen los cambios y eventos asociados. La secuencia backend que deriva entre flujo electivo y de urgencia se describe en la @sec-orquestacion-recepcionar-paciente.
+  Al confirmar, el método `commit` construye el cuerpo de la orquestación con `appointmentId`, `locationId`, `locationDescription`, `username`, `tabla` y `patientId`. Luego emite `surgical_process:execute_panel_action` con la acción API `bpm.postDynamicOrchestration` y el identificador de la orquestación de recepción. La secuencia backend que deriva entre flujo electivo y de urgencia se describe en la @sec-orquestacion-recepcionar-paciente.
 
   === Ingresar a Pabellón
 
