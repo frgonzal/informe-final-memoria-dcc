@@ -206,6 +206,8 @@
 
   Un patrón frecuente en la plataforma son las listas de trabajo, o worklists, que organizan la operación diaria en torno a una grilla de casos, filtros y acciones. La aplicación de proceso quirúrgico sigue este patrón. El detalle de la arquitectura frontend, incluyendo la relación entre `WebApp`, plugins y recursos compartidos, se describe en el @anexo-arquitectura-plataforma.
 
+  Además de las listas de trabajo, existen aplicaciones frontend especializadas en otros flujos clínicos. Una de ellas es EHR, la aplicación de ficha clínica del paciente, que agrupa formularios clínicos como el protocolo quirúrgico, la evaluación preanestésica y otras evaluaciones relevantes del paciente. Como estos formularios se originan en EHR, otras aplicaciones los reutilizan dentro de un contenedor —por ejemplo, un `iframe`— en lugar de replicarlos.
+
   == Orquestación y coreografía de procesos
 
   En sistemas de microservicios, existen dos formas comunes de coordinar procesos de negocio: coreografía y orquestación. En una coreografía, los servicios reaccionan a eventos y cada uno decide localmente qué hacer. En una orquestación, existe un componente que coordina explícitamente la secuencia de actividades. La coreografía reduce dependencias directas, pero puede dificultar la observación global del proceso cuando el flujo queda distribuido entre múltiples servicios. La orquestación, en cambio, permite representar el proceso de forma más explícita y facilita entender qué actividades se ejecutaron, cuáles fallaron y en qué estado se encuentra una instancia @NadeemM2022.
@@ -730,7 +732,7 @@
 
   La acción `Cargar evaluación` no representa un único formulario fijo. Es una clase parametrizada por tipo de evaluación, de modo que el mismo modelo de acción puede mostrarse con etiquetas, títulos y condiciones distintas. En la implementación actual se usa para la evaluación preanestésica y el protocolo quirúrgico. Ambas comparten el mismo mecanismo de carga y se diferencian principalmente por el tipo de evaluación, el momento del flujo en que se muestran y la información clínica que registran.
 
-  El comportamiento común de la acción es el siguiente. `canExecute` verifica que la atención aún no tenga registrada una evaluación completa del tipo correspondiente, por lo que la acción se muestra solo si todavía no existe una evaluación de ese tipo. `trigger` busca el último borrador existente para ese tipo de evaluación y emite `surgical_process:load_evaluation` con el tipo, el título, los identificadores del paciente, el `PatientService`, el `careManager` y el borrador cuando existe.   El plugin recibe el evento y delega la carga a `loadModalEvaluation`, reutilizando el mecanismo de formularios clínicos embebidos descrito en el @anexo-formularios-iframe. El formulario se muestra dentro de un modal de paciente: a la izquierda se presenta la cápsula con datos básicos del paciente y al centro se carga el formulario clínico de EHR mediante `iframe`.
+  El comportamiento común de la acción es el siguiente. `canExecute` verifica que la atención aún no tenga registrada una evaluación completa del tipo correspondiente, por lo que la acción se muestra solo si todavía no existe una evaluación de ese tipo. `trigger` busca el último borrador existente para ese tipo de evaluación y emite `surgical_process:load_evaluation` con el tipo, el título, los identificadores del paciente, el `PatientService`, el `careManager` y el borrador cuando existe.   El plugin recibe el evento y delega la carga a `loadModalEvaluation`, reutilizando el mecanismo de formularios clínicos embebidos descrito en el @anexo-formularios-iframe. El formulario se muestra dentro de un modal de paciente: a la izquierda se presenta la cápsula con datos básicos del paciente y al centro se carga el formulario clínico de la aplicación EHR mediante `iframe`.
 
   Para la evaluación preanestésica, la acción se muestra en el estado `Preoperatorio`, antes del ingreso a pabellón, bajo la etiqueta `Evaluación preanestésica`, como se observa en la @fig-accion-eval-pre-icon. El formulario permite registrar información de la intervención, antecedentes médicos y revisión por sistemas, como muestra la @fig-accion-eval-pre.
 
@@ -947,7 +949,7 @@
   - Las citas electivas sin `stateKey` se cargan como Programada; si tienen `stateKey`, se usa ese valor.
   - Para las atenciones `PatientService`, el estado se decide en primer lugar por la condición clínica: si la atención está finalizada o cancelada en HLTH, se muestra como Finalizada o Suspendida, respectivamente. Si la atención tiene una evaluación de alta quirúrgica y su `stateKey` indica Esperando alta, se muestra como Esperando egreso. En los demás casos se usa el `stateKey` guardado.
 
-  == Acciones implementadas fuera de la lista de espera
+  == Acciones implementadas fuera de la lista de trabajo
 
   La admisión de pacientes es parte del proceso quirúrgico, pero la realiza el personal de admisión y no el equipo que opera la aplicación de atención quirúrgica. Ese proceso conserva su aplicación legacy de admisión de pacientes, que no comparte el modelo de `Accion` ni de `Estado` de la nueva lista de trabajo. Como la programación de pabellón ahora se representa como citas de Agenda, fue necesario adaptar esa aplicación para que el flujo completo —admisión, recepción e intervención— pudiera seguir funcionando de forma coordinada.
 
@@ -1262,7 +1264,7 @@
 
   == Orquestaciones dinámicas del flujo quirúrgico <sec-orquestaciones-dinamicas-flujo-qx>
 
-  Sobre el orquestador dinámico se configuraron acciones concretas del flujo quirúrgico. Estas orquestaciones no forman un único proceso monolítico; cada una resuelve una transición o automatización acotada, reutilizando servicios de Agenda, HLTH, BPM, AUTH y HEGC, junto con formularios clínicos provistos por EHR cuando corresponde. En conjunto permiten que la lista de trabajo ejecute acciones complejas sin concentrar en el frontend la coordinación entre componentes de la plataforma.
+  Sobre el orquestador dinámico se configuraron acciones concretas del flujo quirúrgico. Estas orquestaciones no forman un único proceso monolítico; cada una resuelve una transición o automatización acotada, reutilizando servicios de Agenda, HLTH, BPM, AUTH y HEGC, junto con formularios clínicos provistos por la aplicación EHR cuando corresponde. En conjunto permiten que la lista de trabajo ejecute acciones complejas sin concentrar en el frontend la coordinación entre componentes de la plataforma.
 
   === Aceptar orden de urgencia <sec-orquestacion-aceptar-orden-urgencia>
 
@@ -1360,7 +1362,7 @@
 
   La guía de evaluación de usabilidad usada como referencia distingue métodos rápidos y rigurosos, y describe técnicas como el recorrido cognitivo y la inspección de usabilidad para evaluar sistemas durante el proceso de desarrollo @BaloianPino2024Usabilidad. En este proyecto, esas técnicas resultaron adecuadas porque la solución se encontraba en construcción, debía reemplazar una versión anterior en un plazo acotado y requería validación constante de flujos operacionales.
 
-  El recorrido cognitivo fue aplicado inicialmente por el memorista sobre las funcionalidades desarrolladas. Para cada flujo se verificó si el usuario podría identificar la acción correcta, comprender su efecto, ejecutarla y observar una retroalimentación coherente con el resultado esperado. Esta revisión se aplicó tanto sobre el frontend como sobre las acciones orquestadas, ya que muchas interacciones de la interfaz terminan ejecutando operaciones distribuidas sobre Agenda, HLTH, BPM o HEGC, o abriendo formularios clínicos provistos por EHR.
+  El recorrido cognitivo fue aplicado inicialmente por el memorista sobre las funcionalidades desarrolladas. Para cada flujo se verificó si el usuario podría identificar la acción correcta, comprender su efecto, ejecutarla y observar una retroalimentación coherente con el resultado esperado. Esta revisión se aplicó tanto sobre el frontend como sobre las acciones orquestadas, ya que muchas interacciones de la interfaz terminan ejecutando operaciones distribuidas sobre Agenda, HLTH, BPM o HEGC, o abriendo formularios clínicos provistos por la aplicación EHR.
 
   Una vez estabilizada una funcionalidad, el líder del proyecto revisaba la versión implementada y realizaba una inspección de usabilidad. Esta revisión permitía validar si el comportamiento era equivalente al flujo esperado, si la información visible era suficiente y si existían oportunidades de mejora en nombres, orden, disponibilidad de acciones o estructura visual. De esta manera, la evaluación no se realizó como una actividad única al final del desarrollo, sino como un proceso iterativo de mejora continua.
 
@@ -1658,7 +1660,7 @@
 
   == Formularios clínicos mediante iframe <anexo-formularios-iframe>
 
-  Para documentos formales que pertenecen a la ficha clínica del paciente, como la evaluación preanestésica y el protocolo quirúrgico, la aplicación carga formularios de EHR mediante `WebApp.loadModalEvaluation`. Este método utiliza un modal de paciente, pero en lugar de montar un widget de checklist incorpora un `iframe` que carga el formulario configurado desde una ruta de EHR.
+  Para documentos formales que pertenecen a la ficha clínica del paciente, como la evaluación preanestésica y el protocolo quirúrgico, la aplicación carga formularios de la aplicación EHR mediante `WebApp.loadModalEvaluation`. Este método utiliza un modal de paciente, pero en lugar de montar un widget de checklist incorpora un `iframe` que carga el formulario configurado desde una ruta de EHR.
 
   En la @fig-anexo-formulario-protocolo se muestra el registro del protocolo quirúrgico como ejemplo de este mecanismo.
 
