@@ -5,7 +5,15 @@
 
 #show: conf.with(metadata: metadata)
 
-#resumen(metadata: metadata)[]
+#resumen(metadata: metadata)[
+  La gestión del proceso quirúrgico en un hospital pediátrico de alta complejidad requiere coordinar pacientes, equipos clínicos, pabellones, camas y tiempos de atención, en un contexto donde conviven actividades programadas y situaciones de urgencia.   Dentro de la Plataforma Lahuén, el módulo de atención quirúrgica ya contaba con una versión funcional implementada en el Hospital Exequiel González Cortés, pero su implementación dependía de un motor de procesos deprecado, de un frontend antiguo y de una lógica de flujo fuertemente acoplada a componentes específicos. Esta base tecnológica dificultaba el mantenimiento, la corrección de errores y la incorporación de nuevas funcionalidades, generando deuda técnica que comprometía la evolución futura del módulo.
+
+  El objetivo de este trabajo fue modernizar el módulo de atención quirúrgica de la Plataforma Lahuén, reconstruyendo su flujo operativo sobre la arquitectura actual de la empresa para mejorar su mantenibilidad, trazabilidad y capacidad de evolución. Para ello se modeló el proceso como una secuencia explícita de estados y acciones, se implementó una nueva aplicación frontend como lista de trabajo, se sustituyó el motor de procesos deprecado por orquestaciones dinámicas que funcionan con Temporal, se mejoró la reactividad de la interfaz mediante eventos y notificaciones en tiempo real, y se implementó un mecanismo para trasladar cirugías programadas desde una lista de espera hacia citas en un sistema de agendas médicas.
+
+  La metodología combinó desarrollo incremental, revisiones periódicas con supervisores técnicos y de negocio, recorridos cognitivos, inspecciones de usabilidad y pruebas funcionales manuales sobre flujos completos. La validación incluyó una encuesta SUS aplicada a 10 usuarios del sistema y un despliegue controlado en el ambiente de producción del hospital.
+
+  Los principales resultados fueron la puesta en producción de la nueva versión del módulo el 8 de abril, el reemplazo completo de la versión anterior y la eliminación de la dependencia operacional del motor de procesos deprecado. El sistema permite operar cirugías de urgencia y electivas, ejecutar acciones clínicas y administrativas del flujo, mantener documentos quirúrgicos, actualizar monitores en tiempo real y registrar hitos relevantes para la trazabilidad. La encuesta SUS arrojó un puntaje promedio de 65,5 sobre 100, interpretable como usabilidad aceptable con oportunidades de mejora. En conjunto, el trabajo dejó una base técnica más mantenible y extensible para el módulo de pabellón de la Plataforma Lahuén.
+]
 
 #dedicatoria[]
 
