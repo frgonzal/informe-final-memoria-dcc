@@ -281,12 +281,12 @@
 
   Los estados se organizaron en grupos funcionales:
 
-  - *Estados de ingreso*: 'Solicitada' representa una orden quirúrgica de urgencia pendiente de aceptación. 'Programada' representa una cirugía electiva ya agendada.
-  - *Estados de preparación*: 'En espera' representa un paciente incorporado al circuito quirúrgico, pero aún no recepcionado en pabellón. 'Preoperatorio' indica que el paciente ya fue recepcionado y puede ingresar a quirófano.
-  - *Estados intraoperatorios*: 'En pabellón' marca la entrada al quirófano. Luego el caso avanza por 'Anestesia iniciada', 'Cirugía iniciada', 'Cirugía finalizada' y 'Anestesia finalizada'. Estos estados registran los hitos temporales del acto quirúrgico.
-  - *Estado de recuperación*: 'En recuperación' indica que terminó la etapa intraoperatoria. La acción principal es finalizar recuperación, lo que determina el camino posterior del paciente.
-  - *Estados de salida*: 'Esperando alta' corresponde a pacientes ambulatorios a los que no se les indica hospitalización, por lo que deben recibir el alta para retirarse. 'Esperando egreso' indica que el caso está listo para egresar al paciente. 'Esperando traslado' representa la espera de movimiento hacia otra unidad. 'En tránsito' indica que el paciente ya inició el traslado. 'Finalizada' marca el cierre del caso.
-  - *Estado de excepción*: 'Suspendida' representa una atención quirúrgica que fue suspendida. En la aplicación se utiliza en el módulo de atenciones anteriores para identificar esos casos y consultar su información, pero no tiene acciones relevantes dentro del flujo.
+  - Estados de ingreso: 'Solicitada' representa una orden quirúrgica de urgencia pendiente de aceptación. 'Programada' representa una cirugía electiva ya agendada.
+  - Estados de preparación: 'En espera' representa un paciente incorporado al circuito quirúrgico, pero aún no recepcionado en pabellón. 'Preoperatorio' indica que el paciente ya fue recepcionado y puede ingresar a quirófano.
+  - Estados intraoperatorios: 'En pabellón' marca la entrada al quirófano. Luego el caso avanza por 'Anestesia iniciada', 'Cirugía iniciada', 'Cirugía finalizada' y 'Anestesia finalizada'. Estos estados registran los hitos temporales del acto quirúrgico.
+  - Estado de recuperación: 'En recuperación' indica que terminó la etapa intraoperatoria. La acción principal es finalizar recuperación, lo que determina el camino posterior del paciente.
+  - Estados de salida: 'Esperando alta' corresponde a pacientes ambulatorios a los que no se les indica hospitalización, por lo que deben recibir el alta para retirarse. 'Esperando egreso' indica que el caso está listo para egresar al paciente. 'Esperando traslado' representa la espera de movimiento hacia otra unidad. 'En tránsito' indica que el paciente ya inició el traslado. 'Finalizada' marca el cierre del caso.
+  - Estado de excepción: 'Suspendida' representa una atención quirúrgica que fue suspendida. En la aplicación se utiliza en el módulo de atenciones anteriores para identificar esos casos y consultar su información, pero no tiene acciones relevantes dentro del flujo.
 
   == Entradas del flujo quirúrgico
 
@@ -344,7 +344,7 @@
 
   El diseño de esta aplicación usa dos plugins. `standard` aporta modelos y componentes comunes para listas de trabajo, como paciente, clínicos, ubicaciones, admisión y secciones reutilizables de formularios. `surgical_process` define los módulos del flujo quirúrgico, la carga de datos, la adaptación de casos, los componentes de lista, los estados, las acciones, los formularios propios y las suscripciones a eventos.
 
-  En la aplicación de pabellón se definen dos módulos. *Atención quirúrgica* muestra los casos activos del flujo diario de pabellón y permite ejecutar acciones. *Atenciones anteriores* permite consultar casos finalizados o suspendidos y revisar documentos clínicos registrados. Cada módulo monta componentes sobre los espacios provistos por la worklist: banner, barra de filtros y grilla. La grilla prioriza información operacional suficiente para actuar sobre el caso sin sobrecargar la pantalla: paciente, documento, ubicación, especialidad, intervenciones, programación, estado y acciones disponibles. Los estilos, íconos y recursos visuales se ubican en la skin de la aplicación dentro de `shared`, lo que permite mantener continuidad con la experiencia visual del hospital y adaptar la interfaz sin mezclar presentación con lógica de flujo.
+  En la aplicación de pabellón se definen dos módulos. _Atención quirúrgica_ muestra los casos activos del flujo diario de pabellón y permite ejecutar acciones. _Atenciones anteriores_ permite consultar casos finalizados o suspendidos y revisar documentos clínicos registrados. Cada módulo monta componentes sobre los espacios provistos por la worklist: banner, barra de filtros y grilla. La grilla prioriza información operacional suficiente para actuar sobre el caso sin sobrecargar la pantalla: paciente, documento, ubicación, especialidad, intervenciones, programación, estado y acciones disponibles. Los estilos, íconos y recursos visuales se ubican en la skin de la aplicación dentro de `shared`, lo que permite mantener continuidad con la experiencia visual del hospital y adaptar la interfaz sin mezclar presentación con lógica de flujo.
 
   La atención quirúrgica adaptada por el frontend contiene un estado, representado por una clase de estado. Como se mostró en la @fig-estados-proceso-quirurgico, cada estado corresponde a una etapa del proceso. Cada clase de estado declara las acciones disponibles para esa etapa, por lo que la lista de trabajo solo muestra acciones válidas para el caso seleccionado.
 
@@ -477,15 +477,15 @@
 
   La grilla de este módulo muestra la información operacional necesaria para coordinar el flujo activo. Las columnas visibles son:
 
-  - *Documento*: muestra el documento de identificación del paciente.
-  - *Nombre*: muestra el nombre completo del paciente y el nombre social si existe.
-  - *Edad*: calcula la edad a partir de la fecha de nacimiento del paciente.
-  - *Especialidad*: muestra la especialidad de la intervención que se realizará.
-  - *Intervención(es)*: muestra primero las intervenciones asociadas al caso, que corresponden a la información quirúrgica principal, y luego los diagnósticos principales del paciente como información secundaria en gris.
-  - *Programación*: agrupa en una misma celda el nombre abreviado del clínico responsable, la fecha programada y el pabellón donde se programó la intervención. Si la intervención corresponde al día actual, la fecha se muestra como hora; si corresponde a otro día, se muestra también el día de la intervención.
-  - *Ubicación*: muestra el área y cupo actual del paciente. Esta columna permite identificar rápidamente la ubicación del paciente dentro del flujo clínico-operacional.
-  - *Estado*: muestra la descripción del estado actual con el estilo estándar de estados y el color definido por la empresa para cada estado.
-  - *Acciones*: muestra las acciones disponibles para la fila. Las acciones expuestas se presentan como íconos visibles; las acciones no expuestas se muestran al presionar los tres puntos del final como un listado con la descripción de cada acción.
+  - Documento: muestra el documento de identificación del paciente.
+  - Nombre: muestra el nombre completo del paciente y el nombre social si existe.
+  - Edad: calcula la edad a partir de la fecha de nacimiento del paciente.
+  - Especialidad: muestra la especialidad de la intervención que se realizará.
+  - Intervención(es): muestra primero las intervenciones asociadas al caso, que corresponden a la información quirúrgica principal, y luego los diagnósticos principales del paciente como información secundaria en gris.
+  - Programación: agrupa en una misma celda el nombre abreviado del clínico responsable, la fecha programada y el pabellón donde se programó la intervención. Si la intervención corresponde al día actual, la fecha se muestra como hora; si corresponde a otro día, se muestra también el día de la intervención.
+  - Ubicación: muestra el área y cupo actual del paciente. Esta columna permite identificar rápidamente la ubicación del paciente dentro del flujo clínico-operacional.
+  - Estado: muestra la descripción del estado actual con el estilo estándar de estados y el color definido por la empresa para cada estado.
+  - Acciones: muestra las acciones disponibles para la fila. Las acciones expuestas se presentan como íconos visibles; las acciones no expuestas se muestran al presionar los tres puntos del final como un listado con la descripción de cada acción.
 
   Todas las filas de la tabla se construyen usando el modelo común `AtencionQuirurgica`, detallado en la @sec-impl-modelo-unificado-atencion-qx.
 
@@ -916,24 +916,24 @@
 
   Los estados implementados y las acciones que declaran son los siguientes:
 
-  + *Solicitada*: Aceptar orden.
-  + *Programada*: Reagendar cirugía, Suspender cirugía.
-  + *En espera*: Recepcionar paciente, Imprimir brazalete, Suspender cirugía.
-  + *Preoperatorio*: Ingresar a Pabellón, Evaluación preanestésica, Cambiar ubicación, Imprimir brazalete, Suspender cirugía.
-  + *En pabellón*: Continuar cirugía (Iniciar anestesia), Protocolo quirúrgico, Pausa quirúrgica, Cuidados intraoperatorios, Cambiar ubicación, Revertir ingreso a Pabellón, Ver PDF protocolo, Imprimir brazalete, Suspender cirugía.
-  + *Anestesia iniciada*: Continuar cirugía (Iniciar cirugía), Protocolo quirúrgico, Pausa quirúrgica, Cuidados intraoperatorios, Cambiar ubicación, Ver PDF protocolo, Imprimir brazalete, Suspender cirugía.
-  + *Cirugía iniciada*: Continuar cirugía (Finalizar cirugía), Protocolo quirúrgico, Pausa quirúrgica, Cuidados intraoperatorios, Cambiar ubicación, Ver PDF protocolo, Imprimir brazalete.
-  + *Cirugía finalizada*: Continuar cirugía (Finalizar anestesia), Protocolo quirúrgico, Pausa quirúrgica, Cuidados intraoperatorios, Cambiar ubicación, Ver PDF protocolo, Imprimir brazalete.
-  + *Anestesia finalizada*: Iniciar recuperación, Protocolo quirúrgico, Pausa quirúrgica, Cuidados intraoperatorios, Cambiar ubicación, Ver PDF protocolo, Imprimir brazalete.
-  + *En recuperación*: Finalizar recuperación, Protocolo quirúrgico, Pausa quirúrgica, Cambiar ubicación, Ver PDF protocolo, Imprimir brazalete.
-  + *Esperando traslado*: Iniciar traslado, Devolver a unidad de origen, Protocolo quirúrgico, Pausa quirúrgica, Cambiar ubicación, Ver PDF protocolo, Imprimir brazalete.
-  + *Esperando alta*: Protocolo quirúrgico, Pausa quirúrgica, Cambiar ubicación, Ver PDF protocolo, Imprimir brazalete.
-  + *Esperando egreso*: Protocolo quirúrgico, Pausa quirúrgica, Cambiar ubicación, Ver PDF protocolo, Imprimir brazalete, Egresar paciente.
-  + *En tránsito*: Protocolo quirúrgico, Ver PDF protocolo, Pausa quirúrgica.
-  + *Finalizada*: Protocolo quirúrgico, Ver PDF protocolo.
-  + *Suspendida*: sin acciones declaradas.
+  + Solicitada: Aceptar orden.
+  + Programada: Reagendar cirugía, Suspender cirugía.
+  + En espera: Recepcionar paciente, Imprimir brazalete, Suspender cirugía.
+  + Preoperatorio: Ingresar a Pabellón, Evaluación preanestésica, Cambiar ubicación, Imprimir brazalete, Suspender cirugía.
+  + En pabellón: Continuar cirugía (Iniciar anestesia), Protocolo quirúrgico, Pausa quirúrgica, Cuidados intraoperatorios, Cambiar ubicación, Revertir ingreso a Pabellón, Ver PDF protocolo, Imprimir brazalete, Suspender cirugía.
+  + Anestesia iniciada: Continuar cirugía (Iniciar cirugía), Protocolo quirúrgico, Pausa quirúrgica, Cuidados intraoperatorios, Cambiar ubicación, Ver PDF protocolo, Imprimir brazalete, Suspender cirugía.
+  + Cirugía iniciada: Continuar cirugía (Finalizar cirugía), Protocolo quirúrgico, Pausa quirúrgica, Cuidados intraoperatorios, Cambiar ubicación, Ver PDF protocolo, Imprimir brazalete.
+  + Cirugía finalizada: Continuar cirugía (Finalizar anestesia), Protocolo quirúrgico, Pausa quirúrgica, Cuidados intraoperatorios, Cambiar ubicación, Ver PDF protocolo, Imprimir brazalete.
+  + Anestesia finalizada: Iniciar recuperación, Protocolo quirúrgico, Pausa quirúrgica, Cuidados intraoperatorios, Cambiar ubicación, Ver PDF protocolo, Imprimir brazalete.
+  + En recuperación: Finalizar recuperación, Protocolo quirúrgico, Pausa quirúrgica, Cambiar ubicación, Ver PDF protocolo, Imprimir brazalete.
+  + Esperando traslado: Iniciar traslado, Devolver a unidad de origen, Protocolo quirúrgico, Pausa quirúrgica, Cambiar ubicación, Ver PDF protocolo, Imprimir brazalete.
+  + Esperando alta: Protocolo quirúrgico, Pausa quirúrgica, Cambiar ubicación, Ver PDF protocolo, Imprimir brazalete.
+  + Esperando egreso: Protocolo quirúrgico, Pausa quirúrgica, Cambiar ubicación, Ver PDF protocolo, Imprimir brazalete, Egresar paciente.
+  + En tránsito: Protocolo quirúrgico, Ver PDF protocolo, Pausa quirúrgica.
+  + Finalizada: Protocolo quirúrgico, Ver PDF protocolo.
+  + Suspendida: sin acciones declaradas.
 
-  Los estados *En recuperación*, *Esperando traslado* y *Esperando egreso* muestran un mensaje de alerta justo debajo del estado cuando la atención aún no tiene registrado el protocolo quirúrgico, como se observa en la @fig-estado-alerta-protocolo-pendiente. Esto permite alertar al equipo de pabellón que falta un documento clínico relevante, incluso cuando el caso ya avanzó a etapas finales del flujo.
+  Los estados _En recuperación_, _Esperando traslado_ y _Esperando egreso_ muestran un mensaje de alerta justo debajo del estado cuando la atención aún no tiene registrado el protocolo quirúrgico, como se observa en la @fig-estado-alerta-protocolo-pendiente. Esto permite alertar al equipo de pabellón que falta un documento clínico relevante, incluso cuando el caso ya avanzó a etapas finales del flujo.
 
   #figure(
     image("./imagenes/ejemplo-estado-con-alerta-de-protocolo-pendiente.png", width: 18%),
@@ -942,10 +942,10 @@
 
   La mayoría de los estados se instancian a partir del `stateKey` almacenado en los datos extendidos de la atención, usando `RegistroEstados`. Sin embargo, algunos estados se resuelven por condiciones externas:
 
-  - Las indicaciones quirúrgicas siempre se muestran como *Solicitada*, porque aún no existe una programación ni una atención clínica asociada.
-  - Las citas de urgencia se cargan como *En espera*, ya que representan una solicitud que debe ser recepcionada.
-  - Las citas electivas sin `stateKey` se cargan como *Programada*; si tienen `stateKey`, se usa ese valor.
-  - Para las atenciones `PatientService`, el estado se decide en primer lugar por la condición clínica: si la atención está finalizada o cancelada en HLTH, se muestra como *Finalizada* o *Suspendida*, respectivamente. Si la atención tiene una evaluación de alta quirúrgica y su `stateKey` indica *Esperando alta*, se muestra como *Esperando egreso*. En los demás casos se usa el `stateKey` guardado.
+  - Las indicaciones quirúrgicas siempre se muestran como Solicitada, porque aún no existe una programación ni una atención clínica asociada.
+  - Las citas de urgencia se cargan como En espera, ya que representan una solicitud que debe ser recepcionada.
+  - Las citas electivas sin `stateKey` se cargan como Programada; si tienen `stateKey`, se usa ese valor.
+  - Para las atenciones `PatientService`, el estado se decide en primer lugar por la condición clínica: si la atención está finalizada o cancelada en HLTH, se muestra como Finalizada o Suspendida, respectivamente. Si la atención tiene una evaluación de alta quirúrgica y su `stateKey` indica Esperando alta, se muestra como Esperando egreso. En los demás casos se usa el `stateKey` guardado.
 
   == Acciones implementadas fuera de la lista de espera
 
@@ -1318,11 +1318,11 @@
 
   En el flujo quirúrgico se configuraron las siguientes suscripciones:
 
-  - *Creación de atención quirúrgica*: observa eventos del tópico `api.hlth.patient-service`. Cuando se crea una atención de tipo quirúrgico, inicia la orquestación que crea la tarea BPM de completar protocolo quirúrgico, usando el identificador de la atención como parámetro.
-  - *Guardado de protocolo quirúrgico para completar tarea BPM*: observa eventos del tópico `api.hlth.evaluation`. Cuando se crea una evaluación asociada a una atención quirúrgica y el tipo de evaluación corresponde al protocolo quirúrgico, inicia la orquestación que busca y completa la tarea BPM de completar protocolo quirúrgico, usando la atención y el clínico informados por el evento.
-  - *Guardado de protocolo quirúrgico para operar en Gestión Hospitales*: observa el mismo evento de creación de protocolo quirúrgico en `api.hlth.evaluation`. Cuando se cumplen las condiciones de atención quirúrgica y tipo de evaluación, inicia la orquestación que evalúa si corresponde marcar la orden como operada en Gestión Hospitales.
-  - *Finalización de traslado*: observa eventos del tópico `api.hlth.transfer`. Cuando se finaliza una transferencia en estado final asociado a una atención quirúrgica, inicia la orquestación que finaliza la atención quirúrgica correspondiente.
-  - *Finalización de atención quirúrgica*: observa eventos del tópico `api.hlth.patient-service`. Cuando se finaliza una atención de tipo quirúrgico, inicia la orquestación que evalúa si corresponde operar la orden asociada en Gestión Hospitales.
+  - Creación de atención quirúrgica: observa eventos del tópico `api.hlth.patient-service`. Cuando se crea una atención de tipo quirúrgico, inicia la orquestación que crea la tarea BPM de completar protocolo quirúrgico, usando el identificador de la atención como parámetro.
+  - Guardado de protocolo quirúrgico para completar tarea BPM: observa eventos del tópico `api.hlth.evaluation`. Cuando se crea una evaluación asociada a una atención quirúrgica y el tipo de evaluación corresponde al protocolo quirúrgico, inicia la orquestación que busca y completa la tarea BPM de completar protocolo quirúrgico, usando la atención y el clínico informados por el evento.
+  - Guardado de protocolo quirúrgico para operar en Gestión Hospitales: observa el mismo evento de creación de protocolo quirúrgico en `api.hlth.evaluation`. Cuando se cumplen las condiciones de atención quirúrgica y tipo de evaluación, inicia la orquestación que evalúa si corresponde marcar la orden como operada en Gestión Hospitales.
+  - Finalización de traslado: observa eventos del tópico `api.hlth.transfer`. Cuando se finaliza una transferencia en estado final asociado a una atención quirúrgica, inicia la orquestación que finaliza la atención quirúrgica correspondiente.
+  - Finalización de atención quirúrgica: observa eventos del tópico `api.hlth.patient-service`. Cuando se finaliza una atención de tipo quirúrgico, inicia la orquestación que evalúa si corresponde operar la orden asociada en Gestión Hospitales.
 
   La lógica de reacción queda así expresada como configuración de BPM y no como llamadas directas desde la lista de trabajo.
 
@@ -1342,10 +1342,10 @@
 
   Las suscripciones configuradas para la lista de trabajo fueron:
 
-  - *Atenciones quirúrgicas*: escucha el tópico `api.hlth.patient-service` filtrando por tipos de atención quirúrgica y tipos de evento relevantes. Es especialmente importante escuchar actualizaciones, porque gran parte de la información operacional del proceso vive en los datos de la atención quirúrgica. Por ejemplo, avanzar de etapa dentro del quirófano técnicamente corresponde a actualizar la información de esa atención. Esta suscripción permite actualizar la grilla cuando una atención quirúrgica se crea, cambia de estado, actualiza sus hitos o finaliza.
-  - *Indicaciones quirúrgicas*: escucha el tópico `api.hlth.indication` filtrando por tipos de indicación quirúrgica y eventos relevantes. Permite reflejar cambios en órdenes de urgencia, por ejemplo cuando una indicación es creada, iniciada, cancelada o finalizada.
-  - *Citas de Agenda*: escucha el tópico `api.agenda.appointment` filtrando por tipos de cita quirúrgica y eventos relevantes. Permite actualizar programaciones electivas o de urgencia cuando una cita se crea, inicia, modifica, cancela o reagenda.
-  - *Evaluaciones clínicas*: escucha el tópico `api.hlth.evaluation` filtrando por tipo de atención quirúrgica, tipos de evaluación relevantes y tipo de evento. Permite actualizar la lista cuando se registran evaluaciones asociadas al flujo, como el protocolo quirúrgico u otros documentos clínicos.
+  - Atenciones quirúrgicas: escucha el tópico `api.hlth.patient-service` filtrando por tipos de atención quirúrgica y tipos de evento relevantes. Es especialmente importante escuchar actualizaciones, porque gran parte de la información operacional del proceso vive en los datos de la atención quirúrgica. Por ejemplo, avanzar de etapa dentro del quirófano técnicamente corresponde a actualizar la información de esa atención. Esta suscripción permite actualizar la grilla cuando una atención quirúrgica se crea, cambia de estado, actualiza sus hitos o finaliza.
+  - Indicaciones quirúrgicas: escucha el tópico `api.hlth.indication` filtrando por tipos de indicación quirúrgica y eventos relevantes. Permite reflejar cambios en órdenes de urgencia, por ejemplo cuando una indicación es creada, iniciada, cancelada o finalizada.
+  - Citas de Agenda: escucha el tópico `api.agenda.appointment` filtrando por tipos de cita quirúrgica y eventos relevantes. Permite actualizar programaciones electivas o de urgencia cuando una cita se crea, inicia, modifica, cancela o reagenda.
+  - Evaluaciones clínicas: escucha el tópico `api.hlth.evaluation` filtrando por tipo de atención quirúrgica, tipos de evaluación relevantes y tipo de evento. Permite actualizar la lista cuando se registran evaluaciones asociadas al flujo, como el protocolo quirúrgico u otros documentos clínicos.
 
   Durante la implementación se ajustaron los filtros para permitir listas de valores y reducir eventos irrelevantes. También se incorporó un debounce configurable para evitar que múltiples eventos cercanos generen recargas excesivas de la grilla. Esto fue necesario porque una acción orquestada puede modificar más de una entidad y producir varios eventos en poco tiempo. Además, la lista de trabajo puede ser utilizada por múltiples personas de forma independiente, por lo que en operación normal pueden ocurrir muchos cambios con pocos segundos de diferencia. Por esta razón, se buscó usar los filtros del servicio de SSE de la forma más específica posible, escuchando solo los eventos necesarios para la vista, y agrupar recargas cercanas mediante debounce.
 
@@ -1370,11 +1370,11 @@
 
   La validación funcional consistió en ejecutar manualmente los flujos principales de la aplicación de proceso quirúrgico y verificar el resultado visible en la lista de trabajo, los cambios de estado, la información registrada en la atención y la reacción de los monitores. Las pruebas se enfocaron en los siguientes elementos:
 
-  - *Información mostrada*: se revisó que la grilla presentara correctamente documento, nombre, edad, especialidad, intervención, programación, ubicación, estado y acciones disponibles para cada caso.
-  - *Acciones del flujo*: se probaron acciones como aceptar orden, recepcionar paciente, ingresar a pabellón, avanzar hitos intraoperatorios, iniciar y finalizar recuperación, iniciar traslado, devolver a unidad de origen, egresar paciente, suspender cirugía y cargar documentos clínicos.
-  - *Orquestaciones*: se verificó que las acciones implementadas mediante orquestaciones ejecutaran las transiciones esperadas y actualizaran las entidades correspondientes.
-  - *Integración con Gestión Hospitales*: se validó que el script de importación transformara las órdenes quirúrgicas electivas para crear citas compatibles con Agenda y con la nueva lista de trabajo.
-  - *Monitores*: se revisó que el Monitor de pabellones y el Monitor de pacientes mostraran información coherente con los cambios realizados en el flujo.
+  - Información mostrada: se revisó que la grilla presentara correctamente documento, nombre, edad, especialidad, intervención, programación, ubicación, estado y acciones disponibles para cada caso.
+  - Acciones del flujo: se probaron acciones como aceptar orden, recepcionar paciente, ingresar a pabellón, avanzar hitos intraoperatorios, iniciar y finalizar recuperación, iniciar traslado, devolver a unidad de origen, egresar paciente, suspender cirugía y cargar documentos clínicos.
+  - Orquestaciones: se verificó que las acciones implementadas mediante orquestaciones ejecutaran las transiciones esperadas y actualizaran las entidades correspondientes.
+  - Integración con Gestión Hospitales: se validó que el script de importación transformara las órdenes quirúrgicas electivas para crear citas compatibles con Agenda y con la nueva lista de trabajo.
+  - Monitores: se revisó que el Monitor de pabellones y el Monitor de pacientes mostraran información coherente con los cambios realizados en el flujo.
 
   Estas pruebas permitieron detectar diferencias respecto del comportamiento anterior y corregirlas durante el desarrollo. En una primera etapa, el objetivo fue igualar el funcionamiento de la versión previa para evitar que los usuarios percibieran una pérdida de capacidades. Luego se incorporaron mejoras acotadas, como nuevas acciones, ajustes visuales, mayor claridad en estados y mejor presentación de información relevante.
 
@@ -1387,7 +1387,7 @@
   #figure(
     table(
       columns: 2,
-      [*Métrica*], [*Resultado*],
+      [_Métrica_], [_Resultado_],
       [Participantes], [10],
       [Puntaje mínimo], [12,5],
       [Puntaje máximo], [100],
@@ -1712,7 +1712,7 @@
     table(
       columns: (1fr, auto, auto, auto, auto, auto),
       align: (left, center, center, center, center, center),
-      table.header([*Pregunta*], [*1*], [*2*], [*3*], [*4*], [*5*]),
+      table.header([Pregunta], [1], [2], [3], [4], [5]),
       [1. Me gustaría usar esta herramienta frecuentemente.], [], [], [], [], [],
       [2. Considero que esta herramienta es innecesariamente compleja.], [], [], [], [], [],
       [3. Considero que la herramienta es fácil de usar.], [], [], [], [], [],
