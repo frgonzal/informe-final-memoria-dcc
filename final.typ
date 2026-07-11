@@ -89,7 +89,7 @@
     spacing: 2em, // Espacio entre párrafos
   ) // Formato de párrafos
 
-  set cite(style: "council-of-science-editors") // esto deja las citas contiguas como [1, 2] o [1-3]
+  set cite(style: "ieee")
   pagebreak(weak: true) // Salto de página
   counter(page).update(1) // Reestablecer el contador de páginas
   counter(<capitulo>).update(1) // Iniciar el contador de capítulos
