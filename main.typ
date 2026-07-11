@@ -563,14 +563,14 @@
 
   === Ver ficha
 
-  La acción `Ver ficha` permite abrir la ficha clínica asociada a la atención quirúrgica. La @fig-accion-ver-ficha-icon muestra la acción disponible en la lista de trabajo. Como esta acción solo abre una vista y no modifica datos, su implementación se resuelve en `trigger` y no define el método `commit`: obtiene la atención quirúrgica, resuelve el `PatientService` que debe usarse para abrir la ficha y emite `surgical_process:view_patient_profile` con ambos datos.
+  La acción `Ver ficha` permite abrir la ficha clínica del paciente en una nueva pestaña. La @fig-accion-ver-ficha-icon muestra la acción disponible en la lista de trabajo. Al seleccionarla, el plugin resuelve la atención clínica asociada y abre la ficha del paciente (aplicación EHR) en una nueva pestaña del navegador.
 
   #figure(
     image("./imagenes/cap06-ver-ficha-icon.png", width: 30%),
     caption: [Acción para abrir la ficha clínica desde la lista de trabajo quirúrgica.],
   ) <fig-accion-ver-ficha-icon>
 
-  La acción es común para los estados que incorporan acciones por defecto, pero solo puede ejecutarse si existe un `PatientService` disponible para abrir la ficha. `canExecute` exige un identificador de atención y un `careManager.id`; para resolverlos, la acción prioriza la atención quirúrgica actual y, si no existe, usa la atención original almacenada en los datos de creación. Esto permite abrir la ficha cuando el paciente ya fue recepcionado o cuando el caso proviene de urgencia u hospitalización, donde existe una atención abierta relacionada. En cambio, las cirugías electivas que aún deben admisionarse no tienen una atención clínica abierta asociada, por lo que la acción no se muestra. Esta disponibilidad es útil para revisar antecedentes de la ficha mientras el paciente espera la recepción en pabellón.
+  La acción se muestra siempre que exista una atención desde la cual abrir la ficha. Esa atención puede ser la atención de pabellón, que se genera al recepcionar al paciente, o una atención de urgencia u hospitalización que permanezca abierta mientras el paciente espera ser recepcionado en pabellón. En los casos donde no hay una ficha abierta para mostrar, la acción no aparece.
 
   === Aceptar orden
 
