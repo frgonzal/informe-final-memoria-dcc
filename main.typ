@@ -51,7 +51,7 @@
 
   Dentro de la Plataforma Lahuén, el módulo de pabellón ocupa un lugar estratégico, ya que articula el trabajo quirúrgico con otros componentes clínicos y administrativos del sistema. La versión previa de este módulo fue implementada en el Hospital Exequiel González Cortés, lo que permitió resolver necesidades reales de un entorno quirúrgico complejo. Sin embargo, esta implementación quedó fuertemente asociada a tecnologías y patrones anteriores de la plataforma.
 
-  A pesar de contar con una implementación funcional del proceso quirúrgico, el módulo existente presenta limitaciones importantes desde el punto de vista tecnológico y de mantenibilidad. La solución actual se apoya en tecnología propietaria de la empresa, específicamente un motor de procesos propietario que permite ejecutar actividades asincrónicas, permanecer a la espera de eventos y mantener el estado de cada instancia de proceso. Si bien este enfoque resolvió necesidades operativas en su momento, hoy dificulta la evolución del sistema y encarece su mantención.
+  A pesar de contar con una implementación funcional del proceso quirúrgico, el módulo existente presenta limitaciones importantes desde el punto de vista tecnológico y de mantenibilidad. La solución actual se apoya en un motor de procesos propietario de Lahuén Health que permite ejecutar actividades asincrónicas, permanecer a la espera de eventos y mantener el estado de cada instancia de proceso. Si bien este enfoque resolvió necesidades operativas en su momento, hoy se encuentra deprecado: sus limitaciones técnicas lo hacen difícil de mantener y la empresa lo está reemplazando progresivamente por Temporal. Esto dificulta la evolución del sistema y encarece su mantención.
 
   Esta situación genera varios problemas. En primer lugar, la lógica del proceso quirúrgico se encuentra fuertemente acoplada a componentes específicos, lo que hace más costoso modificar el flujo, incorporar nuevas acciones o adaptar el módulo a otros contextos hospitalarios. En segundo lugar, la base tecnológica previa limita la integración con la arquitectura moderna del resto de la plataforma, dificultando la reutilización de componentes y la incorporación de capacidades transversales como mejor observabilidad, manejo robusto de errores y sincronización eficiente con otras partes del sistema. En tercer lugar, la existencia de una solución especializada y dependiente de tecnologías antiguas introduce deuda técnica, afectando la estabilidad, la escalabilidad y la velocidad con que pueden implementarse mejoras.
 
@@ -75,7 +75,7 @@
 
   - Modelar de forma explícita el flujo de atención quirúrgica mediante un conjunto coherente de estados y acciones.
   - Modernizar la vista de atención quirúrgica para integrarla adecuadamente a la plataforma, representar la información relevante de cada paciente y utilizar el `design system` actual de Lahuén, con el estilo característico de las nuevas aplicaciones de la empresa.
-  - Sustituir el motor de procesos propietario por una solución más sencilla de mantener y más adecuada para coordinar acciones complejas del flujo, reduciendo la dependencia de tecnología difícil de evolucionar.
+  - Sustituir el motor de procesos deprecado por una solución más sencilla de mantener y más adecuada para coordinar acciones complejas del flujo, reduciendo la dependencia de tecnología difícil de evolucionar.
   - Mejorar la trazabilidad de los hitos del proceso quirúrgico, de modo que sea posible reconstruir el recorrido de un caso y disponer de información útil para análisis posteriores.
   - Validar la solución mediante pruebas funcionales, recorridos cognitivos, inspecciones de usabilidad y despliegues controlados en ambientes de prueba lo más similares posible a producción, simulando escenarios reales del flujo quirúrgico.
   - Reemplazar la versión anterior del módulo al finalizar el trabajo, dejando la nueva versión desarrollada desplegada en producción.
@@ -85,7 +85,7 @@
 
   La solución propuesta consiste en modernizar el núcleo del proceso de atención quirúrgica sobre la arquitectura actual de la plataforma, manteniendo su valor clínico y operativo, pero reemplazando los componentes propietarios que dificultan su evolución. Para ello, se plantea modelar el flujo de atención quirúrgica como una secuencia explícita de estados y transiciones, donde cada acción relevante del usuario tenga un comportamiento claramente definido y trazable.
 
-  En el backend, la modernización considera reemplazar el motor de procesos propietario por una solución más simple de operar y mantener para aquellas operaciones que requieren coordinar múltiples pasos o servicios. A diferencia del esquema anterior, donde cada proceso quirúrgico se instanciaba como una ejecución persistente que mantenía su propio estado y se controlaba mediante llamadas directas al motor, la nueva aproximación busca separar mejor la lógica del proceso, reducir la complejidad de corrección y disminuir el costo asociado a su soporte. En paralelo, se busca consolidar un modelo de dominio unificado para representar cada atención quirúrgica, integrando datos clínicos, de programación y de ubicación del paciente.
+  En el backend, la modernización considera reemplazar el motor de procesos deprecado por una solución más simple de operar y mantener para aquellas operaciones que requieren coordinar múltiples pasos o servicios. A diferencia del esquema anterior, donde cada proceso quirúrgico se instanciaba como una ejecución persistente que mantenía su propio estado y se controlaba mediante llamadas directas al motor, la nueva aproximación busca separar mejor la lógica del proceso, reducir la complejidad de corrección y disminuir el costo asociado a su soporte. En paralelo, se busca consolidar un modelo de dominio unificado para representar cada atención quirúrgica, integrando datos clínicos, de programación y de ubicación del paciente.
 
   En el frontend, la solución se materializa en una vista de atención quirúrgica integrada a la plataforma, concebida como una lista de trabajo que muestra el estado de los pacientes y permite ejecutar las acciones correspondientes a cada etapa. De esta manera, la solución busca combinar claridad operativa para los usuarios con una arquitectura más mantenible y extensible desde el punto de vista del desarrollo de software.
 
@@ -160,9 +160,9 @@
 
   La principal limitación de la versión anterior no era la ausencia de un flujo quirúrgico, sino la forma en que este flujo estaba implementado. El módulo había sido construido originalmente alrededor de 2012, utilizando herramientas y patrones que, más de una década después, resultaban difíciles de mantener y extender. En particular, la aplicación frontend de atención quirúrgica estaba construida en JavaScript con una arquitectura menos definida que la utilizada actualmente por la plataforma, lo que dificultaba separar responsabilidades entre vista, acciones, modelo y lógica de integración. Esto no solo afectaba la evolución visual de la interfaz, sino también la incorporación controlada de nuevas funcionalidades, la reutilización de componentes comunes y el ajuste de acciones según el estado clínico-operativo del caso.
 
-  En el backend, la coordinación del proceso dependía de un motor de procesos propietario de la empresa. Este motor permitía instanciar flujos quirúrgicos, mantener el contexto de cada caso, ejecutar actividades asincrónicas y avanzar en función de señales o llamadas realizadas desde el sistema. Esta capacidad fue útil para representar un proceso de larga duración con múltiples estados, pero generaba una dependencia técnica importante: comprender, mantener o modificar el comportamiento del flujo requería conocimiento especializado sobre el motor y sobre la forma en que cada instancia de proceso era consultada o actualizada. Además, parte del estado operativo quedaba asociado al contexto de ejecución del proceso y no a entidades de dominio consultables mediante servicios estándar. Por ello, una corrección aparentemente simple podía requerir entender la estructura interna de una instancia, el punto exacto del flujo en que se encontraba y la forma en que había llegado hasta ese estado.
+  En el backend, la coordinación del proceso dependía del motor de procesos deprecado. Este motor permitía instanciar flujos quirúrgicos, mantener el contexto de cada caso, ejecutar actividades asincrónicas y avanzar en función de señales o llamadas realizadas desde el sistema. Esta capacidad fue útil para representar un proceso de larga duración con múltiples estados, pero generaba una dependencia técnica importante: comprender, mantener o modificar el comportamiento del flujo requería conocimiento especializado sobre el motor y sobre la forma en que cada instancia de proceso era consultada o actualizada. Además, parte del estado operativo quedaba asociado al contexto de ejecución del proceso y no a entidades de dominio consultables mediante servicios estándar. Por ello, una corrección aparentemente simple podía requerir entender la estructura interna de una instancia, el punto exacto del flujo en que se encontraba y la forma en que había llegado hasta ese estado.
 
-  La existencia de un motor de procesos propietario también generaba una asimetría respecto del resto de la plataforma moderna, orientada a microservicios y componentes reutilizables. Mientras otros módulos podían evolucionar mediante APIs, componentes frontend y servicios con responsabilidades más claras, el proceso quirúrgico mantenía parte de su lógica crítica vinculada a un mecanismo especializado. Esto aumentaba el costo de corrección, dificultaba incorporar nuevas acciones y reducía la flexibilidad para adaptar el flujo a nuevos requerimientos. En la arquitectura actual, en cambio, resultaba más natural reconstruir la atención quirúrgica a partir de entidades explícitas del dominio, como indicaciones quirúrgicas, citas de Agenda y atenciones de pacientes.
+  La existencia del motor de procesos deprecado también generaba una asimetría respecto del resto de la plataforma moderna, orientada a microservicios y componentes reutilizables. Mientras otros módulos podían evolucionar mediante APIs, componentes frontend y servicios con responsabilidades más claras, el proceso quirúrgico mantenía parte de su lógica crítica vinculada a un mecanismo especializado. Esto aumentaba el costo de corrección, dificultaba incorporar nuevas acciones y reducía la flexibilidad para adaptar el flujo a nuevos requerimientos. En la arquitectura actual, en cambio, resultaba más natural reconstruir la atención quirúrgica a partir de entidades explícitas del dominio, como indicaciones quirúrgicas, citas de Agenda y atenciones de pacientes.
 
   Otra limitación era la actualización de la información visible para los usuarios. En un proceso quirúrgico, una acción realizada por otro usuario, un cambio de ubicación, la creación o modificación de una cita, el avance de una atención o el registro de una evaluación clínica pueden alterar lo que debe mostrarse en la lista de trabajo. Cuando la interfaz no cuenta con un mecanismo suficientemente reactivo para escuchar esos cambios, depende de recargas manuales o consultas periódicas, lo que puede mantener información desactualizada en un contexto donde la coordinación operacional es relevante.
 
@@ -170,13 +170,13 @@
 
   == Síntesis de la situación actual
 
-  La situación actual puede resumirse en tres ideas. Primero, el proceso quirúrgico es un flujo complejo, longitudinal y crítico para la gestión hospitalaria, cuya operación requiere priorización, programación, coordinación de recursos, registro de hitos y trazabilidad. Segundo, la Plataforma Lahuén ya contaba con una versión funcional del módulo quirúrgico, capaz de representar lista de espera, programación, atención en pabellón, documentos clínicos y monitor de estado. Tercero, la implementación técnica de esa versión presentaba limitaciones relevantes de mantenibilidad, principalmente por el uso de un frontend antiguo, un motor de procesos propietario, estado operativo poco separado de la instancia de proceso y mecanismos de actualización menos reactivos que los requeridos por la operación actual.
+  La situación actual puede resumirse en tres ideas. Primero, el proceso quirúrgico es un flujo complejo, longitudinal y crítico para la gestión hospitalaria, cuya operación requiere priorización, programación, coordinación de recursos, registro de hitos y trazabilidad. Segundo, la Plataforma Lahuén ya contaba con una versión funcional del módulo quirúrgico, capaz de representar lista de espera, programación, atención en pabellón, documentos clínicos y monitor de estado.   Tercero, la implementación técnica de esa versión presentaba limitaciones relevantes de mantenibilidad, principalmente por el uso de un frontend antiguo, el motor de procesos deprecado, un estado operativo poco separado de la instancia de proceso y mecanismos de actualización menos reactivos que los requeridos por la operación actual.
 
   En consecuencia, la modernización debe entenderse como una reconstrucción tecnológica de un flujo funcional existente. El objetivo no es descartar la experiencia acumulada en la versión anterior, sino implementarla sobre una base más mantenible, integrada y extensible, que permita sostener futuras mejoras del módulo de pabellón dentro de la Plataforma Lahuén.
 ]
 
 #capitulo(title: "Marco tecnológico y arquitectura de la plataforma")[
-  Este capítulo presenta las tecnologías y conceptos arquitectónicos que sustentan la modernización del módulo de atención quirúrgica: microservicios, frontend modular, workflows, Temporal, eventos y coordinación configurable de procesos. Su propósito es establecer el marco técnico necesario para comprender cómo el reemplazo del motor de procesos propietario se resuelve mediante una arquitectura distribuida, un runtime de workflows durable y definiciones declarativas que coordinan acciones complejas. El capítulo siguiente utiliza esta base para explicar cómo se organizan estados, entidades, acciones, formularios, eventos y coordinación del nuevo módulo.
+  Este capítulo presenta las tecnologías y conceptos arquitectónicos que sustentan la modernización del módulo de atención quirúrgica: microservicios, frontend modular, workflows, Temporal, eventos y coordinación configurable de procesos.   Su propósito es establecer el marco técnico necesario para comprender cómo el reemplazo del motor de procesos deprecado se resuelve mediante una arquitectura distribuida, un runtime de workflows durable y definiciones declarativas que coordinan acciones complejas. El capítulo siguiente utiliza esta base para explicar cómo se organizan estados, entidades, acciones, formularios, eventos y coordinación del nuevo módulo.
 
   == Arquitectura general de Lahuén
 
@@ -256,12 +256,12 @@
 #capitulo(title: "Diseño de la solución")[
   Este capítulo presenta el diseño conceptual de la solución, enfocado en cómo se organiza el flujo quirúrgico, qué componentes participan y cómo se conectan para sostener la operación clínica. Aquí se describen las decisiones de diseño antes de entrar en los detalles de implementación del capítulo siguiente.
 
-  Las funcionalidades se diseñaron durante el desarrollo mediante reuniones de trabajo con tres supervisores que aportaron perspectivas complementarias. El supervisor con rol de Arquitectura de Software apoyó las decisiones técnicas, el entendimiento de la plataforma y la comprensión del flujo anterior para poder replicarlo sobre la arquitectura actual. El líder del proyecto y CEO de la empresa aportó una visión de negocio y de uso operacional, además de participar en revisiones y pruebas de las funcionalidades implementadas. El CTO de la empresa aportó una visión técnica, especialmente al proponer la idea del orquestador dinámico como mecanismo para reemplazar la dependencia del motor de procesos propietario en las acciones complejas del flujo.
+  Las funcionalidades se diseñaron durante el desarrollo mediante reuniones de trabajo con tres supervisores que aportaron perspectivas complementarias. El supervisor con rol de Arquitectura de Software apoyó las decisiones técnicas, el entendimiento de la plataforma y la comprensión del flujo anterior para poder replicarlo sobre la arquitectura actual. El líder del proyecto y CEO de la empresa aportó una visión de negocio y de uso operacional, además de participar en revisiones y pruebas de las funcionalidades implementadas.   El CTO de la empresa aportó una visión técnica, especialmente al proponer la idea del orquestador dinámico como mecanismo para reemplazar la dependencia del motor de procesos deprecado en las acciones complejas del flujo.
 
   A partir del diagnóstico de la versión anterior, el diseño se orientó por cinco criterios principales:
 
   + Conservar el comportamiento funcional del proceso quirúrgico, de modo que los usuarios pudieran operar programación, recepción, avance intraoperatorio, recuperación, salida, suspensión, documentación clínica y consulta de ficha sin perder la lógica de trabajo conocida.
-  + Representar el estado del flujo mediante entidades explícitas del dominio, como indicaciones quirúrgicas, citas de Agenda y atenciones de pacientes, en lugar de depender de una instancia del motor de procesos propietario como fuente principal de información.
+  + Representar el estado del flujo mediante entidades explícitas del dominio, como indicaciones quirúrgicas, citas de Agenda y atenciones de pacientes, en lugar de depender de una instancia del motor de procesos deprecado como fuente principal de información.
   + Coordinar acciones que involucran múltiples servicios sin concentrar esa lógica en el frontend. En el flujo quirúrgico, una acción visible para el usuario puede requerir consultar datos, actualizar una cita, crear una atención, modificar una ubicación, registrar hitos, crear tareas BPM o completar información en Gestión Hospitales.
   + Mejorar la reactividad operacional mediante eventos, para que la lista de trabajo y los monitores puedan actualizarse cuando cambian las entidades asociadas al caso.
   + Mejorar la experiencia de uso sin alterar de manera innecesaria el flujo conocido, incorporando ajustes visuales y acciones acotadas que apoyen situaciones operacionales concretas.
@@ -292,7 +292,7 @@
 
   == Entradas del flujo quirúrgico
 
-  La nueva lista de trabajo quirúrgica obtiene los casos desde entidades explícitas y servicios existentes. Con esto se reemplaza la dependencia de instancias del motor de procesos propietario como fuente principal para representar el caso en la grilla.
+  La nueva lista de trabajo quirúrgica obtiene los casos desde entidades explícitas y servicios existentes. Con esto se reemplaza la dependencia de instancias del motor de procesos deprecado como fuente principal para representar el caso en la grilla.
 
   El diseño debía soportar los dos orígenes principales del proceso quirúrgico: solicitudes de urgencia y atenciones electivas programadas. En el primer caso, el flujo comienza con una indicación quirúrgica originada desde urgencia. En el segundo, comienza con una orden quirúrgica programada en Gestión Hospitales, que debe transformarse para operar dentro de los servicios actuales de la plataforma.
 
@@ -334,7 +334,7 @@
 
   `PatientService` pertenece a HLTH y representa una atención abierta del paciente dentro del hospital. En la lista de trabajo se utiliza desde el estado 'Preoperatorio' en adelante. Esta entidad es la adecuada para estas etapas porque refleja que el paciente está efectivamente en atención y concentra información relevante del caso: ubicación, programación, responsable, intervenciones, diagnósticos, ubicación de origen y estado operacional.
 
-  La versión anterior también utilizaba `PatientService` en el backend, pero el frontend dependía de las instancias del motor de procesos propietario para representar el caso. Como el flujo hospitalario exige que exista un `PatientService` abierto mientras el paciente está en atención, el diseño actual lo utiliza directamente como entidad principal del flujo, eliminando la dependencia del motor de procesos.
+  La versión anterior también utilizaba `PatientService` en el backend, pero el frontend dependía de las instancias del motor de procesos deprecado para representar el caso. Como el flujo hospitalario exige que exista un `PatientService` abierto mientras el paciente está en atención, el diseño actual lo utiliza directamente como entidad principal del flujo, eliminando la dependencia del motor de procesos.
 
   Para obtener estas entidades se utilizan APIs y filtros disponibles en los microservicios, de modo que cada fuente entregue casos en los estados relevantes para la lista de trabajo. El capítulo de implementación detalla cómo se obtienen esos datos y cómo se unifican en una sola atención quirúrgica para la grilla.
 
@@ -366,7 +366,7 @@
 
   Esta decisión responde a que varias acciones del flujo quirúrgico no corresponden a una única operación de backend. Una acción visible para el usuario puede requerir consultar contexto, actualizar citas, crear o modificar atenciones, registrar hitos, generar tareas o sincronizar información con Gestión Hospitales. Codificar esas secuencias directamente en el frontend habría acoplado la interfaz a detalles de servicios y habría dificultado cambios posteriores.
 
-  Además, muchas de estas acciones comparten una estructura similar: reciben parámetros, validan entrada, consultan datos, ejecutan llamadas HTTP, usan respuestas previas y deciden si ciertos pasos deben omitirse según el estado del caso. Por ello, el diseño del orquestador dinámico buscó entregar un mecanismo común para coordinar acciones acotadas y reutilizables, sin reconstruir un nuevo motor de procesos propietario.
+  Además, muchas de estas acciones comparten una estructura similar: reciben parámetros, validan entrada, consultan datos, ejecutan llamadas HTTP, usan respuestas previas y deciden si ciertos pasos deben omitirse según el estado del caso. Por ello, el diseño del orquestador dinámico buscó entregar un mecanismo común para coordinar acciones acotadas y reutilizables, sin reconstruir un nuevo motor de procesos.
 
   El punto de entrada es BPM y la ejecución durable se apoya en Temporal. Sobre esa base, el orquestador dinámico interpreta una definición configurada con validaciones, llamadas HTTP, asignaciones, condiciones y transformaciones de datos. Así, una acción visible para el usuario puede ejecutarse como una secuencia controlada de operaciones.
 
@@ -530,7 +530,7 @@
 
   == Aplicaciones de monitoreo
 
-  Además de la lista de trabajo operativa, se implementaron dos aplicaciones de monitoreo sobre el mismo flujo quirúrgico: el Monitor de pabellones y el Monitor de pacientes. Como la versión actual dejó de utilizar instancias de workflows del motor de procesos propietario, las aplicaciones anteriores de monitoreo ya no eran compatibles con la nueva representación del proceso. Por ello, se reconstruyeron sobre la arquitectura frontend actual de Lahuén, leyendo atenciones clínicas y citas quirúrgicas desde los servicios de la plataforma.
+  Además de la lista de trabajo operativa, se implementaron dos aplicaciones de monitoreo sobre el mismo flujo quirúrgico: el Monitor de pabellones y el Monitor de pacientes. Como la versión actual dejó de utilizar instancias de workflows del motor de procesos deprecado, las aplicaciones anteriores de monitoreo ya no eran compatibles con la nueva representación del proceso. Por ello, se reconstruyeron sobre la arquitectura frontend actual de Lahuén, leyendo atenciones clínicas y citas quirúrgicas desde los servicios de la plataforma.
 
   En ambas aplicaciones se reutilizó la barra superior de la plataforma y se agregó un componente de fecha y hora visible en la esquina superior derecha. El diseño visual de las tablas y de la estructura de los monitores se implementó a partir de diseños entregados por el líder del proyecto, complementados con recomendaciones de una persona del área de diseño. La implementación buscó replicar esos diseños con el mayor detalle posible.
 
@@ -1024,7 +1024,7 @@
 
   Esta implementación limita algunas ventajas de Temporal. En particular, Temporal deja de observar cada paso dinámico como una actividad independiente, por lo que no puede reintentar desde el paso interno que falló. Si una actividad dinámica falla, el reintento de Temporal vuelve a ejecutar la actividad principal completa, es decir, toda la orquestación desde el inicio.
 
-  Este fue un compromiso técnico: se sacrificó granularidad de ejecución en Temporal, pero se mantuvo la ventaja principal requerida por el proyecto, que era coordinar actividades entre microservicios sin depender del motor de procesos propietario y sin desarrollar un workflow específico para cada acción.
+  Este fue un compromiso técnico: se sacrificó granularidad de ejecución en Temporal, pero se mantuvo la ventaja principal requerida por el proyecto, que era coordinar actividades entre microservicios sin depender del motor de procesos deprecado y sin desarrollar un workflow específico para cada acción.
 
   === Workflow principal
 
@@ -1256,7 +1256,7 @@
 
   La decisión de ejecutar el loop dentro de una sola actividad de Temporal tiene consecuencias sobre los reintentos. Si una actividad dinámica interna falla, Temporal reintenta la actividad principal completa. Esto implica volver a ejecutar la orquestación desde el inicio, no desde el paso que falló. En acciones que crean registros o modifican estado, este comportamiento puede producir duplicados o efectos no deseados si los pasos no son seguros ante reejecución.
 
-  Por ello, se incorporó un límite configurable de reintentos y se dejó configurado con un valor bajo. Además, las orquestaciones fueron definidas buscando reducir riesgos: validando entradas con JSON Schema, consultando estado antes de operar, usando condiciones `when` y evitando reintentos automáticos agresivos sobre operaciones que pudieran no ser idempotentes. Esta solución no elimina por completo el problema, pero fue la alternativa más razonable considerando las restricciones de tiempo y la necesidad de contar con un mecanismo de orquestación que permitiera prescindir del motor de procesos propietario.
+  Por ello, se incorporó un límite configurable de reintentos y se dejó configurado con un valor bajo. Además, las orquestaciones fueron definidas buscando reducir riesgos: validando entradas con JSON Schema, consultando estado antes de operar, usando condiciones `when` y evitando reintentos automáticos agresivos sobre operaciones que pudieran no ser idempotentes.   Esta solución no elimina por completo el problema, pero fue la alternativa más razonable considerando las restricciones de tiempo y la necesidad de contar con un mecanismo de orquestación que permitiera prescindir del motor de procesos deprecado.
 
   === Resultado del orquestador dinámico
 
@@ -1418,7 +1418,7 @@
 ]
 
 #capitulo(title: "Resultados")[
-  El resultado principal del trabajo fue la puesta en producción, en el Hospital Exequiel González Cortés, de una nueva versión del módulo de atención quirúrgica de la Plataforma Lahuén, reemplazando completamente la versión anterior de pabellón. El desarrollo finalizó el 8 de abril y desde ese día la nueva versión comenzó a utilizarse en la operación real del hospital. Con esto, el flujo quirúrgico dejó de depender del motor de procesos propietario y pasó a ejecutarse sobre la arquitectura actual de la plataforma.
+  El resultado principal del trabajo fue la puesta en producción, en el Hospital Exequiel González Cortés, de una nueva versión del módulo de atención quirúrgica de la Plataforma Lahuén, reemplazando completamente la versión anterior de pabellón.   El desarrollo finalizó el 8 de abril y desde ese día la nueva versión comenzó a utilizarse en la operación real del hospital. Con esto, el flujo quirúrgico dejó de depender del motor de procesos deprecado y pasó a ejecutarse sobre la arquitectura actual de la plataforma.
 
   == Producto implementado
 
@@ -1426,7 +1426,7 @@
 
   En el backend, el resultado incluyó la integración de cirugías electivas provenientes de Gestión Hospitales, la creación de citas quirúrgicas en Agenda, la coordinación de acciones mediante BPM y Temporal, y la definición de orquestaciones dinámicas para ejecutar transiciones del proceso. También se incorporaron suscripciones SSE para actualizar la información visible ante cambios relevantes de atenciones, citas, indicaciones y evaluaciones.
 
-  Esta combinación permitió reconstruir el flujo funcional existente con una base técnica más mantenible. La información principal del caso quirúrgico ya no depende de una instancia del motor de procesos propietario, sino de entidades de dominio como indicaciones, citas y atenciones clínicas. Esto simplifica el soporte, facilita la observación de los datos y reduce el costo de futuras modificaciones.
+  Esta combinación permitió reconstruir el flujo funcional existente con una base técnica más mantenible.   La información principal del caso quirúrgico ya no depende de una instancia del motor de procesos deprecado, sino de entidades de dominio como indicaciones, citas y atenciones clínicas. Esto simplifica el soporte, facilita la observación de los datos y reduce el costo de futuras modificaciones.
 
   == Cobertura funcional alcanzada
 
@@ -1436,7 +1436,7 @@
 
   En términos de documentación clínica, la solución permite cargar evaluación preanestésica, protocolo quirúrgico, pausas quirúrgicas y cuidados intraoperatorios, manteniendo la relación con la atención del paciente.
 
-  La trazabilidad del proceso se mantuvo y se mejoró en algunos aspectos. La mayoría de las acciones relevantes conservan responsable, fecha y cambios de estado, y los hitos del pabellón quedan registrados dentro de la atención quirúrgica. Aunque existe margen para fortalecer la auditoría y homogeneizar responsables en todos los casos, la nueva representación del estado permite reconstruir el recorrido del paciente de manera más clara que en la versión basada en instancias del motor de procesos propietario.
+  La trazabilidad del proceso se mantuvo y se mejoró en algunos aspectos. La mayoría de las acciones relevantes conservan responsable, fecha y cambios de estado, y los hitos del pabellón quedan registrados dentro de la atención quirúrgica.   Aunque existe margen para fortalecer la auditoría y homogeneizar responsables en todos los casos, la nueva representación del estado permite reconstruir el recorrido del paciente de manera más clara que en la versión basada en instancias del motor de procesos deprecado.
 
   == Puesta en producción
 
@@ -1450,7 +1450,7 @@
 
   == Resultado técnico
 
-  Desde el punto de vista técnico, el trabajo logró eliminar la dependencia operacional del motor de procesos propietario. Las acciones del proceso ya no requieren mantener la lógica principal dentro de instancias de ese motor, sino que se apoyan en servicios de dominio, datos extendidos, eventos y orquestaciones acotadas.
+  Desde el punto de vista técnico, el trabajo logró eliminar la dependencia operacional del motor de procesos deprecado. Las acciones del proceso ya no requieren mantener la lógica principal dentro de instancias de ese motor, sino que se apoyan en servicios de dominio, datos extendidos, eventos y orquestaciones acotadas.
 
   El orquestador dinámico fue un resultado relevante del trabajo. Permitió crear y modificar acciones complejas con mayor velocidad que si cada transición hubiese requerido un workflow específico. Durante el desarrollo y la salida a producción, algunos ajustes pudieron resolverse modificando definiciones de orquestación, sin realizar cambios grandes en el frontend ni en servicios de dominio.
 
@@ -1468,7 +1468,7 @@
 
   == Cumplimiento de objetivos
 
-  El objetivo central se cumplió: se modernizó el módulo de atención quirúrgica de la Plataforma Lahuén, reconstruyendo su flujo operativo sobre la arquitectura actual de la empresa y dejando una nueva versión desplegada y operativa en el Hospital Exequiel González Cortés. Con ello, el flujo dejó de depender de la implementación previa basada en el motor de procesos propietario y pasó a representarse mediante componentes más alineados con la arquitectura actual de Lahuén.
+  El objetivo central se cumplió: se modernizó el módulo de atención quirúrgica de la Plataforma Lahuén, reconstruyendo su flujo operativo sobre la arquitectura actual de la empresa y dejando una nueva versión desplegada y operativa en el Hospital Exequiel González Cortés.   Con ello, el flujo dejó de depender de la implementación previa basada en el motor de procesos deprecado y pasó a representarse mediante componentes más alineados con la arquitectura actual de Lahuén.
 
   También se cumplió el objetivo de modernizar la aplicación frontend. La aplicación de proceso quirúrgico se implementó como una lista de trabajo con estados, acciones y adaptadores explícitos, siguiendo el `design system` actual de Lahuén; además, se reconstruyeron el Monitor de pabellones y el Monitor de pacientes.
 
@@ -1486,7 +1486,7 @@
 
   == Aciertos y decisiones técnicas
 
-  Un acierto relevante fue separar el conocimiento funcional del proceso quirúrgico de la implementación previa basada en el motor de procesos propietario. La versión anterior contenía una lógica operacional valiosa, pero su forma técnica dificultaba observar, corregir y extender el flujo. Al trasladar el estado a entidades de dominio y coordinar acciones mediante servicios y orquestaciones, el sistema queda mejor preparado para evolucionar.
+  Un acierto relevante fue separar el conocimiento funcional del proceso quirúrgico de la implementación previa basada en el motor de procesos deprecado. La versión anterior contenía una lógica operacional valiosa, pero su forma técnica dificultaba observar, corregir y extender el flujo. Al trasladar el estado a entidades de dominio y coordinar acciones mediante servicios y orquestaciones, el sistema queda mejor preparado para evolucionar.
 
   Otro acierto fue el uso de orquestaciones dinámicas. Aunque el mecanismo tiene limitaciones, permitió acelerar el desarrollo de acciones compuestas y reducir la necesidad de crear workflows específicos para cada transición.
 
@@ -1754,7 +1754,7 @@
   Contexto que debes respetar:
   - La versión anterior del módulo era funcionalmente valiosa, pero técnicamente difícil de mantener y evolucionar.
   - No debes presentar la solución anterior como incorrecta o inútil.
-  - La nueva solución conserva el flujo quirúrgico y reemplaza la dependencia del motor de procesos propietario por una arquitectura más mantenible.
+  - La nueva solución conserva el flujo quirúrgico y reemplaza la dependencia del motor de procesos deprecado por una arquitectura más mantenible.
   - No inventes decisiones: usa solo la información entregada.
   - Si resumes funcionalidades o cambios, prioriza claridad y trazabilidad.
 
