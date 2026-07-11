@@ -1566,24 +1566,22 @@
 #show: end-doc
 
 #apendice(title: "Arquitectura de la plataforma", label: <anexo-arquitectura-plataforma>)[
-  El frontend moderno de Lahuén se construye sobre una arquitectura modular basada en componentes Vue 2 @Vue2Docs. La base compartida de esa arquitectura se encuentra en `shared`, proyecto que concentra elementos reutilizables por distintas aplicaciones: componentes genéricos de interfaz, como tablas, selectores, datepickers y typeaheads; formateadores; utilidades JavaScript; proxies de API; estilos; imágenes; íconos y skins. Las skins agrupan CSS y recursos visuales para adaptar una aplicación a una institución o contexto visual específico.
+  El Capítulo 3 presentó la arquitectura frontend de Lahuén como una organización en tres niveles: la capa base compartida (`shared`), la clase `WebApp` y los plugins. Este anexo complementa esa descripción con detalles técnicos que la aplicación de proceso quirúrgico utiliza directamente.
 
-  Dentro de `shared` también se define `WebApp`, clase reutilizable para construir aplicaciones modernas de la plataforma. `WebApp` inicializa el ciclo de vida de una aplicación, carga configuración, prepara APIs, store, rutas, recursos visuales, autenticación y eventos. Como se observa en la @fig-arquitectura-web-app, una aplicación puede construirse directamente sobre `WebApp` para obtener estas capacidades comunes y luego agregar su propia estructura, componentes y comportamiento.
+  La base compartida `shared` agrupa componentes genéricos de interfaz —tablas, selectores, datepickers, typeaheads—, formateadores, utilidades JavaScript, proxies de API, estilos, imágenes, íconos y skins. Las skins, en particular, agrupan CSS y recursos visuales para adaptar una aplicación a una institución o contexto visual específico.
 
-  La personalización de una aplicación también se apoya en configuración. Cada proyecto frontend incluye un archivo de manifiesto y la plataforma mantiene una configuración asociada en MongoDB; `WebApp` combina ambas fuentes para obtener la configuración final. En general, el manifiesto define información del paquete y APIs disponibles, mientras que la configuración de MongoDB define variables usadas por la aplicación o por sus plugins, como plugins activos y parámetros de comportamiento.
+  `WebApp` carga la configuración de la aplicación combinando el manifiesto del proyecto frontend con una configuración asociada en MongoDB. El manifiesto define información del paquete y APIs disponibles; la configuración de MongoDB define variables de comportamiento, como plugins activos y parámetros específicos del dominio.
 
   #figure(
     image("./imagenes/arquitectura_web_app_1.png", width: 80%),
     caption: [Relación entre `WebApp`, aplicaciones, plugins y recursos compartidos en la arquitectura frontend de Lahuén.],
   ) <fig-arquitectura-web-app>
 
-  `WebApp` también soporta plugins. La clase base `Plugin`, ubicada en `shared`, entrega a cada plugin acceso a la aplicación, store, APIs y eventos. Con este mecanismo, una aplicación puede cargar piezas de funcionalidad separadas y permitir que cada plugin registre comportamiento específico. Los plugins sirven para extender una aplicación sin mezclar toda la lógica en su base común.
+  La extensión mediante plugins se realiza a través de una clase base `Plugin` ubicada en `shared`, que entrega a cada plugin acceso a la aplicación, al store, a las APIs y a los eventos. De este modo, una aplicación puede cargar piezas de funcionalidad separadas sin mezclar toda la lógica en su base común.
 
-  Un tipo frecuente de aplicación en Lahuén son las listas de trabajo, o worklists. Estas aplicaciones organizan la operación diaria alrededor de una grilla de casos, filtros, navegación, panel de acciones, paginación, ordenamiento y actualización de filas. Para este patrón existe una aplicación base de worklists construida sobre `WebApp`, junto con `WorklistPlugin`, una extensión de `Plugin` que agrega comportamiento común para plugins de listas de trabajo.
+  Para el patrón de listas de trabajo, o worklists, existe una aplicación base construida sobre `WebApp`, junto con `WorklistPlugin`, una extensión de `Plugin` que agrega comportamiento común para este tipo de plugins. Un plugin de worklist puede registrar módulos, componentes, menús, filtros, grillas, formularios, suscripciones a eventos y reglas del dominio, de modo que la aplicación base conserva la estructura común mientras cada plugin define cómo se muestran y operan los casos de un proceso específico.
 
-  La personalización de una worklist se realiza mediante plugins. Un plugin de worklist puede registrar módulos, componentes, menús, filtros, grillas, formularios, suscripciones a eventos y reglas del dominio. De esta forma, la aplicación base conserva la estructura común, mientras que cada plugin define cómo se muestran y operan los casos de un proceso específico.
-
-  En las worklists también existen plugins comunes, como `standard`, que permiten reutilizar modelos y formularios entre aplicaciones. Estos componentes viven en un plugin porque son más específicos que los componentes genéricos de `shared`: por ejemplo, secciones de formularios asociadas a paciente, clínico, ubicación o admisión. En cambio, `shared` contiene piezas más transversales, como componentes de tabla, datepicker, select, typeahead, formateadores, utilidades, skins e íconos.
+  Además, existen plugins comunes de worklists como `standard`, que permiten reutilizar modelos y secciones de formularios entre aplicaciones. Estos componentes viven en un plugin porque son más específicos que los elementos genéricos de `shared`: por ejemplo, secciones de formularios asociadas a paciente, clínico, ubicación o admisión. En cambio, `shared` contiene piezas más transversales, como componentes de tabla, datepicker, select, typeahead, formateadores, utilidades, skins e íconos.
 
   == Modales de confirmación <anexo-modales-confirmacion>
 
