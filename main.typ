@@ -287,7 +287,7 @@
   - Estados de preparación: 'En espera' representa un paciente incorporado al circuito quirúrgico, pero aún no recepcionado en pabellón. 'Preoperatorio' indica que el paciente ya fue recepcionado y puede ingresar a quirófano.
   - Estados intraoperatorios: 'En pabellón' marca la entrada al quirófano. Luego el caso avanza por 'Anestesia iniciada', 'Cirugía iniciada', 'Cirugía finalizada' y 'Anestesia finalizada'. Estos estados registran los hitos temporales del acto quirúrgico.
   - Estado de recuperación: 'En recuperación' indica que terminó la etapa intraoperatoria. La acción principal es finalizar recuperación, lo que determina el camino posterior del paciente.
-  - Estados de salida: 'Esperando alta' corresponde a pacientes ambulatorios a los que no se les indica hospitalización, por lo que deben recibir el alta para retirarse. 'Esperando egreso' indica que el caso está listo para egresar al paciente. 'Esperando traslado' representa la espera de movimiento hacia otra unidad. 'En tránsito' indica que el paciente ya inició el traslado. 'Finalizada' marca el cierre del caso.
+  - Estados de salida: 'Esperando alta' corresponde a pacientes ambulatorios a los que no se les indica hospitalización y aún no se les registra el alta quirúrgica. Una vez registrada esa evaluación, el caso avanza a 'Esperando egreso', que indica que el paciente está listo para egresar. Ambos son estados distintos en el modelo: 'Esperando egreso' agrega, por ejemplo, la acción de egresar al paciente. 'Esperando traslado' representa la espera de movimiento hacia otra unidad. 'En tránsito' indica que el paciente ya inició el traslado. 'Finalizada' marca el cierre del caso.
   - Estado de excepción: 'Suspendida' representa una atención quirúrgica que fue suspendida. En la aplicación se utiliza en el módulo de atenciones anteriores para identificar esos casos y consultar su información, pero no tiene acciones relevantes dentro del flujo.
 
   == Entradas del flujo quirúrgico
@@ -947,7 +947,7 @@
   - Las indicaciones quirúrgicas siempre se muestran como Solicitada, porque aún no existe una programación ni una atención clínica asociada.
   - Las citas de urgencia se cargan como En espera, ya que representan una solicitud que debe ser recepcionada.
   - Las citas electivas sin `stateKey` se cargan como Programada; si tienen `stateKey`, se usa ese valor.
-  - Para las atenciones `PatientService`, el estado se decide en primer lugar por la condición clínica: si la atención está finalizada o cancelada en HLTH, se muestra como Finalizada o Suspendida, respectivamente. Si la atención tiene una evaluación de alta quirúrgica y su `stateKey` indica Esperando alta, se muestra como Esperando egreso. En los demás casos se usa el `stateKey` guardado.
+  - Para las atenciones `PatientService`, el estado se decide en primer lugar por la condición clínica: si la atención está finalizada o cancelada en HLTH, se resuelve como Finalizada o Suspendida, respectivamente. Si la atención tiene una evaluación de alta quirúrgica y su `stateKey` indica Esperando alta, el estado se resuelve como Esperando egreso. Esto refleja que, una vez registrado el alta, la etapa operativa pasa de 'esperando alta' a 'esperando egreso', aunque el `stateKey` persistido aún no haya sido actualizado. En los demás casos se usa el `stateKey` guardado.
 
   == Acciones implementadas fuera de la lista de trabajo
 
