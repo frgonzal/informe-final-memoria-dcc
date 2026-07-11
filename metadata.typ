@@ -29,7 +29,7 @@
   // El título al que se opta
   grado-titulo: "COMPUTACIÓN",
   // Puede ser un string/content para un año específico o none para el año actual
-  anno: none,
+  anno: 2026,
   // Espacio extra que rodea al título y al nombre en la portada, 1fr es lo mismo que el resto de espacios, 2fr es el doble, etc.
   espaciado_titulo: 2fr,
   // Este diccionario contiene la información que solo se usa para el informe de introducción al trabajo de título
@@ -53,7 +53,10 @@
     auspicio: none,
     // El magíster al que se opta, si es tesis
     grado-magister: "COMPUTACIÓN",
-    comision: (),
+    comision: (
+      "CÉSAR GUERRERO SALDIVIA",
+      "EDGARD PINEDA LEONE",
+    ),
   ),
 )
 
