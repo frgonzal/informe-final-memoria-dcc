@@ -714,7 +714,7 @@
 
   === Egresar paciente
 
-  La acción `Egresar paciente` ejecuta el egreso del paciente y cierra la atención. Antes de realizar el cierre, solicita confirmación al usuario mediante el patrón de modales del @anexo-modales-confirmacion.
+  La acción `Egresar paciente` ejecuta el egreso del paciente. Antes de ejecutarse, solicita confirmación al usuario mediante el patrón de modales del @anexo-modales-confirmacion.
 
   #figure(
     image("./imagenes/cap06-accion-egresar-pacinte-icon.png", width: 30%),
@@ -726,7 +726,7 @@
     caption: [Confirmación para egresar al paciente.],
   ) <fig-accion-egresar-paciente>
 
-  Al aceptar, el sistema cierra la atención y muestra el mensaje de éxito correspondiente.
+  Al aceptar, se utiliza la API de HLTH para ejecutar la acción de cierre de la atención, y se muestra el mensaje de éxito correspondiente.
 
   === Cargar evaluación
 
