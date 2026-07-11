@@ -15,12 +15,17 @@
   // recordar que una lista de un solo elemento debe tener una coma al final
   profesores: (
     (
-      nombre: upper("Nelson Baloian"),
+      nombre: upper("Nelson Baloian Tataryan"),
       pronombre: pronombre.el,
     ), // esta coma es importante para que sea una lista
   ),
   // LISTA de co-guías, en que cada elemento es un diccionario con nombre y pronombre.
-  coguias: (),
+  coguias: (
+    (
+      nombre: upper("Cristian Amdan Julio"),
+      pronombre: pronombre.el,
+    ),
+  ),
   // El título al que se opta
   grado-titulo: "COMPUTACIÓN",
   // Puede ser un string/content para un año específico o none para el año actual
