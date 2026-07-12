@@ -574,21 +574,21 @@
 
   === Aceptar orden
 
-  La acción `Aceptar orden` está declarada para el estado `Solicitada`, por lo que se muestra sobre indicaciones quirúrgicas de urgencia que aún no han sido aceptadas. La @fig-accion-aceptar-orden-icon muestra la acción disponible en la lista de trabajo. Su objetivo es programar la intervención y convertir la indicación en una cita quirúrgica operable por el resto del flujo.
+  La acción `Aceptar orden` permite aceptar la solicitud e iniciar el proceso quirúrgico. La @fig-accion-aceptar-orden-icon muestra la acción disponible en la lista de trabajo. Su objetivo es programar la intervención y convertir la indicación en una cita quirúrgica operable por el resto del flujo.
 
   #figure(
     image("./imagenes/cap06-aceptar-orden-icon.png", width: 30%),
     caption: [Acción para aceptar una orden quirúrgica solicitada desde la lista de trabajo.],
   ) <fig-accion-aceptar-orden-icon>
 
-  Al seleccionarla, `trigger` abre un panel lateral mediante `surgical_process:show_action_panel`, siguiendo el mecanismo de side panels descrito en el @anexo-side-panels. En ese panel se carga `CFormProcesoQuirurgicoProgramarIntervencion`, como se observa en la @fig-accion-aceptar-orden. La sección de información del paciente se reutiliza desde el plugin `standard`; el resto del formulario recibe desde la `AtencionQuirurgica` las intervenciones y el tiempo operatorio estimado. Con esos datos permite seleccionar el pabellón y la fecha de inicio de la intervención.
+  Al seleccionarla, la acción utiliza el plugin para abrir un panel lateral con el formulario de programación de la intervención, siguiendo el mecanismo de side panels descrito en el @anexo-arquitectura-plataforma, como se observa en la @fig-accion-aceptar-orden. La sección de información del paciente se reutiliza desde el plugin `standard`; el resto del formulario recibe desde la `AtencionQuirurgica` las intervenciones y el tiempo operatorio estimado. Con esos datos permite seleccionar el pabellón y la fecha de inicio de la intervención.
 
   #figure(
     image("./imagenes/cap06-aceptar-orden.png", width: 100%),
     caption: [Panel para programar la intervención al aceptar una orden quirúrgica de urgencia.],
   ) <fig-accion-aceptar-orden>
 
-  Al confirmar, el método `commit` construye el cuerpo de la orquestación con el usuario ejecutor, la fecha de inicio, el pabellón seleccionado, el identificador de la indicación y los diagnósticos exportados desde los datos de intervención. Luego emite `surgical_process:execute_panel_action` con la acción API `bpm.postDynamicOrchestration` y el identificador de la orquestación de aceptación de orden de urgencia. La operación se confirma como acción asíncrona y no fuerza la actualización inmediata de la grilla; la actualización queda asociada a los eventos emitidos por los servicios involucrados. La secuencia backend que crea la cita y marca la indicación como iniciada se describe en la @sec-orquestacion-aceptar-orden-urgencia.
+  Al confirmar, se genera el cuerpo para la creación de la cita programada, incluyendo el usuario ejecutor, la fecha de inicio, el pabellón seleccionado, el identificador de la indicación y los diagnósticos. Luego, el plugin utiliza la API de BPM para iniciar la orquestación dinámica que crea la cita y marca la indicación como iniciada. El comportamiento de esa orquestación se describe en la @sec-orquestacion-aceptar-orden-urgencia.
 
   === Recepcionar paciente
 
@@ -599,7 +599,7 @@
     caption: [Acción para recepcionar al paciente desde la lista de trabajo quirúrgica.],
   ) <fig-accion-recepcionar-paciente-icon>
 
-  Al seleccionarla, `trigger` abre un panel lateral mediante `surgical_process:show_action_panel`, siguiendo el mecanismo de side panels del @anexo-side-panels, y carga `CFormProcesoQuirurgicoCambiarUbicacionPaciente`, como se observa en la @fig-accion-recepcionar-paciente. La sección de información del paciente se reutiliza desde el plugin `standard`; el resto del formulario recibe la `AtencionQuirurgica` y permite seleccionar la ubicación de destino. Para esta acción se habilitaron como sectores posibles CMA y Recuperación, usando un filtro de ubicaciones restringido a esas áreas, y la etiqueta de confirmación del panel se configuró como `Ingresar`.
+  Al seleccionarla, `trigger` abre un panel lateral mediante `surgical_process:show_action_panel`, siguiendo el mecanismo de side panels del @anexo-arquitectura-plataforma, y carga `CFormProcesoQuirurgicoCambiarUbicacionPaciente`, como se observa en la @fig-accion-recepcionar-paciente. La sección de información del paciente se reutiliza desde el plugin `standard`; el resto del formulario recibe la `AtencionQuirurgica` y permite seleccionar la ubicación de destino. Para esta acción se habilitaron como sectores posibles CMA y Recuperación, usando un filtro de ubicaciones restringido a esas áreas, y la etiqueta de confirmación del panel se configuró como `Ingresar`.
 
   #figure(
     image("./imagenes/cap06-recepcion-paciente.png", width: 100%),
@@ -617,7 +617,7 @@
     caption: [Acción para ingresar al paciente a pabellón desde la lista de trabajo quirúrgica.],
   ) <fig-accion-ingresar-a-pabellon-icon>
 
-  Al seleccionarla, `trigger` abre un panel lateral —con el mismo patrón de side panels del @anexo-side-panels— con `CFormProcesoQuirurgicoCambiarUbicacionPaciente`, reutilizando la información del paciente desde `standard` y mostrando el sector `Pabellón` con su ubicación correspondiente, como se observa en la @fig-accion-ingresar-a-pabellon. El pabellón se precarga con el programado, pero el usuario puede seleccionar otro cuando la operación finalmente se realice en un quirófano distinto.
+  Al seleccionarla, `trigger` abre un panel lateral —con el mismo patrón de side panels del @anexo-arquitectura-plataforma— con `CFormProcesoQuirurgicoCambiarUbicacionPaciente`, reutilizando la información del paciente desde `standard` y mostrando el sector `Pabellón` con su ubicación correspondiente, como se observa en la @fig-accion-ingresar-a-pabellon. El pabellón se precarga con el programado, pero el usuario puede seleccionar otro cuando la operación finalmente se realice en un quirófano distinto.
 
   #figure(
     image("./imagenes/cap06-accion-ingresar-a-pabellon.png", width: 100%),
@@ -635,7 +635,7 @@
     caption: [Acción `Continuar cirugía` mostrada como `Iniciar cirugía` en estado `Anestesia iniciada`.],
   ) <fig-accion-continuar-cirugia-icon>
 
-  `trigger` abre un panel lateral con `CFormProcesoQuirurgicoContinuarCirugia`, usando el mecanismo de side panels descrito en el @anexo-side-panels. El formulario muestra la información del paciente, los datos de programación de la intervención y una sección denominada `Hitos del proceso`, que presenta una línea de tiempo con las etapas intraoperatorias: recepción en pabellón, anestesia iniciada, cirugía iniciada, cirugía finalizada y anestesia finalizada. El hito que corresponde al estado actual se resalta, mientras que los hitos ya completados muestran su fecha y hora de registro, y los hitos pendientes aparecen deshabilitados. Esta visualización permite al equipo confirmar en qué momento del proceso se encuentra el paciente antes de avanzar. Además, el panel muestra el tiempo transcurrido de la intervención y el tiempo total en pabellón, como se observa en la @fig-accion-continuar-cirugia.
+  `trigger` abre un panel lateral con `CFormProcesoQuirurgicoContinuarCirugia`, usando el mecanismo de side panels descrito en el @anexo-arquitectura-plataforma. El formulario muestra la información del paciente, los datos de programación de la intervención y una sección denominada `Hitos del proceso`, que presenta una línea de tiempo con las etapas intraoperatorias: recepción en pabellón, anestesia iniciada, cirugía iniciada, cirugía finalizada y anestesia finalizada. El hito que corresponde al estado actual se resalta, mientras que los hitos ya completados muestran su fecha y hora de registro, y los hitos pendientes aparecen deshabilitados. Esta visualización permite al equipo confirmar en qué momento del proceso se encuentra el paciente antes de avanzar. Además, el panel muestra el tiempo transcurrido de la intervención y el tiempo total en pabellón, como se observa en la @fig-accion-continuar-cirugia.
 
   #figure(
     image("./imagenes/cap06-accion-continuar-cirugia.png", width: 100%),
@@ -653,7 +653,7 @@
     caption: [Acción para iniciar la recuperación del paciente desde la lista de trabajo quirúrgica.],
   ) <fig-accion-iniciar-recu-icon>
 
-  Al seleccionarla, `trigger` abre un panel lateral con `CFormProcesoQuirurgicoCambiarUbicacionPaciente` —siguiendo el patrón de side panels del @anexo-side-panels—, reutilizando la información del paciente desde `standard` y mostrando el sector `Recuperación` con su ubicación correspondiente, como se observa en la @fig-accion-iniciar-recu.
+  Al seleccionarla, `trigger` abre un panel lateral con `CFormProcesoQuirurgicoCambiarUbicacionPaciente` —siguiendo el patrón de side panels del @anexo-arquitectura-plataforma—, reutilizando la información del paciente desde `standard` y mostrando el sector `Recuperación` con su ubicación correspondiente, como se observa en la @fig-accion-iniciar-recu.
 
   #figure(
     image("./imagenes/cap06-accion-iniciar-recu.png", width: 100%),
@@ -664,7 +664,7 @@
 
   === Finalizar recuperación
 
-  La acción `Finalizar recuperación` permite cerrar la etapa de recuperación del paciente una vez que ya no requiere permanecer en esa unidad. Se muestra sobre atenciones en estado `En recuperación` y, al seleccionarla, despliega un diálogo de confirmación con el nombre del paciente, usando el patrón de modales del @anexo-modales-confirmacion.
+  La acción `Finalizar recuperación` permite cerrar la etapa de recuperación del paciente una vez que ya no requiere permanecer en esa unidad. Se muestra sobre atenciones en estado `En recuperación` y, al seleccionarla, despliega un diálogo de confirmación con el nombre del paciente, usando el patrón de modales del @anexo-arquitectura-plataforma.
 
   #figure(
     image("./imagenes/cap06-accion-finalizar-recuperacion-icon.png", width: 30%),
@@ -687,7 +687,7 @@
     caption: [Acción para iniciar el traslado del paciente desde la lista de trabajo quirúrgica.],
   ) <fig-accion-iniciar-traslado-icon>
 
-  Al seleccionarla, `trigger` abre un diálogo de confirmación —con el patrón de modales del @anexo-modales-confirmacion— con el destino del traslado, como se observa en la @fig-accion-iniciar-traslado. El mensaje solo pide validar la operación antes de ejecutarla y no solicita información adicional.
+  Al seleccionarla, `trigger` abre un diálogo de confirmación —con el patrón de modales del @anexo-arquitectura-plataforma— con el destino del traslado, como se observa en la @fig-accion-iniciar-traslado. El mensaje solo pide validar la operación antes de ejecutarla y no solicita información adicional.
 
   #figure(
     image("./imagenes/cap06-accion-iniciar-traslado.png", width: 55%),
@@ -698,7 +698,7 @@
 
   === Devolver a unidad de origen
 
-  La acción `Devolver a unidad de origen` permite retornar al paciente a la unidad desde la que provenía. Antes de ejecutarla, muestra una confirmación con la ubicación de destino, siguiendo el patrón de modales del @anexo-modales-confirmacion.
+  La acción `Devolver a unidad de origen` permite retornar al paciente a la unidad desde la que provenía. Antes de ejecutarla, muestra una confirmación con la ubicación de destino, siguiendo el patrón de modales del @anexo-arquitectura-plataforma.
 
   #figure(
     image("./imagenes/cap06-accion-devolver-a-unidad-de-origen-icon.png", width: 30%),
@@ -714,7 +714,7 @@
 
   === Egresar paciente
 
-  La acción `Egresar paciente` ejecuta el egreso del paciente. Antes de ejecutarse, solicita confirmación al usuario mediante el patrón de modales del @anexo-modales-confirmacion.
+  La acción `Egresar paciente` ejecuta el egreso del paciente. Antes de ejecutarse, solicita confirmación al usuario mediante el patrón de modales del @anexo-arquitectura-plataforma.
 
   #figure(
     image("./imagenes/cap06-accion-egresar-pacinte-icon.png", width: 30%),
@@ -732,7 +732,7 @@
 
   La acción `Cargar evaluación` no representa un único formulario fijo. Es una clase parametrizada por tipo de evaluación, de modo que el mismo modelo de acción puede mostrarse con etiquetas, títulos y condiciones distintas. En la implementación actual se usa para la evaluación preanestésica y el protocolo quirúrgico. Ambas comparten el mismo mecanismo de carga y se diferencian principalmente por el tipo de evaluación, el momento del flujo en que se muestran y la información clínica que registran.
 
-  El comportamiento común de la acción es el siguiente. `canExecute` verifica que la atención aún no tenga registrada una evaluación completa del tipo correspondiente, por lo que la acción se muestra solo si todavía no existe una evaluación de ese tipo. `trigger` busca el último borrador existente para ese tipo de evaluación y emite `surgical_process:load_evaluation` con el tipo, el título, los identificadores del paciente, el `PatientService`, el `careManager` y el borrador cuando existe.   El plugin recibe el evento y delega la carga a `loadModalEvaluation`, reutilizando el mecanismo de formularios clínicos embebidos descrito en el @anexo-formularios-iframe. El formulario se muestra dentro de un modal de paciente: a la izquierda se presenta la cápsula con datos básicos del paciente y al centro se carga el formulario clínico de la aplicación EHR mediante `iframe`.
+  El comportamiento común de la acción es el siguiente. `canExecute` verifica que la atención aún no tenga registrada una evaluación completa del tipo correspondiente, por lo que la acción se muestra solo si todavía no existe una evaluación de ese tipo. `trigger` busca el último borrador existente para ese tipo de evaluación y emite `surgical_process:load_evaluation` con el tipo, el título, los identificadores del paciente, el `PatientService`, el `careManager` y el borrador cuando existe.   El plugin recibe el evento y delega la carga a `loadModalEvaluation`, reutilizando el mecanismo de formularios clínicos embebidos descrito en el @anexo-arquitectura-plataforma. El formulario se muestra dentro de un modal de paciente: a la izquierda se presenta la cápsula con datos básicos del paciente y al centro se carga el formulario clínico de la aplicación EHR mediante `iframe`.
 
   Para la evaluación preanestésica, la acción se muestra en el estado `Preoperatorio`, antes del ingreso a pabellón, bajo la etiqueta `Evaluación preanestésica`, como se observa en la @fig-accion-eval-pre-icon. El formulario permite registrar información de la intervención, antecedentes médicos y revisión por sistemas, como muestra la @fig-accion-eval-pre.
 
@@ -771,7 +771,7 @@
 
   Para soportar cada pausa se configuraron tres tipos de signo vital: `Primera Pausa Quirúrgica`, `Segunda Pausa Quirúrgica` y `Tercera Pausa Quirúrgica`. Cada uno define, dentro de la escala `pausaQuirurgica`, una checklist con las verificaciones propias de su momento: antes de la inducción anestésica, antes de la incisión de la piel y antes de que el paciente abandone el pabellón. Las preguntas cubren identidad del paciente, sitio quirúrgico, consentimiento, funcionamiento de equipos, conteo de elementos, muestras biológicas y destino posterior, entre otros aspectos de seguridad.
 
-  `trigger` dispara `surgical_process:show_scale_form` con el nombre de la escala, el tipo de signo vital que corresponde a la pausa actual y el identificador del `PatientService`. El formulario se presenta como un modal con la información del paciente a la izquierda y las secciones de la checklist a la derecha, siguiendo el mecanismo de formularios tipo checklist del @anexo-formularios-checklist, como muestra la @fig-accion-pausa-qx.
+  `trigger` dispara `surgical_process:show_scale_form` con el nombre de la escala, el tipo de signo vital que corresponde a la pausa actual y el identificador del `PatientService`. El formulario se presenta como un modal con la información del paciente a la izquierda y las secciones de la checklist a la derecha, siguiendo el mecanismo de formularios tipo checklist del @anexo-arquitectura-plataforma, como muestra la @fig-accion-pausa-qx.
 
   #figure(
     image("./imagenes/cap06-accion-pausa-qx.png", width: 100%),
@@ -791,7 +791,7 @@
 
   La acción reutiliza el mecanismo de formularios de escala o checklist de la plataforma. Para este caso se configuró un tipo de signo vital denominado `Cuidados intraoperatorios`, cuyo `vstp_abbreviation` identifica la escala y cuyos datos extendidos definen una checklist con las preguntas operacionales relevantes: riesgo de lesión por presión en pabellón, posición quirúrgica, protección de puntos de apoyo, protección ocular y limpieza de piel preoperatoria, cada una con sus opciones y, en algunos casos, campo de observaciones. El registro se guarda como una evaluación de tipo checklist asociada a la atención del paciente.
 
-  Al ejecutarla, `trigger` dispara `surgical_process:show_scale_form` con el identificador de la escala, el tipo de signo vital y el `patientServiceId`. El formulario se muestra como un modal con la información del paciente a la izquierda y las preguntas de la checklist a la derecha, usando el mecanismo de formularios tipo checklist del @anexo-formularios-checklist, como se observa en la @fig-accion-cuidados-intraoperatorios.
+  Al ejecutarla, `trigger` dispara `surgical_process:show_scale_form` con el identificador de la escala, el tipo de signo vital y el `patientServiceId`. El formulario se muestra como un modal con la información del paciente a la izquierda y las preguntas de la checklist a la derecha, usando el mecanismo de formularios tipo checklist del @anexo-arquitectura-plataforma, como se observa en la @fig-accion-cuidados-intraoperatorios.
 
   #figure(
     image("./imagenes/cap06-accion-cuidados-intraoperatorios.png", width: 100%),
@@ -809,7 +809,7 @@
     caption: [Acción secundaria para cambiar la ubicación del paciente desde la lista de trabajo.],
   ) <fig-accion-cambiar-ubicacion-icon>
 
-  Al seleccionarla, `trigger` abre un panel lateral mediante `surgical_process:show_action_panel`, siguiendo el patrón de side panels del @anexo-side-panels. El panel carga `CFormProcesoQuirurgicoCambiarUbicacionPaciente`, como se observa en la @fig-accion-cambiar-ubicacion. La sección de información del paciente proviene del plugin `standard`; el resto del formulario usa la `AtencionQuirurgica` para restringir las áreas disponibles. Si el paciente está en pabellón, solo permite ubicaciones de pabellón; en otros casos permite CMA y Recuperación.
+  Al seleccionarla, `trigger` abre un panel lateral mediante `surgical_process:show_action_panel`, siguiendo el patrón de side panels del @anexo-arquitectura-plataforma. El panel carga `CFormProcesoQuirurgicoCambiarUbicacionPaciente`, como se observa en la @fig-accion-cambiar-ubicacion. La sección de información del paciente proviene del plugin `standard`; el resto del formulario usa la `AtencionQuirurgica` para restringir las áreas disponibles. Si el paciente está en pabellón, solo permite ubicaciones de pabellón; en otros casos permite CMA y Recuperación.
 
   #figure(
     image("./imagenes/cap06-cambiar-ubicacion.png", width: 100%),
@@ -834,7 +834,7 @@
     caption: [Formulario de reagendamiento de cirugía desde la lista de trabajo de pabellón.],
   ) <fig-accion-reagendar>
 
-  Al seleccionar la acción, `trigger` abre un panel lateral de programación de intervención mediante `surgical_process:show_action_panel`, usando el mecanismo de side panels del @anexo-side-panels. La sección de información del paciente proviene del plugin `standard`, mientras que los datos quirúrgicos se obtienen desde la `AtencionQuirurgica`: intervenciones, tiempo operatorio, pabellón programado y fecha de inicio programada. Esa información permite conservar el contexto de la cirugía y modificar solo la nueva programación.
+  Al seleccionar la acción, `trigger` abre un panel lateral de programación de intervención mediante `surgical_process:show_action_panel`, usando el mecanismo de side panels del @anexo-arquitectura-plataforma. La sección de información del paciente proviene del plugin `standard`, mientras que los datos quirúrgicos se obtienen desde la `AtencionQuirurgica`: intervenciones, tiempo operatorio, pabellón programado y fecha de inicio programada. Esa información permite conservar el contexto de la cirugía y modificar solo la nueva programación.
 
   Al confirmar el formulario, el método `commit` recibe la nueva ubicación y la nueva fecha de inicio. Con esos datos construye el cuerpo de actualización de la cita: usuario ejecutor, nueva fecha `scheduledStart`, participantes actualizados y datos extendidos. En Agenda, el pabellón se representa como un participante de la cita; por ello, para cambiarlo se reconstruye y reenvía la lista completa de participantes, reemplazando el participante de pabellón por la nueva ubicación seleccionada y manteniendo el participante paciente asociado a la atención.
 
@@ -849,7 +849,7 @@
     caption: [Acción para revertir el ingreso a pabellón disponible como acción secundaria.],
   ) <fig-accion-revertir-ingreso-pabellon-icon>
 
-  Al seleccionarla, `trigger` abre un panel lateral con `CFormProcesoQuirurgicoCambiarUbicacionPaciente`, siguiendo el patrón de side panels del @anexo-side-panels, como muestra la @fig-accion-revertir-ingreso-pabellon. El formulario precarga como ubicación de destino la `ubicacionPreOperatoria` guardada previamente al momento del ingreso, de modo que el usuario pueda devolver al paciente exactamente a donde estaba. También permite seleccionar otra ubicación de CMA o Recuperación si la situación operativa lo requiere.
+  Al seleccionarla, `trigger` abre un panel lateral con `CFormProcesoQuirurgicoCambiarUbicacionPaciente`, siguiendo el patrón de side panels del @anexo-arquitectura-plataforma, como muestra la @fig-accion-revertir-ingreso-pabellon. El formulario precarga como ubicación de destino la `ubicacionPreOperatoria` guardada previamente al momento del ingreso, de modo que el usuario pueda devolver al paciente exactamente a donde estaba. También permite seleccionar otra ubicación de CMA o Recuperación si la situación operativa lo requiere.
 
   #figure(
     image("./imagenes/cap06-revertir-ingreso-pabellon.png", width: 100%),
@@ -885,7 +885,7 @@
     caption: [Confirmación para imprimir el brazalete del paciente desde la lista de trabajo quirúrgica.],
   ) <fig-accion-imprimir-brazalete-icon>
 
-  Al seleccionarla, `trigger` abre un diálogo de confirmación mediante `surgical_process:run_dialogs`, siguiendo el patrón de modales del @anexo-modales-confirmacion, como se observa en la @fig-accion-imprimir-brazalete. Si el usuario confirma, la acción emite `surgical_process:print_wristband` con la `AtencionQuirurgica`. El plugin recibe ese evento y llama a la clase compartida `BrazaleteBpm`, pasando el identificador del paciente y la acción BPM de impresión. No se implementó un mecanismo nuevo de impresión; solo se conectó la acción del módulo quirúrgico con la clase ya disponible porque pabellón necesita imprimir el brazalete durante el flujo.
+  Al seleccionarla, `trigger` abre un diálogo de confirmación mediante `surgical_process:run_dialogs`, siguiendo el patrón de modales del @anexo-arquitectura-plataforma, como se observa en la @fig-accion-imprimir-brazalete. Si el usuario confirma, la acción emite `surgical_process:print_wristband` con la `AtencionQuirurgica`. El plugin recibe ese evento y llama a la clase compartida `BrazaleteBpm`, pasando el identificador del paciente y la acción BPM de impresión. No se implementó un mecanismo nuevo de impresión; solo se conectó la acción del módulo quirúrgico con la clase ya disponible porque pabellón necesita imprimir el brazalete durante el flujo.
 
   #figure(
     image("./imagenes/cap06-imprimir-brazalete.png", width: 50%),
@@ -901,7 +901,7 @@
     caption: [Acción de suspensión disponible como acción secundaria en la tabla de atención quirúrgica.],
   ) <fig-accion-suspender-icon>
 
-  Al seleccionar la acción, `trigger` abre un diálogo de confirmación mediante `surgical_process:run_dialogs`, siguiendo el patrón de modales del @anexo-modales-confirmacion. El diálogo muestra el paciente asociado y carga el formulario `CFormSurgicalProcessSuspend`, que solicita motivo, motivo específico y observaciones, como se observa en la @fig-accion-suspender. Los motivos de suspensión se obtienen desde la terminología `causa-suspension-qx` almacenada en MongoDB; el formulario carga solo términos activos y filtra subcausas activas para el motivo seleccionado.
+  Al seleccionar la acción, `trigger` abre un diálogo de confirmación mediante `surgical_process:run_dialogs`, siguiendo el patrón de modales del @anexo-arquitectura-plataforma. El diálogo muestra el paciente asociado y carga el formulario `CFormSurgicalProcessSuspend`, que solicita motivo, motivo específico y observaciones, como se observa en la @fig-accion-suspender. Los motivos de suspensión se obtienen desde la terminología `causa-suspension-qx` almacenada en MongoDB; el formulario carga solo términos activos y filtra subcausas activas para el motivo seleccionado.
 
   #figure(
     image("./imagenes/cap06-accion-suspender.png", width: 90%),
