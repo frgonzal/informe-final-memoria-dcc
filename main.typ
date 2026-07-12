@@ -458,7 +458,7 @@
 
   El segundo nivel corresponde a las condiciones propias de la acción. Para esto se implementó `canExecute`, que permite decidir si una acción declarada por el estado debe mostrarse efectivamente para una atención específica. Esta comprobación usa los datos de la `AtencionQuirurgica` y permite ocultar acciones cuando faltan condiciones necesarias, como información de traslado, evaluaciones requeridas o datos específicos en `extendedData`. De esta forma, los estados definen el conjunto posible de acciones y cada acción decide si cumple las condiciones para quedar disponible en la fila.
 
-  El flujo de ejecución se implementó en dos fases. `trigger` inicia la acción y controla la interacción inicial con la interfaz. Su responsabilidad es preparar la operación, solicitar datos cuando corresponde y delegar al plugin la apertura del componente necesario. `commit` ejecuta la operación confirmada con los datos ya capturados y con el usuario de sesión agregado por el plugin. Para coordinar ambas fases, los componentes emiten `surgical_process:commit_action`; el plugin recibe ese evento y llama a `action.commit`. Así, la acción conserva la lógica de negocio de la operación, mientras el plugin actúa como intermediario para ejecutar efectos sobre la aplicación, servicios y formularios.
+  El flujo de ejecución se implementó en dos fases. `trigger` inicia la acción y controla la interacción inicial con la interfaz. Su responsabilidad es preparar la operación, solicitar datos cuando corresponde y delegar al plugin la apertura del componente necesario. `commit` ejecuta la operación confirmada con los datos ya capturados y con el usuario de sesión agregado por el plugin. Para coordinar ambas fases, la acción solicita al plugin ejecutar el `commit` correspondiente. Así, la acción conserva la lógica de negocio de la operación, mientras el plugin actúa como intermediario para ejecutar efectos sobre la aplicación, servicios y formularios.
 
   `dispatchEvent` recibe el nombre del evento y su carga útil, y delega la llamada en la instancia del plugin asociada a la acción. Se usa para enviar al `WorklistSurgicalProcessPlugin` la instrucción que debe ejecutarse y los datos necesarios para resolverla. El plugin atiende esos eventos con las funciones registradas en `worklistInit` para manejarlos.
 
@@ -554,6 +554,8 @@
 
   Las acciones se presentan en el mismo orden definido por el registro canónico de la aplicación, salvo la acción de admisión, que se documenta aquí aunque se implementó en otra aplicación. Todas las acciones propias de la aplicación de proceso quirúrgico se implementan como clases derivadas de `AccionBase`, descrita en la @sec-modelo-base-acciones-atencion-quirurgica.
 
+  Cuando una acción requiere guardar un cambio o ejecutar una operación, emite un evento que el plugin `WorklistSurgicalProcessPlugin` escucha. Las acciones se encargan de construir el cuerpo a enviar, o de decidir qué operación ejecutar y con qué datos; el plugin, por su parte, tiene acceso a las APIs de la plataforma y realiza las llamadas correspondientes para completar la acción. De este modo, la lógica de presentación de la lista de trabajo se separa de la forma en que se ejecutan los cambios.
+
   Para las acciones que modifican el estado de una atención, la interfaz solicita confirmación antes de ejecutar la operación. Esta decisión se alinea con la heurística de prevención de errores, que recomienda pedir confirmación antes de acciones potencialmente propensas a error @BaloianPino2024Usabilidad. Además, una vez ejecutada la acción, la aplicación muestra retroalimentación explícita de éxito o fracaso, siguiendo el principio de visibilidad del estado del sistema y las recomendaciones sobre mensajes de error comprensibles @BaloianPino2024Usabilidad. La @fig-ejemplo-mensaje-exito muestra un ejemplo de confirmación visual después de egresar correctamente a un paciente.
 
   #figure(
@@ -592,21 +594,21 @@
 
   === Recepcionar paciente
 
-  La acción `Recepcionar paciente` se muestra sobre atenciones quirúrgicas que ya pasaron por admisión y quedaron en estado `En espera`. La @fig-accion-recepcionar-paciente-icon muestra la acción disponible en la lista de trabajo. Esta acción registra el ingreso operacional del paciente a una ubicación de la unidad quirúrgica.
+  La acción `Recepcionar paciente` permite recepcionar un paciente en pabellón, iniciando la atención de pabellón. La @fig-accion-recepcionar-paciente-icon muestra la acción disponible en la lista de trabajo.
 
   #figure(
     image("./imagenes/cap06-recepcion-paciente-icon.png", width: 30%),
     caption: [Acción para recepcionar al paciente desde la lista de trabajo quirúrgica.],
   ) <fig-accion-recepcionar-paciente-icon>
 
-  Al seleccionarla, `trigger` abre un panel lateral mediante `surgical_process:show_action_panel`, siguiendo el mecanismo de side panels del @anexo-arquitectura-plataforma, y carga `CFormProcesoQuirurgicoCambiarUbicacionPaciente`, como se observa en la @fig-accion-recepcionar-paciente. La sección de información del paciente se reutiliza desde el plugin `standard`; el resto del formulario recibe la `AtencionQuirurgica` y permite seleccionar la ubicación de destino. Para esta acción se habilitaron como sectores posibles CMA y Recuperación, usando un filtro de ubicaciones restringido a esas áreas, y la etiqueta de confirmación del panel se configuró como `Ingresar`.
+  Al seleccionarla, la acción utiliza el plugin para abrir un panel lateral con el formulario para recepcionar al paciente, como se observa en la @fig-accion-recepcionar-paciente. La sección de información del paciente se reutiliza desde el plugin `standard`; el resto del formulario recibe la `AtencionQuirurgica` y permite seleccionar la ubicación de destino. Para esta acción se habilitaron como sectores posibles CMA y Recuperación, usando un filtro de ubicaciones restringido a esas áreas, y la etiqueta de confirmación del panel se configuró como `Ingresar`.
 
   #figure(
     image("./imagenes/cap06-recepcion-paciente.png", width: 100%),
     caption: [Panel de recepción de paciente, con selección de sector y ubicación de destino.],
   ) <fig-accion-recepcionar-paciente>
 
-  Al confirmar, el método `commit` construye el cuerpo de la orquestación con `appointmentId`, `locationId`, `locationDescription`, `username`, `tabla` y `patientId`. Luego emite `surgical_process:execute_panel_action` con la acción API `bpm.postDynamicOrchestration` y el identificador de la orquestación de recepción. La secuencia backend que deriva entre flujo electivo y de urgencia se describe en la @sec-orquestacion-recepcionar-paciente.
+  Al confirmar, se construye el cuerpo de la orquestación con `appointmentId`, `locationId`, `locationDescription`, `username`, `tabla` y `patientId`. Luego, el plugin utiliza la API de BPM para iniciar la orquestación dinámica de recepción. El comportamiento de esa orquestación, que deriva entre flujo electivo y de urgencia, se describe en la @sec-orquestacion-recepcionar-paciente.
 
   === Ingresar a Pabellón
 
@@ -732,7 +734,7 @@
 
   La acción `Cargar evaluación` no representa un único formulario fijo. Es una clase parametrizada por tipo de evaluación, de modo que el mismo modelo de acción puede mostrarse con etiquetas, títulos y condiciones distintas. En la implementación actual se usa para la evaluación preanestésica y el protocolo quirúrgico. Ambas comparten el mismo mecanismo de carga y se diferencian principalmente por el tipo de evaluación, el momento del flujo en que se muestran y la información clínica que registran.
 
-  El comportamiento común de la acción es el siguiente. `canExecute` verifica que la atención aún no tenga registrada una evaluación completa del tipo correspondiente, por lo que la acción se muestra solo si todavía no existe una evaluación de ese tipo. `trigger` busca el último borrador existente para ese tipo de evaluación y emite `surgical_process:load_evaluation` con el tipo, el título, los identificadores del paciente, el `PatientService`, el `careManager` y el borrador cuando existe.   El plugin recibe el evento y delega la carga a `loadModalEvaluation`, reutilizando el mecanismo de formularios clínicos embebidos descrito en el @anexo-arquitectura-plataforma. El formulario se muestra dentro de un modal de paciente: a la izquierda se presenta la cápsula con datos básicos del paciente y al centro se carga el formulario clínico de la aplicación EHR mediante `iframe`.
+  El comportamiento común de la acción es el siguiente. `canExecute` verifica que la atención aún no tenga registrada una evaluación completa del tipo correspondiente, por lo que la acción se muestra solo si todavía no existe una evaluación de ese tipo. `trigger` busca el último borrador existente para ese tipo de evaluación y solicita al plugin cargar el formulario correspondiente, junto con los datos del paciente, la atención y el borrador cuando existe. El plugin carga el formulario mediante `loadModalEvaluation`, reutilizando el mecanismo de formularios clínicos embebidos descrito en el @anexo-arquitectura-plataforma. El formulario se muestra dentro de un modal de paciente: a la izquierda se presenta la cápsula con datos básicos del paciente y al centro se carga el formulario clínico de la aplicación EHR mediante `iframe`.
 
   Para la evaluación preanestésica, la acción se muestra en el estado `Preoperatorio`, antes del ingreso a pabellón, bajo la etiqueta `Evaluación preanestésica`, como se observa en la @fig-accion-eval-pre-icon. El formulario permite registrar información de la intervención, antecedentes médicos y revisión por sistemas, como muestra la @fig-accion-eval-pre.
 
@@ -771,7 +773,7 @@
 
   Para soportar cada pausa se configuraron tres tipos de signo vital: `Primera Pausa Quirúrgica`, `Segunda Pausa Quirúrgica` y `Tercera Pausa Quirúrgica`. Cada uno define, dentro de la escala `pausaQuirurgica`, una checklist con las verificaciones propias de su momento: antes de la inducción anestésica, antes de la incisión de la piel y antes de que el paciente abandone el pabellón. Las preguntas cubren identidad del paciente, sitio quirúrgico, consentimiento, funcionamiento de equipos, conteo de elementos, muestras biológicas y destino posterior, entre otros aspectos de seguridad.
 
-  `trigger` dispara `surgical_process:show_scale_form` con el nombre de la escala, el tipo de signo vital que corresponde a la pausa actual y el identificador del `PatientService`. El formulario se presenta como un modal con la información del paciente a la izquierda y las secciones de la checklist a la derecha, siguiendo el mecanismo de formularios tipo checklist del @anexo-arquitectura-plataforma, como muestra la @fig-accion-pausa-qx.
+  Al seleccionarla, la acción solicita al plugin mostrar el formulario de checklist correspondiente a la pausa actual, indicando el tipo de signo vital y la atención asociada. El formulario se presenta como un modal con la información del paciente a la izquierda y las secciones de la checklist a la derecha, siguiendo el mecanismo de formularios tipo checklist descrito en el @anexo-arquitectura-plataforma, como muestra la @fig-accion-pausa-qx.
 
   #figure(
     image("./imagenes/cap06-accion-pausa-qx.png", width: 100%),
@@ -791,7 +793,7 @@
 
   La acción reutiliza el mecanismo de formularios de escala o checklist de la plataforma. Para este caso se configuró un tipo de signo vital denominado `Cuidados intraoperatorios`, cuyo `vstp_abbreviation` identifica la escala y cuyos datos extendidos definen una checklist con las preguntas operacionales relevantes: riesgo de lesión por presión en pabellón, posición quirúrgica, protección de puntos de apoyo, protección ocular y limpieza de piel preoperatoria, cada una con sus opciones y, en algunos casos, campo de observaciones. El registro se guarda como una evaluación de tipo checklist asociada a la atención del paciente.
 
-  Al ejecutarla, `trigger` dispara `surgical_process:show_scale_form` con el identificador de la escala, el tipo de signo vital y el `patientServiceId`. El formulario se muestra como un modal con la información del paciente a la izquierda y las preguntas de la checklist a la derecha, usando el mecanismo de formularios tipo checklist del @anexo-arquitectura-plataforma, como se observa en la @fig-accion-cuidados-intraoperatorios.
+  Al ejecutarla, la acción solicita al plugin mostrar el formulario de checklist correspondiente, indicando el tipo de signo vital y la atención asociada. El formulario se muestra como un modal con la información del paciente a la izquierda y las preguntas de la checklist a la derecha, usando el mecanismo de formularios tipo checklist descrito en el @anexo-arquitectura-plataforma, como se observa en la @fig-accion-cuidados-intraoperatorios.
 
   #figure(
     image("./imagenes/cap06-accion-cuidados-intraoperatorios.png", width: 100%),
@@ -809,7 +811,7 @@
     caption: [Acción secundaria para cambiar la ubicación del paciente desde la lista de trabajo.],
   ) <fig-accion-cambiar-ubicacion-icon>
 
-  Al seleccionarla, `trigger` abre un panel lateral mediante `surgical_process:show_action_panel`, siguiendo el patrón de side panels del @anexo-arquitectura-plataforma. El panel carga `CFormProcesoQuirurgicoCambiarUbicacionPaciente`, como se observa en la @fig-accion-cambiar-ubicacion. La sección de información del paciente proviene del plugin `standard`; el resto del formulario usa la `AtencionQuirurgica` para restringir las áreas disponibles. Si el paciente está en pabellón, solo permite ubicaciones de pabellón; en otros casos permite CMA y Recuperación.
+  Al seleccionarla, la acción utiliza el plugin para abrir un panel lateral con el formulario de cambio de ubicación, como se observa en la @fig-accion-cambiar-ubicacion. La sección de información del paciente proviene del plugin `standard`; el resto del formulario usa la `AtencionQuirurgica` para restringir las áreas disponibles. Si el paciente está en pabellón, solo permite ubicaciones de pabellón; en otros casos permite CMA y Recuperación.
 
   #figure(
     image("./imagenes/cap06-cambiar-ubicacion.png", width: 100%),
@@ -834,11 +836,11 @@
     caption: [Formulario de reagendamiento de cirugía desde la lista de trabajo de pabellón.],
   ) <fig-accion-reagendar>
 
-  Al seleccionar la acción, `trigger` abre un panel lateral de programación de intervención mediante `surgical_process:show_action_panel`, usando el mecanismo de side panels del @anexo-arquitectura-plataforma. La sección de información del paciente proviene del plugin `standard`, mientras que los datos quirúrgicos se obtienen desde la `AtencionQuirurgica`: intervenciones, tiempo operatorio, pabellón programado y fecha de inicio programada. Esa información permite conservar el contexto de la cirugía y modificar solo la nueva programación.
+  Al seleccionar la acción, el plugin abre un panel lateral con el formulario de programación de intervención. La sección de información del paciente proviene del plugin `standard`, mientras que los datos quirúrgicos se obtienen desde la `AtencionQuirurgica`: intervenciones, tiempo operatorio, pabellón programado y fecha de inicio programada. Esa información permite conservar el contexto de la cirugía y modificar solo la nueva programación.
 
   Al confirmar el formulario, el método `commit` recibe la nueva ubicación y la nueva fecha de inicio. Con esos datos construye el cuerpo de actualización de la cita: usuario ejecutor, nueva fecha `scheduledStart`, participantes actualizados y datos extendidos. En Agenda, el pabellón se representa como un participante de la cita; por ello, para cambiarlo se reconstruye y reenvía la lista completa de participantes, reemplazando el participante de pabellón por la nueva ubicación seleccionada y manteniendo el participante paciente asociado a la atención.
 
-  La ejecución se delega al plugin mediante `surgical_process:execute_panel_action`, usando la acción API `agenda.patchAppointmentReschedule`. Esa acción termina llamando al endpoint de Agenda `PATCH /agenda/appointments/{id}/_reschedule`, donde `{id}` corresponde a la cita de origen de la atención quirúrgica. Si la operación finaliza correctamente, el panel informa la nueva fecha y pabellón, y la grilla se actualiza.
+  Al confirmar, el plugin utiliza la API de Agenda para actualizar la cita de origen con la nueva fecha y pabellón. Si la operación finaliza correctamente, el panel informa la nueva programación y la grilla se actualiza.
 
   === Revertir ingreso a Pabellón
 
@@ -885,7 +887,7 @@
     caption: [Confirmación para imprimir el brazalete del paciente desde la lista de trabajo quirúrgica.],
   ) <fig-accion-imprimir-brazalete-icon>
 
-  Al seleccionarla, `trigger` abre un diálogo de confirmación mediante `surgical_process:run_dialogs`, siguiendo el patrón de modales del @anexo-arquitectura-plataforma, como se observa en la @fig-accion-imprimir-brazalete. Si el usuario confirma, la acción emite `surgical_process:print_wristband` con la `AtencionQuirurgica`. El plugin recibe ese evento y llama a la clase compartida `BrazaleteBpm`, pasando el identificador del paciente y la acción BPM de impresión. No se implementó un mecanismo nuevo de impresión; solo se conectó la acción del módulo quirúrgico con la clase ya disponible porque pabellón necesita imprimir el brazalete durante el flujo.
+  Al seleccionarla, el plugin abre un diálogo de confirmación, como se observa en la @fig-accion-imprimir-brazalete. Si el usuario confirma, el plugin invoca la clase compartida `BrazaleteBpm` con el identificador del paciente y la acción BPM de impresión. No se implementó un mecanismo nuevo de impresión; solo se conectó la acción del módulo quirúrgico con la clase ya disponible porque pabellón necesita imprimir el brazalete durante el flujo.
 
   #figure(
     image("./imagenes/cap06-imprimir-brazalete.png", width: 50%),
@@ -901,16 +903,16 @@
     caption: [Acción de suspensión disponible como acción secundaria en la tabla de atención quirúrgica.],
   ) <fig-accion-suspender-icon>
 
-  Al seleccionar la acción, `trigger` abre un diálogo de confirmación mediante `surgical_process:run_dialogs`, siguiendo el patrón de modales del @anexo-arquitectura-plataforma. El diálogo muestra el paciente asociado y carga el formulario `CFormSurgicalProcessSuspend`, que solicita motivo, motivo específico y observaciones, como se observa en la @fig-accion-suspender. Los motivos de suspensión se obtienen desde la terminología `causa-suspension-qx` almacenada en MongoDB; el formulario carga solo términos activos y filtra subcausas activas para el motivo seleccionado.
+  Al seleccionar la acción, el plugin abre un diálogo de confirmación que muestra el paciente asociado y carga el formulario de suspensión, como se observa en la @fig-accion-suspender. El formulario solicita motivo, motivo específico y observaciones. Los motivos de suspensión se obtienen desde la terminología `causa-suspension-qx` almacenada en MongoDB; el formulario carga solo términos activos y filtra subcausas activas para el motivo seleccionado.
 
   #figure(
     image("./imagenes/cap06-accion-suspender.png", width: 90%),
     caption: [Diálogo de confirmación y formulario de motivos para suspender una intervención quirúrgica.],
   ) <fig-accion-suspender>
 
-  Al confirmar, el diálogo emite `surgical_process:commit_action` con los datos del formulario. El método `commit` construye el cuerpo para la suspensión con el paciente, el clínico ejecutor, la cita asociada, la atención `PatientService` cuando existe, la causa, la subcausa y las observaciones. La acción mapea causa y subcausa al formato que espera la orquestación, conservando identificador, descripción y códigos disponibles.
+  Al confirmar, se construye el cuerpo para la suspensión con el paciente, el clínico ejecutor, la cita asociada, la atención `PatientService` cuando existe, la causa, la subcausa y las observaciones. La acción mapea causa y subcausa al formato que espera la orquestación, conservando identificador, descripción y códigos disponibles.
 
-  Finalmente, el método `commit` emite `surgical_process:execute_api_call` con la acción API `bpm.postDynamicOrchestration`, el identificador de la orquestación de suspensión y el cuerpo normalizado por la acción. La secuencia ejecutada por esa orquestación se describe en la @sec-orquestacion-suspender-cirugia.
+  Finalmente, el plugin utiliza la API de BPM para iniciar la orquestación dinámica de suspensión con el cuerpo normalizado por la acción. El comportamiento de esa orquestación se describe en la @sec-orquestacion-suspender-cirugia.
 
   == Estados implementados <sec-estados-implementados>
 
