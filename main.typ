@@ -922,7 +922,7 @@
     caption: [Diálogo de confirmación y formulario de motivos para suspender una intervención quirúrgica.],
   ) <fig-accion-suspender>
 
-  Al confirmar, se construye el cuerpo para la suspensión con el paciente, el clínico ejecutor, la cita asociada, la atención `PatientService` cuando existe, la causa, la subcausa y las observaciones.
+  Al confirmar, se construye el cuerpo para la suspensión con el paciente, el clínico ejecutor, la cita asociada, la atención clínica asociada (cuando existe), la causa, la subcausa y las observaciones.
 
   Finalmente, el plugin utiliza la API de BPM para iniciar la orquestación dinámica de suspensión con el cuerpo normalizado por la acción. El comportamiento de esa orquestación se describe en la @sec-orquestacion-suspender-cirugia.
 
