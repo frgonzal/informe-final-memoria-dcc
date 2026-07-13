@@ -601,50 +601,64 @@
     caption: [Acción para recepcionar al paciente desde la lista de trabajo quirúrgica.],
   ) <fig-accion-recepcionar-paciente-icon>
 
-  Al seleccionarla, la acción utiliza el plugin para abrir un panel lateral con el formulario para recepcionar al paciente, como se observa en la @fig-accion-recepcionar-paciente. La sección de información del paciente se reutiliza desde el plugin `standard`; el resto del formulario recibe la `AtencionQuirurgica` y permite seleccionar la ubicación de destino. Para esta acción se habilitaron como sectores posibles CMA y Recuperación, usando un filtro de ubicaciones restringido a esas áreas, y la etiqueta de confirmación del panel se configuró como `Ingresar`.
+  Al seleccionarla, la acción utiliza el plugin para abrir un panel lateral con el formulario para recepcionar al paciente, como se observa en la @fig-accion-recepcionar-paciente. La sección de información del paciente se reutiliza desde el plugin `standard`; el resto del formulario recibe la `AtencionQuirurgica` y permite seleccionar la ubicación de destino. Para esta acción solo se muestran como sectores posibles CMA y Recuperación, que son las áreas habilitadas para recepcionar un paciente.
 
   #figure(
     image("./imagenes/cap06-recepcion-paciente.png", width: 100%),
     caption: [Panel de recepción de paciente, con selección de sector y ubicación de destino.],
   ) <fig-accion-recepcionar-paciente>
 
-  Al confirmar, se construye el cuerpo de la orquestación con `appointmentId`, `locationId`, `locationDescription`, `username`, `tabla` y `patientId`. Luego, el plugin utiliza la API de BPM para iniciar la orquestación dinámica de recepción. El comportamiento de esa orquestación, que deriva entre flujo electivo y de urgencia, se describe en la @sec-orquestacion-recepcionar-paciente.
+  Al confirmar, se construye el cuerpo de la orquestación con el identificador de la cita, la información de la ubicación seleccionada, el usuario ejecutor, el origen de la atención (electiva o urgencia) y el identificador del paciente. Luego, el plugin utiliza la API de BPM para iniciar la orquestación dinámica de recepción. El comportamiento de esa orquestación, que deriva entre flujo electivo y de urgencia, se describe en la @sec-orquestacion-recepcionar-paciente.
 
   === Ingresar a Pabellón
 
-  La acción `Ingresar a Pabellón` se muestra en estado `Preoperatorio` y permite pasar al paciente desde la ubicación preparatoria al quirófano donde se realizará la intervención. La @fig-accion-ingresar-a-pabellon-icon muestra el ícono de la acción.
+  La acción `Ingresar a Pabellón` permite pasar al paciente desde la ubicación preparatoria al quirófano donde se realizará la intervención. La @fig-accion-ingresar-a-pabellon-icon muestra el ícono de la acción.
 
   #figure(
     image("./imagenes/cap06-accion-ingresar-a-pabellon-icon.png", width: 30%),
     caption: [Acción para ingresar al paciente a pabellón desde la lista de trabajo quirúrgica.],
   ) <fig-accion-ingresar-a-pabellon-icon>
 
-  Al seleccionarla, `trigger` abre un panel lateral —con el mismo patrón de side panels del @anexo-arquitectura-plataforma— con `CFormProcesoQuirurgicoCambiarUbicacionPaciente`, reutilizando la información del paciente desde `standard` y mostrando el sector `Pabellón` con su ubicación correspondiente, como se observa en la @fig-accion-ingresar-a-pabellon. El pabellón se precarga con el programado, pero el usuario puede seleccionar otro cuando la operación finalmente se realice en un quirófano distinto.
+  Al seleccionarla, el plugin abre un panel lateral con el formulario de cambio de ubicación, reutilizando la información del paciente desde `standard` y mostrando el sector `Pabellón` con su ubicación correspondiente, como se observa en la @fig-accion-ingresar-a-pabellon. El pabellón se precarga con el programado, pero el usuario puede seleccionar otro cuando la operación finalmente se realice en un quirófano distinto.
 
   #figure(
     image("./imagenes/cap06-accion-ingresar-a-pabellon.png", width: 100%),
     caption: [Panel para ingresar al paciente a pabellón.],
   ) <fig-accion-ingresar-a-pabellon>
 
-  El método `commit` ejecuta la acción API `hlth.patchPatientServiceChangeLocation`, que llama al endpoint de HLTH para cambiar la ubicación del paciente al pabellón seleccionado. Esta operación aprovecha la funcionalidad descrita en la @sec-hlth-atencion-quirurgica-ubicacion-datos-extendidos, que permite actualizar el `extendedData` de la atención en el mismo momento en que se produce el cambio de ubicación. Gracias a esto, además del movimiento del paciente, la acción registra el hito de ingreso a pabellón con la fecha y hora actuales; guarda en `extendedData.pabellon.programacion.ubicacionUtilizada` el pabellón efectivamente utilizado, que puede diferir del programado y se requiere para reportes; conserva en `extendedData.pabellon.ubicacionPreOperatoria` la ubicación anterior para poder revertir un ingreso accidental; y actualiza `stateKey` al estado `EstadoEnQuirofanoEntrada`, de modo que el caso queda listo para continuar con los hitos intraoperatorios.
+  Al confirmar, el plugin utiliza la API de HLTH para cambiar la ubicación del paciente al pabellón seleccionado. Esta operación aprovecha el mecanismo que actualiza los datos extendidos de la atención al mismo tiempo que se produce el cambio de ubicación, descrito en la @sec-hlth-atencion-quirurgica-ubicacion-datos-extendidos. Gracias a esto, además del movimiento del paciente, la acción registra el hito de ingreso a pabellón con la fecha y hora actuales; guarda la ubicación efectivamente utilizada, que puede diferir de la programada y se requiere para reportes; conserva la ubicación anterior para poder revertir un ingreso accidental; y actualiza el estado interno de la atención de pabellón, de modo que el caso queda listo para continuar con los hitos intraoperatorios.
 
   === Continuar cirugía
 
-  La acción `Continuar cirugía` agrupa el avance de los hitos intraoperatorios del proceso quirúrgico. Se trata de una misma clase de acción parametrizada que se instancia de forma distinta en cada estado intraoperatorio, por lo que su etiqueta visible cambia según la etapa actual: `Iniciar anestesia` cuando el paciente acaba de ingresar a pabellón, `Iniciar cirugía` cuando la anestesia ya comenzó, `Finalizar cirugía` cuando la intervención está en curso y `Finalizar anestesia` cuando la cirugía ya terminó. La @fig-accion-continuar-cirugia-icon muestra el ícono de la acción en estado `Anestesia iniciada`, donde la etiqueta corresponde a `Iniciar cirugía`.
+  La acción `Continuar cirugía` agrupa el avance de los hitos intraoperatorios del proceso quirúrgico. Se trata de una misma clase de acción parametrizada que se instancia de forma distinta en cada estado intraoperatorio, adaptando su etiqueta visible y el hito que registra según la etapa actual. La @fig-accion-continuar-cirugia-icon muestra el ícono de la acción en estado `Anestesia iniciada`, donde la etiqueta corresponde a `Iniciar cirugía`.
 
   #figure(
     image("./imagenes/cap06-accion-continuar-cirugia-icon.png", width: 30%),
     caption: [Acción `Continuar cirugía` mostrada como `Iniciar cirugía` en estado `Anestesia iniciada`.],
   ) <fig-accion-continuar-cirugia-icon>
 
-  `trigger` abre un panel lateral con `CFormProcesoQuirurgicoContinuarCirugia`, usando el mecanismo de side panels descrito en el @anexo-arquitectura-plataforma. El formulario muestra la información del paciente, los datos de programación de la intervención y una sección denominada `Hitos del proceso`, que presenta una línea de tiempo con las etapas intraoperatorias: recepción en pabellón, anestesia iniciada, cirugía iniciada, cirugía finalizada y anestesia finalizada. El hito que corresponde al estado actual se resalta, mientras que los hitos ya completados muestran su fecha y hora de registro, y los hitos pendientes aparecen deshabilitados. Esta visualización permite al equipo confirmar en qué momento del proceso se encuentra el paciente antes de avanzar. Además, el panel muestra el tiempo transcurrido de la intervención y el tiempo total en pabellón, como se observa en la @fig-accion-continuar-cirugia.
+  Al seleccionarla, el plugin abre un panel lateral con el formulario de continuación del proceso. El formulario muestra la información del paciente, los datos de programación de la intervención y una sección con la línea de tiempo de las etapas intraoperatorias: recepción en pabellón, anestesia iniciada, cirugía iniciada, cirugía finalizada y anestesia finalizada. El hito que corresponde al estado actual se resalta y muestra su hora de inicio; los hitos ya completados se muestran sin resaltar, con su hora de inicio registrada; los hitos posteriores aparecen menos resaltados, casi ocultos, de modo que no destaquen, y solo muestran su nombre. Esta visualización permite al equipo confirmar en qué momento del proceso se encuentra el paciente antes de avanzar.   Además, el panel muestra el tiempo transcurrido de la intervención y el tiempo total en pabellón, como se observa en la @fig-accion-continuar-cirugia. El tiempo transcurrido de la intervención se mide desde el inicio de la cirugía hasta el final de la cirugía. El tiempo total en pabellón se mide desde que el paciente entra al pabellón hasta que sale del pabellón.
+
+  #figure(
+    table(
+      columns: (1fr, 1fr, 1fr),
+      inset: 8pt,
+      align: horizon,
+      table.header([*Estado actual*], [*Etiqueta mostrada*], [*Hito registrado*]),
+      [En pabellón], [Iniciar anestesia], [Anestesia iniciada],
+      [Anestesia iniciada], [Iniciar cirugía], [Cirugía iniciada],
+      [Cirugía iniciada], [Finalizar cirugía], [Cirugía finalizada],
+      [Cirugía finalizada], [Finalizar anestesia], [Anestesia finalizada],
+    ),
+    caption: [Instancias de la acción `Continuar cirugía` según el estado intraoperatorio.],
+  ) <tbl-continuar-cirugia>
 
   #figure(
     image("./imagenes/cap06-accion-continuar-cirugia.png", width: 100%),
     caption: [Panel de `Continuar cirugía` con los hitos del proceso y la etapa actual resaltada.],
   ) <fig-accion-continuar-cirugia>
 
-  El método `commit` actualiza el `extendedData` de la atención mediante `hlth.patchPatientServiceExtendedData`, registrando la fecha y hora actuales en el hito que corresponde al siguiente estado y actualizando el `stateKey`. Después de cada avance, excepto tras `Finalizar anestesia`, la acción vuelve a abrir automáticamente el formulario para permitir que el equipo registre los hitos de forma continua sin tener que volver a seleccionar la acción en la grilla. Así, una sola clase de acción coordina todo el avance intraoperatorio, adaptando su etiqueta y su hito objetivo al estado en que se encuentre la atención.
+  Al confirmar, el plugin utiliza la API de HLTH para actualizar los datos extendidos de la atención, registrando la fecha y hora del hito que corresponde al siguiente estado y actualizando el estado interno de la atención. Después de cada avance, excepto tras finalizar la anestesia, la acción vuelve a abrir automáticamente el formulario para permitir que el equipo registre los hitos de forma continua sin tener que volver a seleccionar la acción en la grilla. Así, una sola clase de acción coordina todo el avance intraoperatorio, adaptando su etiqueta y su hito objetivo al estado en que se encuentre la atención.
 
   === Iniciar recuperación
 
@@ -655,25 +669,25 @@
     caption: [Acción para iniciar la recuperación del paciente desde la lista de trabajo quirúrgica.],
   ) <fig-accion-iniciar-recu-icon>
 
-  Al seleccionarla, `trigger` abre un panel lateral con `CFormProcesoQuirurgicoCambiarUbicacionPaciente` —siguiendo el patrón de side panels del @anexo-arquitectura-plataforma—, reutilizando la información del paciente desde `standard` y mostrando el sector `Recuperación` con su ubicación correspondiente, como se observa en la @fig-accion-iniciar-recu.
+  Al seleccionarla, el plugin abre un panel lateral con el formulario de cambio de ubicación, reutilizando la información del paciente desde `standard` y mostrando el sector `Recuperación` con su ubicación correspondiente, como se observa en la @fig-accion-iniciar-recu.
 
   #figure(
     image("./imagenes/cap06-accion-iniciar-recu.png", width: 100%),
     caption: [Panel para iniciar la recuperación del paciente.],
   ) <fig-accion-iniciar-recu>
 
-  El método `commit` ejecuta la acción API `hlth.patchPatientServiceChangeLocation`, que llama al endpoint de HLTH para cambiar la ubicación del paciente a la ubicación de recuperación seleccionada. Al igual que en el ingreso a pabellón, esta operación aprovecha la funcionalidad descrita en la @sec-hlth-atencion-quirurgica-ubicacion-datos-extendidos, que permite actualizar el `extendedData` de la atención en el mismo momento del cambio de ubicación. Con esto, además del movimiento del paciente, la acción registra el hito de inicio de recuperación con la fecha y hora actuales y actualiza `stateKey` al estado `EstadoEnRecuperacion`, de modo que el caso queda listo para finalizar la recuperación una vez que el paciente esté en condiciones de continuar su egreso o traslado.
+  Al confirmar, el plugin utiliza la API de HLTH para cambiar la ubicación del paciente a la ubicación de recuperación seleccionada. Al igual que en el ingreso a pabellón, esta operación aprovecha el mecanismo que actualiza los datos extendidos de la atención en el mismo momento del cambio de ubicación, descrito en la @sec-hlth-atencion-quirurgica-ubicacion-datos-extendidos. Con esto, además del movimiento del paciente, la acción registra el hito de inicio de recuperación y actualiza el estado interno de la atención, de modo que el caso queda listo para finalizar la recuperación una vez que el paciente esté en condiciones de continuar su egreso o traslado.
 
   === Finalizar recuperación
 
-  La acción `Finalizar recuperación` permite cerrar la etapa de recuperación del paciente una vez que ya no requiere permanecer en esa unidad. Se muestra sobre atenciones en estado `En recuperación` y, al seleccionarla, despliega un diálogo de confirmación con el nombre del paciente, usando el patrón de modales del @anexo-arquitectura-plataforma.
+  La acción `Finalizar recuperación` permite cerrar la etapa de recuperación del paciente una vez que ya no requiere permanecer en esa unidad. Al seleccionarla, se despliega un diálogo de confirmación con el nombre del paciente.
 
   #figure(
     image("./imagenes/cap06-accion-finalizar-recuperacion-icon.png", width: 30%),
     caption: [Acción para finalizar la recuperación desde la lista de trabajo quirúrgica.],
   ) <fig-accion-finalizar-recuperacion-icon>
 
-  El diálogo no pide datos adicionales: solo confirma la acción antes de ejecutarla, como muestra la @fig-accion-finalizar-recuperacion. Al aceptar, el método `commit` instancia la orquestación de finalizar recuperación. Esa orquestación decide en qué estado dejar la atención, ya sea `Esperando Alta` o `Esperando traslado`, según la situación del paciente. Cuando el resultado es `Esperando traslado`, además conserva la referencia al traslado activo para que esa información pueda reutilizarse en el frontend.
+  El diálogo no pide datos adicionales: solo confirma la acción antes de ejecutarla, como muestra la @fig-accion-finalizar-recuperacion. Al aceptar, el plugin utiliza la API de BPM para iniciar la orquestación de finalizar recuperación descrita en la @sec-orquestacion-finalizar-recuperacion. Esa orquestación decide en qué estado dejar la atención, ya sea `Esperando Alta` o `Esperando traslado`, según la situación del paciente. Cuando el resultado es `Esperando traslado`, además conserva la referencia al traslado activo para que esa información pueda reutilizarse en el frontend.
 
   #figure(
     image("./imagenes/cap06-accion-finalizar-recuperacion.png", width: 50%),
@@ -682,25 +696,25 @@
 
   === Iniciar traslado
 
-  La acción `Iniciar traslado` permite dar comienzo al traslado del paciente cuando ya no debe permanecer en pabellón o en recuperación. Se muestra solo si la atención tiene un traslado asociado pendiente, y se presenta como acción secundaria en la lista de trabajo, como muestra la @fig-accion-iniciar-traslado-icon.
+  La acción `Iniciar traslado` permite dar comienzo al traslado del paciente cuando ya no debe permanecer en pabellón o en recuperación. Se muestra solo si la atención tiene un traslado asociado pendiente, como muestra la @fig-accion-iniciar-traslado-icon.
 
   #figure(
     image("./imagenes/cap06-accion-iniciar-traslado-icon.png", width: 30%),
     caption: [Acción para iniciar el traslado del paciente desde la lista de trabajo quirúrgica.],
   ) <fig-accion-iniciar-traslado-icon>
 
-  Al seleccionarla, `trigger` abre un diálogo de confirmación —con el patrón de modales del @anexo-arquitectura-plataforma— con el destino del traslado, como se observa en la @fig-accion-iniciar-traslado. El mensaje solo pide validar la operación antes de ejecutarla y no solicita información adicional.
+  Al seleccionarla, el plugin abre un diálogo de confirmación con el destino del traslado, como se observa en la @fig-accion-iniciar-traslado. El mensaje solo pide validar la operación antes de ejecutarla y no solicita información adicional.
 
   #figure(
     image("./imagenes/cap06-accion-iniciar-traslado.png", width: 55%),
     caption: [Confirmación para iniciar el traslado del paciente.],
   ) <fig-accion-iniciar-traslado>
 
-  Al confirmar, el método `commit` instancia la orquestación de iniciar traslado. Esa orquestación ejecuta el movimiento del paciente, registra el hito `enTransito` y actualiza la atención al estado `En tránsito`. De esta forma, el frontend solo dispara el inicio del traslado y la lógica de transición queda concentrada en la orquestación.
+  Al confirmar, el plugin utiliza la API de BPM para iniciar la orquestación de iniciar traslado descrita en la @sec-orquestacion-traslados. Esa orquestación ejecuta el movimiento del paciente, registra el hito de tránsito y actualiza la atención al estado `En tránsito`. De esta forma, el frontend solo dispara el inicio del traslado y la lógica de transición queda concentrada en la orquestación.
 
   === Devolver a unidad de origen
 
-  La acción `Devolver a unidad de origen` permite retornar al paciente a la unidad desde la que provenía. Antes de ejecutarla, muestra una confirmación con la ubicación de destino, siguiendo el patrón de modales del @anexo-arquitectura-plataforma.
+  La acción `Devolver a unidad de origen` permite retornar al paciente a la unidad desde la que se originó la atención. Se muestra cuando la cirugía no corresponde a cirugía mayor ambulatoria, es decir, cuando el paciente proviene de urgencia o fue hospitalizado antes del ingreso a pabellón. En esos casos se guarda la ubicación de origen durante la recepción; si posteriormente el paciente no tiene un traslado solicitado pero sí tiene un origen registrado, se muestra esta opción para devolverlo a esa unidad. Antes de ejecutarla, muestra una confirmación con la ubicación de destino.
 
   #figure(
     image("./imagenes/cap06-accion-devolver-a-unidad-de-origen-icon.png", width: 30%),
@@ -712,7 +726,7 @@
     caption: [Confirmación para devolver al paciente a la unidad de origen.],
   ) <fig-accion-devolver-unidad-origen>
 
-  Al aceptar, el sistema inicia la devolución, registra el traslado correspondiente y actualiza la atención para reflejar que el paciente queda en tránsito hacia su unidad de origen.
+  Al aceptar, el plugin utiliza la API de BPM para iniciar la orquestación de devolución a unidad de origen descrita en la @sec-orquestacion-traslados. Esa orquestación registra el traslado correspondiente y actualiza la atención para reflejar que el paciente queda en tránsito hacia su unidad de origen.
 
   === Egresar paciente
 
@@ -734,9 +748,9 @@
 
   La acción `Cargar evaluación` no representa un único formulario fijo. Es una clase parametrizada por tipo de evaluación, de modo que el mismo modelo de acción puede mostrarse con etiquetas, títulos y condiciones distintas. En la implementación actual se usa para la evaluación preanestésica y el protocolo quirúrgico. Ambas comparten el mismo mecanismo de carga y se diferencian principalmente por el tipo de evaluación, el momento del flujo en que se muestran y la información clínica que registran.
 
-  El comportamiento común de la acción es el siguiente. `canExecute` verifica que la atención aún no tenga registrada una evaluación completa del tipo correspondiente, por lo que la acción se muestra solo si todavía no existe una evaluación de ese tipo. `trigger` busca el último borrador existente para ese tipo de evaluación y solicita al plugin cargar el formulario correspondiente, junto con los datos del paciente, la atención y el borrador cuando existe. El plugin carga el formulario mediante `loadModalEvaluation`, reutilizando el mecanismo de formularios clínicos embebidos descrito en el @anexo-arquitectura-plataforma. El formulario se muestra dentro de un modal de paciente: a la izquierda se presenta la cápsula con datos básicos del paciente y al centro se carga el formulario clínico de la aplicación EHR mediante `iframe`.
+  El comportamiento común de la acción es el siguiente. Para mostrar la acción se verifica que la atención aún no tenga registrada una evaluación completa del tipo correspondiente; de este modo, la acción aparece solo si todavía no existe una evaluación de ese tipo. Al seleccionarla, se busca el último borrador existente para ese tipo de evaluación y se solicita al plugin cargar el formulario correspondiente, junto con los datos del paciente, la atención y el borrador cuando existe. El plugin carga el formulario mediante `loadModalEvaluation`, reutilizando el mecanismo de formularios clínicos embebidos descrito en el @anexo-arquitectura-plataforma. El formulario se muestra dentro de un modal de paciente: a la izquierda se presenta la cápsula con datos básicos del paciente y al centro se carga el formulario clínico de la aplicación EHR mediante `iframe`.
 
-  Para la evaluación preanestésica, la acción se muestra en el estado `Preoperatorio`, antes del ingreso a pabellón, bajo la etiqueta `Evaluación preanestésica`, como se observa en la @fig-accion-eval-pre-icon. El formulario permite registrar información de la intervención, antecedentes médicos y revisión por sistemas, como muestra la @fig-accion-eval-pre.
+  Para la evaluación preanestésica, la acción se muestra bajo la etiqueta `Evaluación preanestésica`, como se observa en la @fig-accion-eval-pre-icon. El formulario permite registrar la evaluación preanestésica completa del paciente, incluyendo antecedentes, revisión por sistemas, información de la intervención y otros datos clínicos relevantes previos a la cirugía, como muestra la @fig-accion-eval-pre.
 
   #figure(
     image("./imagenes/cap06-accion-eval-pre-icon.png", width: 35%),
@@ -748,7 +762,7 @@
     caption: [Formulario embebido para registrar la evaluación preanestésica desde la lista de trabajo quirúrgica.],
   ) <fig-accion-eval-pre>
 
-  Para el protocolo quirúrgico, la acción se muestra durante y después de la etapa intraoperatoria, bajo la etiqueta `Protocolo quirúrgico`, como se observa en la @fig-accion-protocolo-qx-icon. El formulario carga el documento operatorio asociado a la intervención, precargando algunos datos de la sección `Detalle de la intervención`, como muestra la @fig-accion-protocolo-qx.
+  Para el protocolo quirúrgico, la acción se muestra durante y después de la etapa intraoperatoria, bajo la etiqueta `Protocolo quirúrgico`, como se observa en la @fig-accion-protocolo-qx-icon. El formulario carga el documento operatorio asociado a la intervención, precargando algunos datos de la sección 'Detalle de la intervención', como muestra la @fig-accion-protocolo-qx.
 
   #figure(
     image("./imagenes/cap06-accion-protocolo-qx-icon.png", width: 30%),
@@ -784,14 +798,14 @@
 
   === Cuidados intraoperatorios
 
-  La acción `Cuidados intraoperatorios` permite registrar, durante la etapa intraoperatoria, una serie de cuidados de enfermería asociados al paciente en quirófano. Se presenta como acción secundaria dentro del menú de tres puntos cuando la atención se encuentra en estado `En pabellón`, como se observa en la @fig-accion-cuidados-intraoperatorios-icon.
+  La acción `Cuidados intraoperatorios` permite registrar, durante la etapa intraoperatoria, una serie de cuidados de enfermería asociados al paciente en quirófano. Se presenta dentro del menú de tres puntos durante la etapa intraoperatoria, como se observa en la @fig-accion-cuidados-intraoperatorios-icon.
 
   #figure(
     image("./imagenes/cap06-accion-cuidados-intraoperatorios-icon.png", width: 30%),
     caption: [Acción para registrar cuidados intraoperatorios disponible como acción secundaria.],
   ) <fig-accion-cuidados-intraoperatorios-icon>
 
-  La acción reutiliza el mecanismo de formularios de escala o checklist de la plataforma. Para este caso se configuró un tipo de signo vital denominado `Cuidados intraoperatorios`, cuyo `vstp_abbreviation` identifica la escala y cuyos datos extendidos definen una checklist con las preguntas operacionales relevantes: riesgo de lesión por presión en pabellón, posición quirúrgica, protección de puntos de apoyo, protección ocular y limpieza de piel preoperatoria, cada una con sus opciones y, en algunos casos, campo de observaciones. El registro se guarda como una evaluación de tipo checklist asociada a la atención del paciente.
+  La acción reutiliza el mecanismo de formularios de escala o checklist de la plataforma. Para este caso se configuró una checklist con preguntas operacionales relevantes, como la posición quirúrgica, la protección de puntos de apoyo y la limpieza de piel preoperatoria. Cada pregunta incluye sus opciones y, en algunos casos, un campo de observaciones. El registro se guarda como una evaluación asociada a la atención del paciente.
 
   Al ejecutarla, la acción solicita al plugin mostrar el formulario de checklist correspondiente, indicando el tipo de signo vital y la atención asociada. El formulario se muestra como un modal con la información del paciente a la izquierda y las preguntas de la checklist a la derecha, usando el mecanismo de formularios tipo checklist descrito en el @anexo-arquitectura-plataforma, como se observa en la @fig-accion-cuidados-intraoperatorios.
 
@@ -800,11 +814,11 @@
     caption: [Formulario de registro de cuidados de enfermería intraoperatorios.],
   ) <fig-accion-cuidados-intraoperatorios>
 
-  `canExecute` verifica que la atención aún no tenga registrado un signo vital de este tipo, de modo que la acción deja de mostrarse una vez que los cuidados intraoperatorios fueron guardados. Este comportamiento es consistente con el resto de las evaluaciones del proceso quirúrgico, que se ocultan después de ser completadas para evitar duplicidades.
+  La acción se muestra mientras no se hayan registrado los cuidados intraoperatorios; una vez guardados, deja de mostrarse. Este comportamiento es consistente con el resto de las evaluaciones del proceso quirúrgico, que se ocultan después de ser completadas para evitar duplicidades.
 
   === Cambiar ubicación
 
-  La acción `Cambiar ubicación` permite mover al paciente dentro de las ubicaciones operacionales disponibles para su etapa actual. Se declara en estados donde ya existe una atención quirúrgica con ubicación clínica, como preoperatorio, recuperación, espera de traslado o estados intraoperatorios. La acción se presenta como secundaria en el menú de tres puntos, como muestra la @fig-accion-cambiar-ubicacion-icon.
+  La acción `Cambiar ubicación` permite mover al paciente dentro de las ubicaciones operacionales disponibles para su etapa actual. Se muestra desde que el paciente tiene una atención de pabellón —es decir, desde que es recepcionado— hasta que la atención finaliza. La acción se presenta en el menú de tres puntos, como muestra la @fig-accion-cambiar-ubicacion-icon.
 
   #figure(
     image("./imagenes/cap06-cambiar-ubicacion-icon.png", width: 35%),
@@ -818,7 +832,7 @@
     caption: [Panel para seleccionar una nueva ubicación del paciente.],
   ) <fig-accion-cambiar-ubicacion>
 
-  Al confirmar, el método `commit` envía al plugin una acción `hlth.patchPatientServiceChangeLocation` con el identificador del `PatientService`, la nueva ubicación, la ruta descriptiva y el usuario ejecutor. Si la operación finaliza correctamente, la grilla se actualiza para reflejar la nueva ubicación.
+  Al confirmar, el plugin utiliza la API de HLTH para ejecutar el cambio de ubicación del `PatientService`, enviando la nueva ubicación y el usuario ejecutor. Si la operación finaliza correctamente, la grilla se actualiza para reflejar la nueva ubicación.
 
   === Reagendar cirugía
 
@@ -836,47 +850,45 @@
     caption: [Formulario de reagendamiento de cirugía desde la lista de trabajo de pabellón.],
   ) <fig-accion-reagendar>
 
-  Al seleccionar la acción, el plugin abre un panel lateral con el formulario de programación de intervención. La sección de información del paciente proviene del plugin `standard`, mientras que los datos quirúrgicos se obtienen desde la `AtencionQuirurgica`: intervenciones, tiempo operatorio, pabellón programado y fecha de inicio programada. Esa información permite conservar el contexto de la cirugía y modificar solo la nueva programación.
-
-  Al confirmar el formulario, el método `commit` recibe la nueva ubicación y la nueva fecha de inicio. Con esos datos construye el cuerpo de actualización de la cita: usuario ejecutor, nueva fecha `scheduledStart`, participantes actualizados y datos extendidos. En Agenda, el pabellón se representa como un participante de la cita; por ello, para cambiarlo se reconstruye y reenvía la lista completa de participantes, reemplazando el participante de pabellón por la nueva ubicación seleccionada y manteniendo el participante paciente asociado a la atención.
+  Al seleccionar la acción, el plugin abre un panel lateral con el formulario de programación de intervención. La sección de información del paciente proviene del plugin `standard`, mientras que los datos quirúrgicos —intervenciones, tiempo operatorio, pabellón programado y fecha de inicio programada— se obtienen desde la `AtencionQuirurgica`, de modo que el usuario conserva el contexto de la cirugía y solo modifica la nueva programación. Cuando se guarda, se envía el cuerpo de actualización de la cita con el usuario ejecutor, la nueva fecha de inicio de la programación, la nueva ubicación y otros datos relevantes para ser agregados a los datos extendidos de la entidad.
 
   Al confirmar, el plugin utiliza la API de Agenda para actualizar la cita de origen con la nueva fecha y pabellón. Si la operación finaliza correctamente, el panel informa la nueva programación y la grilla se actualiza.
 
   === Revertir ingreso a Pabellón
 
-  La acción `Revertir Ingreso a Pabellón` permite corregir un ingreso accidental al quirófano devolviendo al paciente a la etapa preoperatoria. Se presenta como acción secundaria dentro del menú de tres puntos cuando la atención se encuentra en estado `En pabellón`, como se observa en la @fig-accion-revertir-ingreso-pabellon-icon.
+  La acción `Revertir Ingreso a Pabellón` permite corregir un ingreso accidental al quirófano devolviendo al paciente a la etapa preoperatoria. Se presenta dentro del menú de tres puntos durante el estado `En pabellón`, como se observa en la @fig-accion-revertir-ingreso-pabellon-icon.
 
   #figure(
     image("./imagenes/cap06-revertir-ingreso-pabellon-icon.png", width: 30%),
-    caption: [Acción para revertir el ingreso a pabellón disponible como acción secundaria.],
+    caption: [Acción para revertir el ingreso a pabellón.],
   ) <fig-accion-revertir-ingreso-pabellon-icon>
 
-  Al seleccionarla, `trigger` abre un panel lateral con `CFormProcesoQuirurgicoCambiarUbicacionPaciente`, siguiendo el patrón de side panels del @anexo-arquitectura-plataforma, como muestra la @fig-accion-revertir-ingreso-pabellon. El formulario precarga como ubicación de destino la `ubicacionPreOperatoria` guardada previamente al momento del ingreso, de modo que el usuario pueda devolver al paciente exactamente a donde estaba. También permite seleccionar otra ubicación de CMA o Recuperación si la situación operativa lo requiere.
+  Al seleccionarla, el plugin abre un panel lateral con el formulario de cambio de ubicación, como muestra la @fig-accion-revertir-ingreso-pabellon. El formulario precarga como ubicación de destino la ubicación preoperatoria guardada previamente al momento del ingreso, de modo que el usuario pueda devolver al paciente exactamente a donde estaba. También permite seleccionar otra ubicación de CMA o Recuperación si la situación operativa lo requiere.
 
   #figure(
     image("./imagenes/cap06-revertir-ingreso-pabellon.png", width: 100%),
     caption: [Panel para revertir el ingreso de un paciente a pabellón.],
   ) <fig-accion-revertir-ingreso-pabellon>
 
-  El método `commit` ejecuta la acción API `hlth.patchPatientServiceChangeLocation`, reutilizando el mismo endpoint de cambio de ubicación pero indicando `revertLocationChange: true` para que HLTH trate el movimiento como una reversión. Aprovechando la funcionalidad descrita en la @sec-hlth-atencion-quirurgica-ubicacion-datos-extendidos, la misma operación actualiza el `extendedData` de la atención, estableciendo el `stateKey` de vuelta a `EstadoPreOperatorio`. De este modo, el paciente regresa tanto físicamente como operativamente a la etapa previa al ingreso a pabellón.
+  Al guardar, el plugin utiliza la API de HLTH para ejecutar el cambio de ubicación indicando que se trata de una reversión. Aprovechando el mecanismo descrito en la @sec-hlth-atencion-quirurgica-ubicacion-datos-extendidos, la misma operación actualiza los datos extendidos de la atención, estableciendo el estado interno de vuelta a la etapa preoperatoria. De este modo, el paciente regresa tanto físicamente como operativamente a la etapa previa al ingreso a pabellón.
 
   === Ver PDF protocolo
 
-  La acción `Ver PDF protocolo` permite abrir el documento generado a partir del protocolo quirúrgico ya registrado. Se presenta como acción secundaria en la lista de trabajo, como muestra la @fig-accion-ver-pdf-icon.
+  La acción `Ver PDF protocolo` permite abrir el documento generado a partir del protocolo quirúrgico ya registrado. Se presenta dentro del menú de tres puntos, como muestra la @fig-accion-ver-pdf-icon.
 
   #figure(
     image("./imagenes/cap06-accion-ver-pdf-icon.png", width: 30%),
     caption: [Acción para ver el PDF del protocolo quirúrgico.],
   ) <fig-accion-ver-pdf-icon>
 
-  `canExecute` valida que la atención ya tenga realizado el protocolo y que exista una evaluación de protocolo con datos completos, por lo que la acción solo aparece cuando el documento puede generarse. Al seleccionarla, `trigger` abre un modal de espera indicando que el PDF se está generando, como se observa en la @fig-accion-ver-pdf.
+  La acción solo aparece cuando la atención ya tiene registrado el protocolo con datos completos, es decir, cuando el documento puede generarse. Al seleccionarla, el plugin abre un modal de espera indicando que el PDF se está generando, como se observa en la @fig-accion-ver-pdf.
 
   #figure(
     image("./imagenes/cap06-accion-ver-pdf.png", width: 40%),
     caption: [Modal mostrado mientras se genera el PDF del protocolo quirúrgico.],
   ) <fig-accion-ver-pdf>
 
-  Una vez preparado, el sistema entrega el protocolo en formato PDF. El documento reúne la información clínica y operacional registrada durante la intervención, incluyendo los datos principales de la atención, el equipo clínico y el detalle del acto quirúrgico. Un ejemplo del documento generado se incluye en el @anexo-documentos-generados.
+  Por detrás, la acción utiliza una funcionalidad de `shared` que toma los datos guardados en la evaluación del protocolo, los transforma y los envía a `FORMS` junto con el nombre del template a utilizar. `FORMS` genera el PDF a partir del template y los datos; luego la misma funcionalidad de `shared` consulta `DMS` para obtener el documento generado. El plugin recibe la respuesta y abre el PDF en una nueva pestaña del navegador. El documento reúne la información clínica y operacional registrada durante la intervención, incluyendo los datos principales de la atención, el equipo clínico y el detalle del acto quirúrgico. Un ejemplo del documento generado se incluye en el @anexo-documentos-generados.
 
   === Imprimir brazalete
 
@@ -887,7 +899,7 @@
     caption: [Confirmación para imprimir el brazalete del paciente desde la lista de trabajo quirúrgica.],
   ) <fig-accion-imprimir-brazalete-icon>
 
-  Al seleccionarla, el plugin abre un diálogo de confirmación, como se observa en la @fig-accion-imprimir-brazalete. Si el usuario confirma, el plugin invoca la clase compartida `BrazaleteBpm` con el identificador del paciente y la acción BPM de impresión. No se implementó un mecanismo nuevo de impresión; solo se conectó la acción del módulo quirúrgico con la clase ya disponible porque pabellón necesita imprimir el brazalete durante el flujo.
+  Al seleccionarla, el plugin abre un diálogo de confirmación, como se observa en la @fig-accion-imprimir-brazalete. Si el usuario confirma, la acción utiliza una funcionalidad compartida de `shared` que, de forma similar a la generación del PDF del protocolo, prepara los datos necesarios y los envía a imprimir el brazalete del paciente.
 
   #figure(
     image("./imagenes/cap06-imprimir-brazalete.png", width: 50%),
@@ -896,21 +908,21 @@
 
   === Suspender cirugía
 
-  La acción `Suspender cirugía` permite cancelar operacionalmente una intervención desde la lista de trabajo. Esta acción se presenta como acción secundaria, dentro del menú de tres puntos, como muestra la @fig-accion-suspender-icon.
+  La acción `Suspender cirugía` permite cancelar operacionalmente una intervención desde la lista de trabajo. Esta acción se presenta dentro del menú de tres puntos, como muestra la @fig-accion-suspender-icon.
 
   #figure(
     image("./imagenes/cap06-accion-suspender-icon.png", width: 30%),
     caption: [Acción de suspensión disponible como acción secundaria en la tabla de atención quirúrgica.],
   ) <fig-accion-suspender-icon>
 
-  Al seleccionar la acción, el plugin abre un diálogo de confirmación que muestra el paciente asociado y carga el formulario de suspensión, como se observa en la @fig-accion-suspender. El formulario solicita motivo, motivo específico y observaciones. Los motivos de suspensión se obtienen desde la terminología `causa-suspension-qx` almacenada en MongoDB; el formulario carga solo términos activos y filtra subcausas activas para el motivo seleccionado.
+  Al seleccionar la acción, el plugin abre un modal de confirmación que muestra el paciente asociado e incluye un selector de motivo, un selector de motivo específico y un campo para observaciones, como se observa en la @fig-accion-suspender. Los motivos de suspensión se obtienen desde una terminología almacenada en MongoDB que contiene la lista de motivos y submotivos por los cuales se puede suspender una cirugía.
 
   #figure(
     image("./imagenes/cap06-accion-suspender.png", width: 90%),
     caption: [Diálogo de confirmación y formulario de motivos para suspender una intervención quirúrgica.],
   ) <fig-accion-suspender>
 
-  Al confirmar, se construye el cuerpo para la suspensión con el paciente, el clínico ejecutor, la cita asociada, la atención `PatientService` cuando existe, la causa, la subcausa y las observaciones. La acción mapea causa y subcausa al formato que espera la orquestación, conservando identificador, descripción y códigos disponibles.
+  Al confirmar, se construye el cuerpo para la suspensión con el paciente, el clínico ejecutor, la cita asociada, la atención `PatientService` cuando existe, la causa, la subcausa y las observaciones.
 
   Finalmente, el plugin utiliza la API de BPM para iniciar la orquestación dinámica de suspensión con el cuerpo normalizado por la acción. El comportamiento de esa orquestación se describe en la @sec-orquestacion-suspender-cirugia.
 
@@ -1292,7 +1304,7 @@
 
   Finalizar recuperación consulta la atención quirúrgica y luego busca transferencias no finalizadas del paciente. Con esos datos asigna tres variables de trabajo: si el caso es CMA, la lista de traslados abiertos y el primer traslado encontrado. Si el caso es CMA y no hay traslados, actualiza los datos de pabellón con el hito `esperandoAlta` y estado `Esperando Alta`. Si no es CMA y no hay traslados, registra `esperandoTraslado`. Si existe un traslado abierto, conserva su identificador y ubicación en la atención quirúrgica y también deja el estado `Esperando traslado`. Después finaliza la cita de Agenda asociada y, cuando la atención tiene indicación de urgencia, finaliza esa indicación con el motivo `Finalización de la recuperación`.
 
-  === Traslados y retorno a unidad de origen
+  === Traslados y retorno a unidad de origen <sec-orquestacion-traslados>
 
   La orquestación de iniciar traslado recibe una transferencia, ejecuta `_transit` sobre HLTH y actualiza la atención quirúrgica asociada. En esa actualización registra el hito `enTransito` con la fecha recibida y cambia `stateKey` a `En tránsito`; si no se envía explícitamente la atención, usa la que viene en la respuesta del traslado.
 
