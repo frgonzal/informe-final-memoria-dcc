@@ -15,7 +15,20 @@
   Los principales resultados fueron la puesta en producción de la nueva versión del módulo el 8 de abril, el reemplazo completo de la versión anterior y la eliminación de la dependencia operacional del motor de procesos deprecado. El sistema permite operar cirugías de urgencia y electivas, ejecutar acciones clínicas y administrativas del flujo, mantener documentos quirúrgicos, actualizar monitores en tiempo real y registrar hitos relevantes para la trazabilidad. La encuesta SUS arrojó un puntaje promedio de 65,5 sobre 100, interpretable como usabilidad aceptable con oportunidades de mejora. En conjunto, el trabajo dejó una base técnica más mantenible y extensible para el módulo de pabellón de la Plataforma Lahuén.
 ]
 
-#agradecimientos[]
+#agradecimientos[
+  #h(15pt)
+  A mi madre, por ser la primera persona en creer en mí, por su amor y apoyo incondicional, y por siempre motivarme a estudiar para ser un profesional.
+
+  A mi padre, hermanos y familia, por su amor y cariño incondicional.
+
+  A Camila, mi pareja, por todo su amor, apoyo y cariño; por acompañarme durante este proceso, por siempre intentar levantarme el ánimo y por creer en mí.
+
+  A mi profesor Nelson Baloian por su simpatía, paciencia y apoyo.
+
+  A Cristian y Jaime por darme la oportunidad y la confianza de participar en el proyecto, y por su guía al momento de desarrollarlo. También a Álvaro por su simpatía y su guía durante el desarrollo del proyecto.
+
+  A todas las personas que conocí durante mi etapa universitaria y que me ayudaron a mejorar como profesional y como persona.
+]
 
 #frontmatter-section(title: "Declaración de uso de inteligencia artificial")[
   En la elaboración de esta memoria se utilizaron herramientas de inteligencia artificial generativa, principalmente modelos de OpenAI a través de chats de IA como ChatGPT y herramientas de asistencia con chats y agentes, incluyendo Codex. Estas herramientas fueron empleadas en etapas de desarrollo de software, documentación y redacción del informe. Todo el contenido incorporado fue revisado y validado críticamente por el autor, quien asume plena responsabilidad por las decisiones, el código, los argumentos y las conclusiones presentadas.
