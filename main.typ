@@ -778,7 +778,7 @@
 
   === Pausa quirúrgica
 
-  La acción `Pausa quirúrgica` permite registrar las tres pausas de seguridad del acto quirúrgico durante la etapa intraoperatoria. Es una acción parametrizada: al instanciarse, consulta el número de la siguiente pausa pendiente de la atención y ajusta su etiqueta y su comportamiento para registrar la pausa correspondiente. Se muestra como acción secundaria en estados intraoperatorios, como se observa en la @fig-accion-pausa-qx-icon.
+  La acción `Pausa quirúrgica` permite registrar las tres pausas de seguridad del acto quirúrgico durante la etapa intraoperatoria. Es una acción parametrizada: al instanciarse, detecta cuál es la siguiente pausa pendiente y ajusta su etiqueta y su comportamiento para registrar la pausa correspondiente. Se muestra como una acción visible en estados intraoperatorios; cuando hay muchas acciones disponibles, la interfaz puede agruparlas en el menú de tres puntos, como se observa en la @fig-accion-pausa-qx-icon.
 
   #figure(
     image("./imagenes/cap06-accion-pausa-qx-icon.png", width: 30%),
@@ -802,7 +802,7 @@
 
   #figure(
     image("./imagenes/cap06-accion-cuidados-intraoperatorios-icon.png", width: 30%),
-    caption: [Acción para registrar cuidados intraoperatorios disponible como acción secundaria.],
+    caption: [Acción para registrar cuidados intraoperatorios disponible en el menú de tres puntos.],
   ) <fig-accion-cuidados-intraoperatorios-icon>
 
   La acción reutiliza el mecanismo de formularios de escala o checklist de la plataforma. Para este caso se configuró una checklist con preguntas operacionales relevantes, como la posición quirúrgica, la protección de puntos de apoyo y la limpieza de piel preoperatoria. Cada pregunta incluye sus opciones y, en algunos casos, un campo de observaciones. El registro se guarda como una evaluación asociada a la atención del paciente.
@@ -822,7 +822,7 @@
 
   #figure(
     image("./imagenes/cap06-cambiar-ubicacion-icon.png", width: 35%),
-    caption: [Acción secundaria para cambiar la ubicación del paciente desde la lista de trabajo.],
+    caption: [Acción dentro del menú de tres puntos para cambiar la ubicación del paciente.],
   ) <fig-accion-cambiar-ubicacion-icon>
 
   Al seleccionarla, la acción utiliza el plugin para abrir un panel lateral con el formulario de cambio de ubicación, como se observa en la @fig-accion-cambiar-ubicacion. La sección de información del paciente proviene del plugin `standard`; el resto del formulario usa la `AtencionQuirurgica` para restringir las áreas disponibles. Si el paciente está en pabellón, solo permite ubicaciones de pabellón; en otros casos permite CMA y Recuperación.
@@ -912,7 +912,7 @@
 
   #figure(
     image("./imagenes/cap06-accion-suspender-icon.png", width: 30%),
-    caption: [Acción de suspensión disponible como acción secundaria en la tabla de atención quirúrgica.],
+    caption: [Acción de suspensión disponible en el menú de tres puntos de la tabla de atención quirúrgica.],
   ) <fig-accion-suspender-icon>
 
   Al seleccionar la acción, el plugin abre un modal de confirmación que muestra el paciente asociado e incluye un selector de motivo, un selector de motivo específico y un campo para observaciones, como se observa en la @fig-accion-suspender. Los motivos de suspensión se obtienen desde una terminología almacenada en MongoDB que contiene la lista de motivos y submotivos por los cuales se puede suspender una cirugía.
