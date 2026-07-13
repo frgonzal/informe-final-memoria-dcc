@@ -15,8 +15,6 @@
   Los principales resultados fueron la puesta en producción de la nueva versión del módulo el 8 de abril, el reemplazo completo de la versión anterior y la eliminación de la dependencia operacional del motor de procesos deprecado. El sistema permite operar cirugías de urgencia y electivas, ejecutar acciones clínicas y administrativas del flujo, mantener documentos quirúrgicos, actualizar monitores en tiempo real y registrar hitos relevantes para la trazabilidad. La encuesta SUS arrojó un puntaje promedio de 65,5 sobre 100, interpretable como usabilidad aceptable con oportunidades de mejora. En conjunto, el trabajo dejó una base técnica más mantenible y extensible para el módulo de pabellón de la Plataforma Lahuén.
 ]
 
-#dedicatoria[]
-
 #agradecimientos[]
 
 #frontmatter-section(title: "Declaración de uso de inteligencia artificial")[
