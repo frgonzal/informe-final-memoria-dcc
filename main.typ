@@ -1376,13 +1376,13 @@
   + Crea un traslado en HLTH hacia la ubicación de origen registrada en la atención quirúrgica.
   + Actualiza la atención quirúrgica en HLTH, registrando el hito `enTransito`, dejando el estado `En tránsito` y guardando el identificador y destino del traslado creado.
 
-  === Finalizar atención quirúrgica
+  === Finalizar atención quirúrgica <sec-orquestacion-finalizar-atencion-quirurgica>
 
   Esta orquestación cierra la atención de pabellón en HLTH cuando el paciente egresa del proceso quirúrgico. La operación realizada es:
 
   + Finaliza directamente la atención quirúrgica en HLTH a partir de su identificador.
 
-  === Crear tarea BPM de protocolo quirúrgico
+  === Crear tarea BPM de protocolo quirúrgico <sec-orquestacion-crear-tarea-protocolo>
 
   La creación de la tarea BPM permite dejar pendiente el registro del protocolo quirúrgico cuando el flujo requiere que ese documento sea completado por el profesional responsable. Su propósito es generar una tarea trazable, asociada a la atención quirúrgica, que pueda ser gestionada desde BPM. Las operaciones realizadas son:
 
@@ -1390,7 +1390,7 @@
   + Obtiene desde AUTH el usuario asociado al profesional responsable.
   + Crea una tarea BPM de tipo `Completar protocolo quirúrgico`, asignada a ese usuario y referenciada a la atención quirúrgica.
 
-  === Completar tarea BPM de protocolo quirúrgico
+  === Completar tarea BPM de protocolo quirúrgico <sec-orquestacion-completar-tarea-protocolo>
 
   La finalización de la tarea BPM permite cerrar la tarea pendiente cuando el protocolo quirúrgico ya fue registrado. Su propósito es mantener sincronizado el estado de BPM con el avance clínico del flujo, evitando que permanezcan tareas abiertas después de completar el documento. Las operaciones realizadas son:
 
@@ -1398,7 +1398,7 @@
   + Busca tareas BPM activas de protocolo quirúrgico asociadas a la atención.
   + Si existe una tarea pendiente, ejecuta su cierre en BPM.
 
-  === Operación de Gestión Hospitales
+  === Operación de Gestión Hospitales <sec-orquestacion-operacion-gestion-hospitales>
 
   Esta orquestación sincroniza con Gestión Hospitales el cierre operativo de una cirugía electiva. Su propósito es marcar como operada la orden quirúrgica de origen cuando la atención de pabellón ya finalizó y existe un protocolo quirúrgico válido registrado en HLTH. Las operaciones realizadas son:
 
@@ -1415,11 +1415,11 @@
 
   En el flujo quirúrgico se configuraron las siguientes suscripciones:
 
-  - Creación de atención quirúrgica: observa eventos del tópico `api.hlth.patient-service`. Cuando se crea una atención de tipo quirúrgico, inicia la orquestación que crea la tarea BPM de completar protocolo quirúrgico, usando el identificador de la atención como parámetro.
-  - Guardado de protocolo quirúrgico para completar tarea BPM: observa eventos del tópico `api.hlth.evaluation`. Cuando se crea una evaluación asociada a una atención quirúrgica y el tipo de evaluación corresponde al protocolo quirúrgico, inicia la orquestación que busca y completa la tarea BPM de completar protocolo quirúrgico, usando la atención y el clínico informados por el evento.
-  - Guardado de protocolo quirúrgico para operar en Gestión Hospitales: observa el mismo evento de creación de protocolo quirúrgico en `api.hlth.evaluation`. Cuando se cumplen las condiciones de atención quirúrgica y tipo de evaluación, inicia la orquestación que evalúa si corresponde marcar la orden como operada en Gestión Hospitales.
-  - Finalización de traslado: observa eventos del tópico `api.hlth.transfer`. Cuando se finaliza una transferencia en estado final asociado a una atención quirúrgica, inicia la orquestación que finaliza la atención quirúrgica correspondiente.
-  - Finalización de atención quirúrgica: observa eventos del tópico `api.hlth.patient-service`. Cuando se finaliza una atención de tipo quirúrgico, inicia la orquestación que evalúa si corresponde operar la orden asociada en Gestión Hospitales.
+  - Creación de atención quirúrgica: observa eventos del tópico `api.hlth.patient-service`. Cuando se crea una atención de tipo quirúrgico, inicia la orquestación que crea la tarea BPM de completar protocolo quirúrgico, descrita en la @sec-orquestacion-crear-tarea-protocolo, usando el identificador de la atención como parámetro.
+  - Guardado de protocolo quirúrgico para completar tarea BPM: observa eventos del tópico `api.hlth.evaluation`. Cuando se crea una evaluación asociada a una atención quirúrgica y el tipo de evaluación corresponde al protocolo quirúrgico, inicia la orquestación que busca y completa la tarea BPM de completar protocolo quirúrgico, descrita en la @sec-orquestacion-completar-tarea-protocolo, usando la atención y el clínico informados por el evento.
+  - Guardado de protocolo quirúrgico para operar en Gestión Hospitales: observa el mismo evento de creación de protocolo quirúrgico en `api.hlth.evaluation`. Cuando se cumplen las condiciones de atención quirúrgica y tipo de evaluación, inicia la orquestación que evalúa si corresponde marcar la orden como operada en Gestión Hospitales, descrita en la @sec-orquestacion-operacion-gestion-hospitales.
+  - Finalización de traslado: observa eventos del tópico `api.hlth.transfer`. Cuando se finaliza una transferencia en estado final asociado a una atención quirúrgica, inicia la orquestación que finaliza la atención quirúrgica correspondiente, descrita en la @sec-orquestacion-finalizar-atencion-quirurgica.
+  - Finalización de atención quirúrgica: observa eventos del tópico `api.hlth.patient-service`. Cuando se finaliza una atención de tipo quirúrgico, inicia la orquestación que evalúa si corresponde operar la orden asociada en Gestión Hospitales, descrita en la @sec-orquestacion-operacion-gestion-hospitales.
 
   La lógica de reacción queda así expresada como configuración de BPM y no como llamadas directas desde la lista de trabajo.
 
