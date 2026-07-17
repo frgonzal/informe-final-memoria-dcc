@@ -163,6 +163,27 @@ Brooke1996SUS:
     title: Usability Evaluation in Industry
   year: 1996
 
+SevillaGonzalez2020SUS:
+  type: Article
+  title: "Spanish Version of the System Usability Scale for the Assessment of Electronic Tools: Development and Validation"
+  author:
+    - Magdalena Del Rocio Sevilla-Gonzalez
+    - Lizbeth Moreno Loaeza
+    - Laura Sofia Lazaro-Carrera
+    - Brigette Bourguet Ramirez
+    - Anabel Vazquez Rodriguez
+    - Maria Luisa Peralta-Pedrero
+    - Paloma Almeda-Valdes
+  doi: "10.2196/21161"
+  parent:
+    type: Periodical
+    title: JMIR Human Factors
+    volume: 7
+    number: 4
+    year: 2020
+  serial-number:
+    pmid: "33325828"
+
 W3SchoolsIframe:
   type: Web
   title: HTML iframe Tag

@@ -1407,9 +1407,9 @@
 
   == Evaluación de usabilidad
 
-  La evaluación de usabilidad combinó inspección experta, recorridos cognitivos y una encuesta SUS. El cuestionario SUS, propuesto por Brooke, es un instrumento breve de diez preguntas en escala Likert que permite obtener una aproximación rápida a la usabilidad percibida de un sistema @Brooke1996SUS. La guía de usabilidad utilizada como referencia recomienda interpretar este instrumento con cautela, especialmente cuando se aplica una traducción ad-hoc y cuando el resultado se encuentra cerca del valor de referencia habitual de 68 puntos @BaloianPino2024Usabilidad.
+  La evaluación de usabilidad combinó inspección experta, recorridos cognitivos y una encuesta SUS. El cuestionario SUS, propuesto por Brooke, es un instrumento breve de diez preguntas en escala Likert que permite obtener una aproximación rápida a la usabilidad percibida de un sistema @Brooke1996SUS. Para evitar utilizar una traducción ad hoc del instrumento, se aplicó la versión en español desarrollada y validada por Sevilla-González et al., cuyo proceso reporta traducción directa e inversa, validez de contenido, validez aparente y confiabilidad interna para la evaluación de herramientas electrónicas @SevillaGonzalez2020SUS. La guía de usabilidad utilizada como referencia recomienda interpretar este instrumento con cautela cuando el resultado se encuentra cerca del valor de referencia habitual de 68 puntos @BaloianPino2024Usabilidad.
 
-  La encuesta fue respondida por 10 personas que utilizan el software, incluyendo perfiles de enfermería, técnicos y anestesistas. El instrumento completo, con las diez preguntas en escala Likert de 1 a 5, se presenta en el @anexo-instrumentos-evaluacion.
+  La encuesta fue respondida por 10 personas que utilizan el software, incluyendo perfiles de enfermería, técnicos y anestesistas. El instrumento consideró diez preguntas con escala Likert de 1 a 5, siguiendo la estructura del cuestionario SUS.
 
   #figure(
     table(
@@ -1425,7 +1425,7 @@
     caption: [Resultados agregados de la encuesta SUS.],
   ) <tab-resultados-sus>
 
-  El sistema alcanzó un puntaje SUS promedio de 65,5 sobre 100. Este valor se encuentra ligeramente por debajo del valor de referencia habitual de 68 puntos, por lo que la usabilidad percibida puede interpretarse como aceptable, aunque con oportunidades de mejora. Dado que el resultado está cercano al umbral, y considerando que en Chile no existe una traducción estándar ampliamente validada del instrumento, este resultado debe entenderse como una evaluación rápida y no como una demostración concluyente de usabilidad.
+  El sistema alcanzó un puntaje SUS promedio de 65,5 sobre 100. Este valor se encuentra ligeramente por debajo del valor de referencia habitual de 68 puntos, por lo que la usabilidad percibida puede interpretarse como aceptable, aunque con oportunidades de mejora. El uso de una versión en español validada entrega mayor confiabilidad que una traducción propia del instrumento. Sin embargo, dado que el resultado está cercano al umbral y que la muestra fue acotada, este resultado debe entenderse como una evaluación rápida y no como una demostración concluyente de usabilidad.
 
   Los resultados muestran una percepción mixta. Algunos usuarios evaluaron muy positivamente la herramienta, mientras que otros reportaron una experiencia más negativa. Esta dispersión sugiere que el sistema fue comprensible para una parte de los usuarios, pero que todavía existen aspectos de complejidad, adaptación o claridad que deben mejorarse. En particular, la etapa inicial de salida a producción pudo influir en la percepción, ya que algunos comportamientos no eran idénticos a los de la versión anterior y todavía existían ajustes pendientes propios de una primera versión.
 
@@ -1437,7 +1437,7 @@
 
   == Limitaciones de la evaluación
 
-  La evaluación realizada permitió validar funcionalmente el flujo y obtener una primera aproximación a la usabilidad percibida, pero presenta limitaciones. No se implementó una batería automatizada de pruebas para las orquestaciones dinámicas, por las restricciones técnicas y de tiempo ya señaladas. Además, la encuesta SUS entrega una señal útil, pero su interpretación debe ser cuidadosa por el tamaño de muestra, la dispersión de respuestas y el uso de una traducción no estandarizada.
+  La evaluación realizada permitió validar funcionalmente el flujo y obtener una primera aproximación a la usabilidad percibida, pero presenta limitaciones. No se implementó una batería automatizada de pruebas para las orquestaciones dinámicas, por las restricciones técnicas y de tiempo ya señaladas. Además, aunque la encuesta SUS se aplicó usando una versión en español validada, su interpretación debe ser cuidadosa por el tamaño de muestra y la dispersión de respuestas.
 
   Por lo anterior, la validación debe entenderse como evidencia inicial de funcionamiento y aceptabilidad, no como una medición definitiva del impacto clínico u operacional del sistema. La madurez de la solución dependerá de nuevas iteraciones, uso sostenido en producción y futuras evaluaciones con usuarios finales.
 ]
@@ -1728,29 +1728,6 @@
     }
   }
   ```
-]
-
-#apendice(title: "Instrumentos de evaluación", label: <anexo-instrumentos-evaluacion>)[
-  El cuestionario SUS aplicado a los participantes se presenta en la @tab-encuesta-sus. Las preguntas utilizan una escala Likert de 1 (totalmente en desacuerdo) a 5 (totalmente de acuerdo).
-
-  #figure(
-    table(
-      columns: (1fr, auto, auto, auto, auto, auto),
-      align: (left, center, center, center, center, center),
-      table.header([Pregunta], [1], [2], [3], [4], [5]),
-      [1. Me gustaría usar esta herramienta frecuentemente.], [], [], [], [], [],
-      [2. Considero que esta herramienta es innecesariamente compleja.], [], [], [], [], [],
-      [3. Considero que la herramienta es fácil de usar.], [], [], [], [], [],
-      [4. Considero necesario el apoyo de personal experto para poder utilizar esta herramienta.], [], [], [], [], [],
-      [5. Considero que las funciones de la herramienta están bien integradas.], [], [], [], [], [],
-      [6. Considero que la herramienta presenta muchas contradicciones.], [], [], [], [], [],
-      [7. Imagino que la mayoría de las personas aprenderían a usar esta herramienta rápidamente.], [], [], [], [], [],
-      [8. Considero que el uso de esta herramienta es tedioso.], [], [], [], [], [],
-      [9. Me sentí muy confiado al usar la herramienta.], [], [], [], [], [],
-      [10. Necesité saber bastantes cosas antes de poder empezar a usar esta herramienta.], [], [], [], [], [],
-    ),
-    caption: [Cuestionario SUS aplicado en la evaluación de usabilidad del módulo de pabellón.],
-  ) <tab-encuesta-sus>
 ]
 
 #apendice(title: "Documentos generados", label: <anexo-documentos-generados>)[
