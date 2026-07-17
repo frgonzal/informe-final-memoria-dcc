@@ -721,7 +721,7 @@
     caption: [Confirmación para iniciar el traslado del paciente.],
   ) <fig-accion-iniciar-traslado>
 
-  Al confirmar, el plugin utiliza la API de BPM para iniciar la orquestación de iniciar traslado descrita en la @sec-orquestacion-traslados. Esa orquestación ejecuta el movimiento del paciente, registra el hito de tránsito y actualiza la atención al estado `En tránsito`. De esta forma, el frontend solo dispara el inicio del traslado y la lógica de transición queda concentrada en la orquestación.
+  Al confirmar, el plugin utiliza la API de BPM para iniciar la orquestación de iniciar traslado descrita en la @sec-orquestacion-iniciar-traslado. Esa orquestación ejecuta el movimiento del paciente, registra el hito de tránsito y actualiza la atención al estado `En tránsito`. De esta forma, el frontend solo dispara el inicio del traslado y la lógica de transición queda concentrada en la orquestación.
 
   === Devolver a unidad de origen
 
@@ -737,7 +737,7 @@
     caption: [Confirmación para devolver al paciente a la unidad de origen.],
   ) <fig-accion-devolver-unidad-origen>
 
-  Al aceptar, el plugin utiliza la API de BPM para iniciar la orquestación de devolución a unidad de origen descrita en la @sec-orquestacion-traslados. Esa orquestación registra el traslado correspondiente y actualiza la atención para reflejar que el paciente queda en tránsito hacia su unidad de origen.
+  Al aceptar, el plugin utiliza la API de BPM para iniciar la orquestación de devolución a unidad de origen descrita en la @sec-orquestacion-devolver-unidad-origen. Esa orquestación registra el traslado correspondiente y actualiza la atención para reflejar que el paciente queda en tránsito hacia su unidad de origen.
 
   === Egresar paciente
 
@@ -1293,47 +1293,117 @@
 
   === Aceptar orden de urgencia <sec-orquestacion-aceptar-orden-urgencia>
 
-  La orquestación de aceptación de orden de urgencia recibe la indicación quirúrgica, la fecha programada, el pabellón seleccionado y los datos del usuario ejecutor. Primero consulta la indicación en HLTH con paciente y ubicación, guarda la respuesta como contexto de trabajo y extrae los diagnósticos GES para poblar la orden. Luego crea una cita quirúrgica en Agenda con participantes de tipo pabellón, paciente y profesional solicitante. La cita queda referenciada a la indicación mediante `externalReference` y almacena en `extendedData` los datos que la lista de trabajo necesita para tratarla como caso de urgencia: especialidad, diagnósticos, intervención original, ubicación de origen, orden, tiempo operatorio y referencia a la atención clínica de origen. Al final ejecuta `_start` sobre la indicación para dejar registrado que la orden fue aceptada.
+  Esta orquestación transforma una indicación quirúrgica de urgencia en una cita operable por la nueva lista de trabajo. Su propósito es crear la programación quirúrgica en Agenda, conservar la relación con la indicación original de HLTH y dejar en la cita los datos mínimos que permiten continuar el flujo como un caso de urgencia. Las operaciones realizadas son:
+
+  + Consulta la indicación quirúrgica en HLTH, incluyendo los datos del paciente y su ubicación actual.
+  + Crea una cita quirúrgica en Agenda con la fecha programada, el pabellón seleccionado y los participantes principales del caso: pabellón, paciente y profesional solicitante. La cita queda vinculada a la indicación original y conserva en sus datos extendidos la información necesaria para operar el flujo de urgencia, como especialidad, intervención, diagnósticos, ubicación de origen, orden, tiempos operatorios y atención clínica de origen.
+  + Inicia la indicación en HLTH para reflejar que la orden fue aceptada y que el caso pasó a la etapa de programación quirúrgica.
 
   === Admisionar paciente <sec-orquestacion-admisionar-paciente>
 
-  La admisión del paciente opera sobre una cita existente. La orquestación consulta la cita con sus participantes, obtiene desde HLTH el profesional registrado en Agenda y crea un `care-manager` para el paciente, usando el prestador recibido o el valor por defecto configurado. Luego actualiza la cita para dejarla en estado operacional `En espera`, crea una admisión HLTH de tipo `4` con el formulario de admisión y finalmente llama a HEGC para abrir la cuenta administrativa. El cuerpo enviado a HEGC se construye desde el mismo formulario, incluyendo identificación, datos personales, contacto, previsión y ubicación administrativa usada por la integración.
+  Esta orquestación convierte una cita quirúrgica programada en una admisión clínica y administrativa. Su propósito es preparar el caso para que el paciente quede disponible en el flujo de pabellón, vinculando la cita de Agenda con la gestión clínica de HLTH y con la apertura administrativa requerida por HEGC. Las operaciones realizadas son:
+
+  + Consulta la cita quirúrgica en Agenda, incluyendo sus participantes.
+  + Obtiene desde HLTH el profesional asociado a la cita.
+  + Crea el gestor de atenciones del paciente (`care-manager`), necesario para registrar la admisión y vincular las atenciones clínicas posteriores.
+  + Actualiza la cita en Agenda para dejarla en estado operacional `En espera`.
+  + Crea la admisión clínica en HLTH a partir del formulario de admisión recibido.
+  + Solicita a HEGC la apertura de la cuenta administrativa usando los datos del mismo formulario, incluyendo identificación, contacto, previsión y ubicación administrativa.
 
   === Recepcionar paciente <sec-orquestacion-recepcionar-paciente>
 
-  La recepción se separó en una orquestación de derivación y dos orquestaciones específicas. La derivación recibe `tabla` y ejecuta la variante de urgencia o electiva, conservando una única acción visible en la lista de trabajo. En urgencia, la orquestación consulta la cita, obtiene el profesional responsable, inicia la indicación y la cita, busca una atención abierta previa de hospitalización o urgencia, libera su ubicación si existe y crea una atención HLTH de tipo pabellón en estado `Preoperatorio`. La atención creada conserva la cita, la indicación, la orden, la ubicación de origen, el responsable, intervenciones, diagnósticos y tiempos operatorios.
+  La recepción del paciente se implementó mediante una orquestación de derivación y dos variantes específicas, una para urgencia y otra para cirugías electivas. La derivación recibe el tipo de tabla y ejecuta la variante correspondiente, de modo que la lista de trabajo mantiene una única acción visible mientras la coordinación técnica se adapta al origen del caso. En ambos flujos, el objetivo es iniciar la cita quirúrgica y crear la atención de pabellón en HLTH en estado `Preoperatorio`, conservando los datos necesarios para continuar el proceso.
 
-  En el flujo electivo, la orquestación consulta la cita de Agenda, obtiene el profesional responsable, crea el `care-manager`, revisa si el paciente ya tenía una atención abierta y libera esa ubicación cuando corresponde. Esa revisión también define `esCma`: si existe atención previa, el caso se trata como no CMA; si no existe, se marca como CMA. Luego inicia la cita y crea la atención de pabellón con datos provenientes de Agenda y de Gestión Hospitales: programación, pabellón, especialidad, orden, responsable, intervenciones, diagnósticos, tiempos operatorios, ubicación de origen y referencia a la cita.
+  Para el flujo de urgencia, las operaciones realizadas son:
+
+  + Consulta la cita quirúrgica en Agenda, incluyendo sus participantes.
+  + Obtiene desde HLTH el profesional responsable asociado a la cita.
+  + Inicia la indicación quirúrgica de urgencia en HLTH.
+  + Inicia la cita quirúrgica en Agenda.
+  + Busca una atención abierta previa del paciente, como hospitalización o urgencia, para identificar su contexto clínico anterior.
+  + Libera la ubicación de esa atención previa cuando existe, evitando que el paciente quede ocupando simultáneamente dos ubicaciones.
+  + Crea la atención de pabellón en HLTH, vinculada con la cita y la indicación, registrando programación, pabellón, responsable, orden, ubicación de origen, intervenciones, diagnósticos y tiempos operatorios.
+
+  Para el flujo electivo, las operaciones realizadas son:
+
+  + Consulta la cita quirúrgica en Agenda, incluyendo sus participantes.
+  + Obtiene desde HLTH el profesional responsable asociado a la cita.
+  + Crea el gestor de atenciones del paciente (`care-manager`), necesario para registrar la atención de pabellón.
+  + Busca una atención abierta previa del paciente para identificar si ya se encontraba hospitalizado o en urgencia.
+  + Libera la ubicación de esa atención previa cuando existe.
+  + Inicia la cita quirúrgica en Agenda.
+  + Crea la atención de pabellón en HLTH con datos provenientes de Agenda y de Gestión Hospitales, incluyendo programación, pabellón, especialidad, orden, responsable, intervenciones, diagnósticos, tiempos operatorios, ubicación de origen y referencia a la cita.
 
   === Suspender cirugía <sec-orquestacion-suspender-cirugia>
 
-  La suspensión coordina el cierre operacional de una cirugía que no continuará en el flujo. La orquestación cancela siempre la cita quirúrgica en Agenda, registrando causa, subcausa, observaciones y responsable en sus datos extendidos. Si el paciente ya fue recepcionado, también registra esos datos en la atención quirúrgica de pabellón y cancela esa atención; si el caso solo estaba programado, no existe atención clínica que cancelar.
+  Esta orquestación coordina la suspensión de una cirugía que no continuará en el flujo. Su propósito es cancelar la programación quirúrgica, registrar el motivo de suspensión, cerrar la atención de pabellón si ya fue creada y propagar el cambio al origen del caso, sea una orden electiva de Gestión Hospitales o una indicación de urgencia en HLTH. Las operaciones realizadas son:
 
-  Cuando la suspensión ocurre después de iniciar la atención de pabellón, la orquestación revisa si el paciente tenía una atención previa abierta de hospitalización o urgencia. En ese caso crea un traslado de retorno hacia la ubicación de esa atención, porque la recepción en pabellón deja a la atención previa sin uso de ubicación y la cancelación directa de pabellón dejaría al paciente sin ubicación actual. Luego cancela tareas BPM pendientes de protocolo quirúrgico y propaga la suspensión al origen del caso: para cirugías electivas invoca HEGC para suspender la orden en Gestión Hospitales; para urgencias cancela la indicación quirúrgica en HLTH con un motivo construido desde causa, subcausa y observaciones.
+  + Cancela la cita quirúrgica en Agenda, registrando causa, subcausa, observaciones y responsable de la suspensión.
+  + Si existe una atención de pabellón, registra también los datos de suspensión en esa atención.
+  + Si existe una atención de pabellón, busca una atención previa abierta del paciente, como hospitalización o urgencia, para identificar una posible ubicación de retorno.
+  + Si existe una atención previa abierta, crea un traslado de retorno hacia su ubicación, evitando que el paciente quede sin ubicación clínica después de cancelar la atención de pabellón.
+  + Si existe una atención de pabellón, cancela esa atención en HLTH.
+  + Si existe una atención de pabellón, busca tareas BPM pendientes asociadas al protocolo quirúrgico.
+  + Si existe una tarea pendiente, la cancela para evitar trabajo clínico asociado a una cirugía suspendida.
+  + Consulta la cita en Agenda para determinar el origen del caso y recuperar la referencia externa asociada.
+  + Si el caso es electivo, solicita a HEGC suspender la orden quirúrgica en Gestión Hospitales.
+  + Si el caso es de urgencia, cancela la indicación quirúrgica en HLTH registrando el motivo de suspensión.
 
   === Finalizar recuperación <sec-orquestacion-finalizar-recuperacion>
 
-  Finalizar recuperación consulta la atención quirúrgica y luego busca transferencias no finalizadas del paciente. Con esos datos asigna tres variables de trabajo: si el caso es CMA, la lista de traslados abiertos y el primer traslado encontrado. Si el caso es CMA y no hay traslados, actualiza los datos de pabellón con el hito `esperandoAlta` y estado `Esperando Alta`. Si no es CMA y no hay traslados, registra `esperandoTraslado`. Si existe un traslado abierto, conserva su identificador y ubicación en la atención quirúrgica y también deja el estado `Esperando traslado`. Después finaliza la cita de Agenda asociada y, cuando la atención tiene indicación de urgencia, finaliza esa indicación con el motivo `Finalización de la recuperación`.
+  Esta orquestación coordina el cierre de la etapa de recuperación y define el siguiente estado operacional del paciente. Su propósito es distinguir si el caso puede pasar a espera de alta, si debe quedar esperando traslado o si ya existe un traslado abierto que debe asociarse a la atención quirúrgica. Además, cierra la cita de Agenda y, cuando corresponde, la indicación de urgencia que originó el caso. Las operaciones realizadas son:
 
-  === Traslados y retorno a unidad de origen <sec-orquestacion-traslados>
+  + Consulta la atención quirúrgica en HLTH.
+  + Busca traslados no finalizados del paciente para determinar si ya existe una solicitud de traslado activa.
+  + Si el caso es CMA y no tiene traslados abiertos, actualiza la atención quirúrgica con el hito `esperandoAlta` y el estado `Esperando Alta`.
+  + Si el caso no es CMA y no tiene traslados abiertos, actualiza la atención con el hito `esperandoTraslado` y el estado `Esperando traslado`.
+  + Si existe un traslado abierto, registra su identificador y ubicación en la atención quirúrgica y deja el caso en estado `Esperando traslado`.
+  + Finaliza la cita quirúrgica asociada en Agenda.
+  + Si la atención proviene de una indicación de urgencia, finaliza esa indicación en HLTH con el motivo de finalización de recuperación.
 
-  La orquestación de iniciar traslado recibe una transferencia, ejecuta `_transit` sobre HLTH y actualiza la atención quirúrgica asociada. En esa actualización registra el hito `enTransito` con la fecha recibida y cambia `stateKey` a `En tránsito`; si no se envía explícitamente la atención, usa la que viene en la respuesta del traslado.
+  === Iniciar traslado <sec-orquestacion-iniciar-traslado>
 
-  La orquestación de devolución a unidad de origen parte consultando la atención quirúrgica. Luego crea una transferencia en el `care-manager` de esa atención hacia `extendedData.pabellon.ubicacionDeOrigen`, usando el clínico solicitante recibido. Finalmente actualiza la atención con los hitos `esperandoTraslado` y `enTransito`, deja el estado `En tránsito` y guarda el identificador, ubicación y área del traslado creado.
+  Esta orquestación marca como iniciado un traslado previamente creado y actualiza el estado operacional de la atención quirúrgica. Su propósito es reflejar que el paciente ya salió de la etapa de espera y se encuentra efectivamente en tránsito hacia la ubicación solicitada. Las operaciones realizadas son:
+
+  + Inicia el traslado en HLTH, cambiando la transferencia a estado en tránsito.
+  + Actualiza la atención quirúrgica asociada en HLTH, registrando el hito `enTransito` y dejando el estado operacional como `En tránsito`.
+
+  === Devolver a unidad de origen <sec-orquestacion-devolver-unidad-origen>
+
+  Esta orquestación crea y activa el retorno del paciente hacia la ubicación que tenía antes de ingresar al flujo de pabellón. Su propósito es permitir la devolución a la unidad de origen cuando el paciente debe salir del proceso quirúrgico sin continuar hacia alta u otro destino, conservando la trazabilidad del traslado creado. Las operaciones realizadas son:
+
+  + Consulta la atención quirúrgica en HLTH para obtener su gestor de atenciones, la ubicación de origen y los datos del flujo de pabellón.
+  + Crea un traslado en HLTH hacia la ubicación de origen registrada en la atención quirúrgica.
+  + Actualiza la atención quirúrgica en HLTH, registrando el hito `enTransito`, dejando el estado `En tránsito` y guardando el identificador y destino del traslado creado.
 
   === Finalizar atención quirúrgica
 
-  La finalización de atención se implementó con dos variantes. La primera consulta la atención HLTH y solo ejecuta `_finish` si el estado actual es `2`, enviando el clínico responsable en el cuerpo de la solicitud. La segunda variante ejecuta directamente `_finish` sobre el `patientServiceId`; se usa en flujos donde la condición de cierre ya fue resuelta antes de iniciar la orquestación, por ejemplo desde una suscripción o una acción previa.
+  Esta orquestación cierra la atención de pabellón en HLTH cuando el paciente egresa del proceso quirúrgico. La operación realizada es:
 
-  === Tareas BPM de protocolo quirúrgico
+  + Finaliza directamente la atención quirúrgica en HLTH a partir de su identificador.
 
-  La creación de la tarea de protocolo consulta la atención quirúrgica, obtiene desde AUTH el usuario asociado al responsable registrado en `extendedData.pabellon.responsable.id` y crea una tarea BPM de tipo `100`. La tarea queda asignada a ese usuario, usa el identificador de la atención como `reference` y guarda en `extendedData.taskInformation` el nombre `Completar protocolo quirúrgico`, el resumen del paciente, el paciente, el `care-manager` y la atención.
+  === Crear tarea BPM de protocolo quirúrgico
 
-  La finalización de la tarea parte desde el clínico que registró el protocolo. La orquestación consulta AUTH por `entc-id`, busca tareas BPM de tipo `100` asociadas al `patientServiceId` en estados activos `1,2` y ejecuta `_execute` sobre la primera tarea encontrada. La ejecución se condiciona a que exista una tarea pendiente, por lo que no intenta cerrar tareas inexistentes o ya resueltas.
+  La creación de la tarea BPM permite dejar pendiente el registro del protocolo quirúrgico cuando el flujo requiere que ese documento sea completado por el profesional responsable. Su propósito es generar una tarea trazable, asociada a la atención quirúrgica, que pueda ser gestionada desde BPM. Las operaciones realizadas son:
+
+  + Consulta la atención quirúrgica en HLTH para obtener los datos del paciente, el gestor de atenciones y el responsable registrado en el flujo de pabellón.
+  + Obtiene desde AUTH el usuario asociado al profesional responsable.
+  + Crea una tarea BPM de tipo `Completar protocolo quirúrgico`, asignada a ese usuario y referenciada a la atención quirúrgica.
+
+  === Completar tarea BPM de protocolo quirúrgico
+
+  La finalización de la tarea BPM permite cerrar la tarea pendiente cuando el protocolo quirúrgico ya fue registrado. Su propósito es mantener sincronizado el estado de BPM con el avance clínico del flujo, evitando que permanezcan tareas abiertas después de completar el documento. Las operaciones realizadas son:
+
+  + Obtiene desde AUTH el usuario asociado al clínico que registró el protocolo.
+  + Busca tareas BPM activas de protocolo quirúrgico asociadas a la atención.
+  + Si existe una tarea pendiente, ejecuta su cierre en BPM.
 
   === Operación de Gestión Hospitales
 
-  La orquestación de operación de Gestión Hospitales consulta la atención quirúrgica con sus evaluaciones embebidas, asigna la atención completa, extrae `extendedData.pabellon.orden.id` y filtra evaluaciones no borrador, no eliminadas y de tipo `14`, correspondiente al protocolo quirúrgico. Si hay protocolo, toma el primero como fuente de fecha. La llamada a HEGC `ordenes-quirurgicas/{ordenGhId}/_operar` se ejecuta solo cuando existe protocolo, el caso pertenece a tabla electiva, la atención está finalizada (`state.id == 3`) y existe identificador de orden de Gestión Hospitales. El cuerpo enviado contiene `fechaProtocolo` tomada desde la evaluación seleccionada.
+  Esta orquestación sincroniza con Gestión Hospitales el cierre operativo de una cirugía electiva. Su propósito es marcar como operada la orden quirúrgica de origen cuando la atención de pabellón ya finalizó y existe un protocolo quirúrgico válido registrado en HLTH. Las operaciones realizadas son:
+
+  + Consulta la atención quirúrgica en HLTH, incluyendo sus evaluaciones clínicas.
+  + Si existe un protocolo quirúrgico válido, el caso es electivo, la atención está finalizada y existe una orden de Gestión Hospitales asociada, solicita a HEGC marcar esa orden como operada usando la fecha del protocolo.
 
   == Eventos, suscripciones BPM y SSE
 
