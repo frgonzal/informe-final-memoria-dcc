@@ -1289,7 +1289,7 @@
 
   == Orquestaciones dinámicas del flujo quirúrgico <sec-orquestaciones-dinamicas-flujo-qx>
 
-  Sobre el orquestador dinámico se configuraron acciones concretas del flujo quirúrgico. Estas orquestaciones no forman un único proceso monolítico; cada una resuelve una transición o automatización acotada, reutilizando servicios de Agenda, HLTH, BPM, AUTH y HEGC, junto con formularios clínicos provistos por la aplicación EHR cuando corresponde. En conjunto permiten que la lista de trabajo ejecute acciones complejas sin concentrar en el frontend la coordinación entre componentes de la plataforma.
+  Sobre el orquestador dinámico se configuraron acciones concretas del flujo quirúrgico. Estas orquestaciones no forman un único proceso monolítico; cada una resuelve una transición o automatización acotada, reutilizando servicios de Agenda, HLTH, BPM y HEGC. En conjunto permiten que la lista de trabajo ejecute acciones complejas sin concentrar en el frontend la coordinación entre componentes de la plataforma.
 
   === Aceptar orden de urgencia <sec-orquestacion-aceptar-orden-urgencia>
 
