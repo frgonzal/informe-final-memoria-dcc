@@ -5,7 +5,7 @@
 
 #let metadata = (
   // El título de la memoria o tesis, en mayúsculas
-  titulo: upper("Pabellón"),
+  titulo: upper("Desarrollo de módulo de pabellón para Lahuén Health SpA"),
   // El diccionario con nombre y pronombre de la persona que escribe el documento
   autoria: (
     nombre: "Franco Antonio González Leiva",
