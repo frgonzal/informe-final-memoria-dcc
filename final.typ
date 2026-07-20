@@ -16,6 +16,8 @@
     lang: "es",
     font: "Times New Roman",
     size: 12pt,
+    top-edge: 0.8em,
+    bottom-edge: -0.2em,
   )
   // Formato de headings
   set heading(numbering: (..n) => {
@@ -87,6 +89,7 @@
     justify: true,
     first-line-indent: 15pt,
     spacing: 2em, // Espacio entre párrafos
+    leading: 0.15em,
   ) // Formato de párrafos
 
   set cite(style: "ieee")
