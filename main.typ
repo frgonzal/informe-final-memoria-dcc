@@ -17,17 +17,17 @@
 
 #agradecimientos[
   #h(15pt)
-  A mi madre, por ser la primera persona en creer en mí, por su amor y apoyo incondicional, y por siempre motivarme a estudiar para ser un profesional.
+  A mi madre Magaly y a mi padre Víctor, por ser las primeras personas en creer en mí, por su amor y apoyo incondicional durante todos estos años, y por acompañarme y criarme con todo su corazón, entregándome los valores que me han hecho ser una buena persona y la motivación para estudiar y ser un profesional.
 
-  A mi padre, hermanos y familia, por su amor y cariño incondicional.
+  A mis hermanos Benjamín, Estefanía, Macarena, Jonathan, Leslie y Geraldine, y al resto de mi familia, por su amor y cariño incondicional, por acompañarme durante todos mis años de estudio, por apoyarme, motivarme y preocuparse siempre de mí, por estar para ayudarme y por todas las experiencias bonitas que hemos vivido juntos.
 
-  A Camila, mi pareja, por todo su amor, apoyo y cariño; por acompañarme durante este proceso, por siempre intentar levantarme el ánimo y por creer en mí.
+  A mi pareja Camila, por su amor, apoyo y cariño incondicional, por acompañarme durante todo este proceso, por levantarme el ánimo cuando más lo necesitaba, por creer en mí y por todas las experiencias bonitas que vivimos juntos y las que vendrán.
 
-  A mi profesor Nelson Baloian por su simpatía, paciencia y apoyo.
+  A mi profesor Nelson Baloian, por su simpatía, paciencia y apoyo, por su guía durante el desarrollo del proyecto y durante mi etapa de estudiante, por la buena experiencia de haber sido su auxiliar durante el curso de algoritmos, y por todas las reuniones y conversaciones que tuvimos.
 
-  A Cristian y Jaime por darme la oportunidad y la confianza de participar en el proyecto, y por su guía al momento de desarrollarlo. También a Álvaro por su simpatía y su guía durante el desarrollo del proyecto.
+  A Cristian y Jaime por darme la oportunidad y la confianza de participar en el proyecto, y por su guía al momento de desarrollarlo. También a Álvaro por su simpatía y su guía durante el desarrollo del proyecto. Gracias al resto del equipo de Lahuén por su simpatía, sus conversaciones interesantes y por siempre estar dispuestos a ayudar.
 
-  A todas las personas que conocí durante mi etapa universitaria y que me ayudaron a mejorar como profesional y como persona.
+  A todos los compañeros, amigos y profesores que conocí durante mi etapa universitaria, por haberme ayudado a mejorar como profesional y como persona.
 ]
 
 #frontmatter-section(title: "Declaración de uso de inteligencia artificial")[
