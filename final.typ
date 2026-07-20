@@ -14,7 +14,7 @@
   // Formato de texto
   set text(
     lang: "es",
-    font: "New Computer Modern",
+    font: "Times New Roman",
     size: 12pt,
   )
   // Formato de headings
